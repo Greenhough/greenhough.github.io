@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Why I stopped over-engineering my automations — Evan Greenhough</title>
+  <meta name="description" content="The simplest version that ships beats the elegant one that doesn't — why I stopped over-engineering my AI automations.">
+  <link rel="canonical" href="https://greenhough.github.io/post.html">
+
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="assets/favicon.png" sizes="any">
+  <link rel="apple-touch-icon" href="assets/favicon.png">
+
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="Why I stopped over-engineering my automations">
+  <meta property="og:description" content="The simplest version that ships beats the elegant one that doesn't.">
+  <meta property="og:url" content="https://greenhough.github.io/post.html">
+  <meta property="og:image" content="https://greenhough.github.io/assets/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="https://greenhough.github.io/assets/og-image.png">
+
+  <!-- fonts: self-hosted via @font-face in styles.css -->
+
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="wrap">
+
+    <nav class="nav">
+      <a class="brand" href="index.html">
+        <span class="brand-mark">*</span>
+        <span class="brand-name">Evan Greenhough</span>
+      </a>
+      <button class="nav-toggle" aria-label="Menu" aria-expanded="false" aria-controls="nav-links">
+        <span></span><span></span><span></span>
+      </button>
+      <div class="nav-links" id="nav-links">
+        <a href="work.html">Work</a>
+        <a href="writing.html" class="active">Writing</a>
+      </div>
+    </nav>
+
+    <article class="article narrow">
+      <a class="back" href="writing.html">&larr; Writing</a>
+
+      <header class="art-head">
+        <h1 class="art-title">Why I stopped over-engineering my automations</h1>
+        <div class="art-meta">Jun 2026 &middot; 3 min read</div>
+      </header>
+
+      <div class="prose">
+        <p>For a long time my default move was to build the complete version. If a workflow had five edge cases, I'd handle all five before it ever ran once. It felt responsible. It was mostly a way of avoiding the part that actually matters: shipping something a real person uses.</p>
+
+        <p>The automations that have created the most value for the teams I work with were almost never the elegant ones. They were small, slightly embarrassing, and live.</p>
+
+        <h2>The simplest version that ships</h2>
+        <p>A Clay table with one enrichment step and a Claude prompt that writes three lines is not impressive. But if it saves a rep ten minutes a day and they actually open it, it beats the version with confidence scoring and fallbacks that's still sitting in draft.</p>
+
+        <blockquote>Shipping a rough thing teaches you more in a week than planning the perfect thing teaches you in a month.</blockquote>
+
+        <p>Once it's running, the real requirements show up on their own. Reps tell you where it's wrong. You learn which edge cases actually occur versus the ones you imagined. That feedback is worth more than any amount of upfront design.</p>
+
+        <h2>What I do now</h2>
+        <p>A loose rule of thumb before I build anything:</p>
+        <ul>
+          <li>Ship the version that handles the <em>common</em> case and nothing else.</li>
+          <li>Put it in front of one real user the same week.</li>
+          <li>Only add complexity that a real failure justifies.</li>
+        </ul>
+        <p>It's less satisfying to build, and far more useful. The goal was never a clever system — it was a rep who gets their afternoon back.</p>
+      </div>
+
+      <div class="art-foot">
+        <a class="back" href="writing.html" style="margin-bottom:0;">&larr; All posts</a>
+      </div>
+    </article>
+
+    <footer class="footer spaced">
+      <span class="foot-name">Evan Greenhough</span>
+      <span class="dot">&middot;</span>
+      <a class="icon icon-li" href="https://www.linkedin.com/in/evangreenhough/" target="_blank" rel="noopener" aria-label="LinkedIn"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M4.98 3.5C4.98 4.88 3.87 6 2.5 6S0 4.88 0 3.5 1.12 1 2.5 1s2.48 1.12 2.48 2.5zM.2 8h4.6v14H.2V8zm7.4 0h4.4v1.9h.06c.61-1.16 2.1-2.38 4.34-2.38 4.64 0 5.5 3.05 5.5 7.02V22h-4.6v-6.2c0-1.48-.03-3.38-2.06-3.38-2.06 0-2.38 1.6-2.38 3.27V22H7.6V8z"/></svg></a>
+      <a class="icon icon-mail" href="mailto:evan.greenhough@gmail.com" aria-label="Email"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg></a>
+    </footer>
+
+  </div>
+</body>
+</html>
