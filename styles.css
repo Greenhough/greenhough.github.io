@@ -202,7 +202,19 @@ a { color: inherit; }
 .nav-links a.active { color: var(--green); }
 
 /* ---------- hero (home) ---------- */
-.hero { margin-bottom: 80px; }
+.hero {
+  margin-bottom: 80px;
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 40px 56px;
+  align-items: center;
+}
+.hero-photo img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 6px solid var(--ink);
+}
 .badge {
   display: inline-block;
   font-family: 'Archivo', sans-serif;
@@ -580,7 +592,11 @@ a { color: inherit; }
     margin-right: -12px;
     margin-bottom: 48px;
   }
-  .hero { margin-bottom: 56px; }
+  .hero {
+    margin-bottom: 56px;
+    grid-template-columns: 1fr;
+  }
+  .hero-photo { max-width: 280px; }
   .sec { margin-bottom: 56px; }
   .card-grid { grid-template-columns: 1fr; }
   .lead { font-size: 17px; }
