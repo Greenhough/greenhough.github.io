@@ -54,8 +54,19 @@
     });
   }
 
+  // Toggle the "scrolled" (shrunk + shadow) state with hysteresis: turn on
+  // past 64px, off below 24px. The 40px deadband is wider than the height
+  // change the shrink causes, so it can't oscillate around a single threshold.
+  var scrolled = false;
   function onScroll() {
-    nav.classList.toggle('scrolled', window.scrollY > 8);
+    var y = window.scrollY || window.pageYOffset;
+    if (!scrolled && y > 64) {
+      scrolled = true;
+      nav.classList.add('scrolled');
+    } else if (scrolled && y < 24) {
+      scrolled = false;
+      nav.classList.remove('scrolled');
+    }
   }
   window.addEventListener('scroll', onScroll, { passive: true });
   onScroll();
