@@ -1,0 +1,534 @@
+/* Self-hosted fonts (latin subset, woff2) */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('assets/fonts/archivo-500.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('assets/fonts/archivo-600.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('assets/fonts/archivo-700.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url('assets/fonts/archivo-800.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 900;
+  font-display: swap;
+  src: url('assets/fonts/archivo-900.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('assets/fonts/jetbrains-mono-400.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('assets/fonts/jetbrains-mono-500.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('assets/fonts/jetbrains-mono-700.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Mulish';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('assets/fonts/mulish-400.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Mulish';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('assets/fonts/mulish-500.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Mulish';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('assets/fonts/mulish-600.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Mulish';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('assets/fonts/mulish-700.woff2') format('woff2');
+}
+/* ============================================================
+   Evan Greenhough — personal site
+   Concept B ("Press"): editorial-brutalist, green accent
+   ============================================================ */
+
+:root {
+  --paper:  #FBFAF7;
+  --surface:#FFFFFF;
+  --ink:    #14110C;
+  --body:   #3D3A33;
+  --muted:  #6A6453;
+  --faint:  #9A9384;
+  --green:  #1E7A4D;
+  --border: #E2DDD0;
+  --shadow: 0 2px 8px rgba(20,17,12,.05);
+  --shadow-hover: 0 10px 22px rgba(20,17,12,.08);
+}
+
+/* ---------- reset ---------- */
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: 'Mulish', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+img, svg { display: block; max-width: 100%; }
+a { color: inherit; }
+
+/* ---------- layout ---------- */
+.wrap {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 0 48px;
+}
+
+/* ---------- nav ---------- */
+.nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 30px 0 22px;
+  border-bottom: 2.5px solid var(--ink);
+  margin-bottom: 64px;
+}
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  color: var(--ink);
+}
+.brand-mark {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 700;
+  font-size: 24px;
+  line-height: 1;
+  color: var(--green);
+}
+.brand-name {
+  font-family: 'Archivo', sans-serif;
+  font-weight: 900;
+  font-size: 17px;
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+}
+.nav-links { display: flex; gap: 26px; }
+.nav-links a {
+  font-family: 'Archivo', sans-serif;
+  font-weight: 700;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--ink);
+  text-decoration: none;
+  transition: color .15s ease;
+}
+.nav-links a:hover,
+.nav-links a.active { color: var(--green); }
+
+/* ---------- hero (home) ---------- */
+.hero { margin-bottom: 80px; }
+.badge {
+  display: inline-block;
+  font-family: 'Archivo', sans-serif;
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #fff;
+  background: var(--green);
+  padding: 6px 13px;
+  margin-bottom: 24px;
+  min-height: 30px;
+}
+.caret {
+  display: inline-block;
+  width: 2px;
+  height: 0.95em;
+  background: #fff;
+  margin-left: 2px;
+  vertical-align: -1px;
+  animation: caret 1s step-end infinite;
+}
+@keyframes caret { 0%,49% { opacity: 1; } 50%,100% { opacity: 0; } }
+.hero-title {
+  font-family: 'Archivo', sans-serif;
+  font-weight: 900;
+  font-size: clamp(42px, 9vw, 72px);
+  line-height: 0.96;
+  letter-spacing: -0.03em;
+  text-transform: uppercase;
+  margin: 0 0 24px;
+  max-width: 13ch;
+}
+.accent { color: var(--green); }
+.lead {
+  font-size: 19px;
+  line-height: 1.6;
+  color: var(--body);
+  margin: 0;
+  max-width: 52ch;
+}
+
+/* ---------- section heads ---------- */
+.sec {
+  margin-bottom: 80px;
+}
+.sec-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 22px;
+}
+.sec-title {
+  font-family: 'Archivo', sans-serif;
+  font-weight: 800;
+  font-size: 24px;
+  text-transform: uppercase;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+.sec-link {
+  font-family: 'Archivo', sans-serif;
+  font-weight: 700;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--green);
+  text-decoration: none;
+  transition: opacity .15s ease;
+}
+.sec-link:hover { opacity: .7; }
+
+/* ---------- tags ---------- */
+.tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag {
+  font-family: 'Mulish', sans-serif;
+  font-weight: 600;
+  font-size: 11.5px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.tag-claude     { background:#F3E8E0; color:#8A4E2C; }
+.tag-clay       { background:#F1EAD6; color:#7C6420; }
+.tag-automation { background:#E4F0E7; color:#2C6E48; }
+.tag-enablement { background:#E6ECFB; color:#3A4F9E; }
+.tag-hubspot    { background:#F7E6DC; color:#9A4A2A; }
+.tag-notion     { background:#ECE9E3; color:#4A463D; }
+.tag-make       { background:#ECE8F2; color:#534768; }
+
+/* ---------- recent work cards (home) ---------- */
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 22px 20px;
+  box-shadow: var(--shadow);
+  text-decoration: none;
+  color: var(--ink);
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+.card:hover { transform: translateY(-3px); box-shadow: var(--shadow-hover); }
+.card-title {
+  font-family: 'Archivo', sans-serif;
+  font-weight: 700;
+  font-size: 17px;
+  line-height: 1.18;
+  letter-spacing: -0.01em;
+  margin: 3px 0 0;
+}
+.card-desc {
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--muted);
+  margin: 0;
+  flex: 1;
+}
+.arrow {
+  color: var(--green);
+  font-size: 17px;
+  font-weight: 700;
+}
+
+/* ---------- post list (home + writing index) ---------- */
+.post-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.post {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 5px 28px;
+  align-items: baseline;
+  padding: 18px 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  box-shadow: var(--shadow);
+  text-decoration: none;
+  color: var(--ink);
+  transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+}
+.post:hover { transform: translateY(-2px); box-shadow: var(--shadow-hover); }
+.post-title {
+  font-family: 'Archivo', sans-serif;
+  font-weight: 700;
+  font-size: 17px;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  margin: 0;
+  grid-column: 1;
+}
+.post-date {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11.5px;
+  color: var(--faint);
+  grid-column: 2;
+  grid-row: 1;
+  white-space: nowrap;
+}
+.post-excerpt {
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--muted);
+  margin: 0;
+  grid-column: 1;
+  max-width: 64ch;
+}
+/* larger variant on the Writing index */
+.post-list.index .post { padding: 24px 26px; }
+.post-list.index .post-title { font-size: 22px; }
+.post-list.index .post-excerpt { font-size: 14.5px; line-height: 1.55; max-width: 66ch; }
+
+/* ---------- page header (work / writing) ---------- */
+.page-head { margin-bottom: 48px; }
+.page-title {
+  font-family: 'Archivo', sans-serif;
+  font-weight: 900;
+  font-size: clamp(40px, 8vw, 64px);
+  line-height: 0.98;
+  letter-spacing: -0.03em;
+  text-transform: uppercase;
+  margin: 0 0 20px;
+}
+.page-intro {
+  font-size: 18px;
+  line-height: 1.65;
+  color: var(--body);
+  margin: 0;
+}
+
+/* ---------- project list (work index) ---------- */
+.proj-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.proj {
+  display: block;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 26px 28px;
+  box-shadow: var(--shadow);
+  text-decoration: none;
+  color: var(--ink);
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+.proj:hover { transform: translateY(-2px); box-shadow: var(--shadow-hover); }
+.eyebrow {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--green);
+  margin-bottom: 12px;
+}
+.proj-title {
+  font-family: 'Archivo', sans-serif;
+  font-weight: 700;
+  font-size: 26px;
+  line-height: 1.16;
+  letter-spacing: -0.015em;
+  margin: 0 0 10px;
+}
+.proj-desc {
+  font-size: 15.5px;
+  line-height: 1.6;
+  color: #5C574E;
+  margin: 0 0 16px;
+}
+
+/* ---------- article (post + case study) ---------- */
+.article {
+  max-width: 720px;
+  margin: 0 auto;
+}
+.article.narrow { max-width: 680px; }
+.back {
+  display: inline-block;
+  font-family: 'Archivo', sans-serif;
+  font-weight: 700;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--green);
+  text-decoration: none;
+  margin-bottom: 28px;
+  transition: opacity .15s ease;
+}
+.back:hover { opacity: .7; }
+.art-head { margin-bottom: 40px; }
+.art-title {
+  font-family: 'Archivo', sans-serif;
+  font-weight: 700;
+  font-size: clamp(32px, 6vw, 42px);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  margin: 0 0 16px;
+}
+.art-meta {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: var(--faint);
+}
+.cs-head { margin-bottom: 48px; }
+
+/* prose (article body) */
+.prose { font-size: 18px; line-height: 1.75; color: #2E2B25; }
+.prose p { margin: 0 0 24px; }
+.prose h2 {
+  font-family: 'Archivo', sans-serif;
+  font-weight: 700;
+  font-size: 25px;
+  letter-spacing: -0.015em;
+  margin: 40px 0 14px;
+}
+.prose blockquote {
+  margin: 32px 0;
+  padding: 6px 0 6px 24px;
+  border-left: 3px solid var(--green);
+  font-family: 'Archivo', sans-serif;
+  font-weight: 600;
+  font-size: 22px;
+  line-height: 1.4;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+.prose ul { margin: 0 0 24px; padding-left: 22px; }
+.prose li { margin-bottom: 10px; }
+
+/* case-study sections */
+.cs-sec { margin-bottom: 38px; }
+.cs-sec:last-of-type { margin-bottom: 8px; }
+.cs-title {
+  font-family: 'Archivo', sans-serif;
+  font-weight: 700;
+  font-size: 24px;
+  letter-spacing: -0.015em;
+  margin: 0 0 12px;
+}
+.cs-title .num { color: var(--green); margin-right: 14px; }
+.cs-sec p { font-size: 16px; line-height: 1.7; color: var(--body); margin: 0 0 16px; }
+.cs-sec p:last-child { margin-bottom: 0; }
+.cs-tags { margin-top: 4px; }
+
+.art-foot {
+  margin-top: 48px;
+  padding-top: 24px;
+  border-top: 2.5px solid var(--ink);
+}
+
+/* ---------- footer ---------- */
+.footer {
+  display: flex;
+  align-items: baseline;
+  gap: 13px;
+  padding: 8px 0 56px;
+}
+.article + .footer,
+.footer.spaced { padding-top: 64px; }
+.foot-name {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--faint);
+}
+.dot { color: #D9D3C6; }
+.icon { display: inline-block; color: var(--muted); transition: color .15s ease; }
+.icon:hover { color: var(--green); }
+.icon svg { display: block; }
+.icon-li svg   { transform: translateY(2.5px); }
+.icon-mail svg { transform: translateY(4.5px); }
+
+/* ============================================================
+   Responsive
+   ============================================================ */
+@media (max-width: 760px) {
+  .wrap { padding: 0 24px; }
+  .nav { margin-bottom: 48px; }
+  .hero { margin-bottom: 56px; }
+  .sec { margin-bottom: 56px; }
+  .card-grid { grid-template-columns: 1fr; }
+  .lead { font-size: 17px; }
+  .proj-title { font-size: 22px; }
+  .post-list.index .post-title { font-size: 19px; }
+}
+
+@media (max-width: 460px) {
+  .nav-links { gap: 18px; }
+  .post { padding: 16px; }
+  .proj { padding: 20px; }
+  .post-date { font-size: 11px; }
+}
