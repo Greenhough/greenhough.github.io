@@ -128,9 +128,12 @@ a { color: inherit; }
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  padding: 30px 0 22px;
+  /* horizontal padding + matching negative margin = the floating bar's
+     background/shadow extends past the words, but the words stay aligned
+     with the page content below */
+  padding: 30px 22px 22px;
+  margin: 0 -22px 64px;
   border-bottom: 2.5px solid var(--ink);
-  margin-bottom: 64px;
   position: sticky;
   top: 0;
   z-index: 50;
@@ -138,7 +141,7 @@ a { color: inherit; }
   transition: box-shadow .2s ease, padding .2s ease;
 }
 .nav.scrolled {
-  padding: 16px 0 14px;
+  padding: 16px 22px 14px;
   box-shadow: 0 10px 24px rgba(20, 17, 12, .07);
 }
 /* hamburger button — hidden on desktop */
@@ -570,7 +573,13 @@ a { color: inherit; }
 
 @media (max-width: 760px) {
   .wrap { padding: 0 24px; }
-  .nav { margin-bottom: 48px; }
+  .nav {
+    padding-left: 12px;
+    padding-right: 12px;
+    margin-left: -12px;
+    margin-right: -12px;
+    margin-bottom: 48px;
+  }
   .hero { margin-bottom: 56px; }
   .sec { margin-bottom: 56px; }
   .card-grid { grid-template-columns: 1fr; }
