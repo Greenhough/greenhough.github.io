@@ -127,9 +127,41 @@ a { color: inherit; }
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   padding: 30px 0 22px;
   border-bottom: 2.5px solid var(--ink);
   margin-bottom: 64px;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: var(--paper);
+  transition: box-shadow .2s ease, padding .2s ease;
+}
+.nav.scrolled {
+  padding: 16px 0 14px;
+  box-shadow: 0 10px 24px rgba(20, 17, 12, .07);
+}
+/* hamburger button — hidden on desktop */
+.nav-toggle {
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  width: 40px;
+  height: 40px;
+  margin: -8px -8px -8px 0;
+  padding: 8px;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+.nav-toggle span {
+  display: block;
+  width: 24px;
+  height: 2.5px;
+  border-radius: 2px;
+  background: var(--ink);
+  transition: transform .22s ease, opacity .18s ease;
 }
 .brand {
   display: inline-flex;
@@ -515,6 +547,27 @@ a { color: inherit; }
 /* ============================================================
    Responsive
    ============================================================ */
+@media (max-width: 600px) {
+  .nav-toggle { display: flex; }
+  .nav-links {
+    display: none;
+    flex-basis: 100%;
+    flex-direction: column;
+    gap: 0;
+    margin-top: 14px;
+  }
+  .nav.open .nav-links { display: flex; }
+  .nav-links a {
+    padding: 14px 2px;
+    font-size: 15px;
+    border-top: 1.5px solid var(--border);
+  }
+  /* morph hamburger into an X */
+  .nav.open .nav-toggle span:nth-child(1) { transform: translateY(7.5px) rotate(45deg); }
+  .nav.open .nav-toggle span:nth-child(2) { opacity: 0; }
+  .nav.open .nav-toggle span:nth-child(3) { transform: translateY(-7.5px) rotate(-45deg); }
+}
+
 @media (max-width: 760px) {
   .wrap { padding: 0 24px; }
   .nav { margin-bottom: 48px; }
@@ -527,7 +580,6 @@ a { color: inherit; }
 }
 
 @media (max-width: 460px) {
-  .nav-links { gap: 18px; }
   .post { padding: 16px; }
   .proj { padding: 20px; }
   .post-date { font-size: 11px; }
