@@ -516,6 +516,18 @@ a { color: inherit; }
 }
 .prose ul { margin: 0 0 24px; padding-left: 22px; }
 .prose li { margin-bottom: 10px; }
+.prose .defn {
+  margin: 28px 0;
+  padding: 18px 24px;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-left: 4px solid var(--green);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 16px;
+  line-height: 1.95;
+  color: var(--ink);
+}
+.prose .defn b { color: var(--green); font-weight: 700; }
 
 /* case-study sections */
 .cs-sec { margin-bottom: 38px; }
