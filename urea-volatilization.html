@@ -1,0 +1,655 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Urea Volatilization Forecaster | Evan Greenhough</title>
+<meta name="description" content="An interactive estimator of broadcast urea nitrogen loss to ammonia volatilization over a 14-day weather forecast, and whether stabilizing with NBPT pays off.">
+<link rel="canonical" href="https://evangreenhough.com/urea-volatilization">
+<link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+<link rel="icon" type="image/png" href="/assets/favicon.png">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Urea Volatilization Forecaster">
+<meta property="og:description" content="An interactive estimator of broadcast urea nitrogen loss to ammonia volatilization over a 14-day weather forecast, and whether stabilizing with NBPT pays off.">
+<meta property="og:url" content="https://evangreenhough.com/urea-volatilization">
+<meta property="og:image" content="https://evangreenhough.com/assets/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://evangreenhough.com/assets/og-image.png">
+<style>
+  html, body { margin: 0; padding: 0; }
+  body { background: #EEF1E9; }
+  *, *::before, *::after { box-sizing: border-box; }
+</style>
+</head>
+<body>
+<style>
+  :root {
+    --paper: #EEF1E9;
+    --panel: #FBFCF9;
+    --ink: #23281F;
+    --muted: #5E6353;
+    --faint: #8B9082;
+    --hair: #D7DACB;
+    --loss: #B24228;
+    --loss-soft: #E7Ccc2;
+    --nbpt: #2F7D4E;
+    --wait: #36688F;
+    --temp: #C58A2E;
+    --moist: #4C8C8C;
+    --lowconf: #CDCEC0;
+
+    --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --mono: ui-monospace, "SF Mono", "Menlo", "Consolas", monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  .vf-root {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+    line-height: 1.5;
+    padding: clamp(16px, 3vw, 40px);
+    max-width: 1100px;
+    margin: 0 auto;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .vf-root h1, .vf-root h2, .vf-root h3 { font-family: var(--serif); font-weight: 600; }
+
+  /* ---- Masthead ---- */
+  .masthead { border-bottom: 2px solid var(--ink); padding-bottom: 14px; margin-bottom: 22px; }
+  .eyebrow {
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.16em;
+    text-transform: uppercase; color: var(--nbpt); margin: 0 0 6px;
+  }
+  .masthead h1 {
+    font-size: clamp(26px, 4vw, 40px); line-height: 1.08; margin: 0;
+    text-wrap: balance; letter-spacing: -0.01em;
+  }
+  .masthead p { margin: 8px 0 0; color: var(--muted); max-width: 64ch; font-size: 15px; }
+
+  /* ---- Controls ---- */
+  .controls {
+    background: var(--panel); border: 1px solid var(--hair); border-radius: 4px;
+    padding: 18px; margin-bottom: 22px;
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px 20px;
+    align-items: end;
+  }
+  .ctrl { display: flex; flex-direction: column; gap: 6px; }
+  .ctrl.span2 { grid-column: span 2; }
+  .ctrl label {
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--muted);
+  }
+  .ctrl select, .ctrl input[type="number"] {
+    font-family: var(--sans); font-size: 14px; color: var(--ink);
+    background: #fff; border: 1px solid var(--hair); border-radius: 3px; padding: 7px 8px;
+    width: 100%;
+  }
+  .ctrl select:focus, .ctrl input:focus { outline: 2px solid var(--nbpt); outline-offset: 1px; }
+  .ctrl input[type="range"] { width: 100%; accent-color: var(--nbpt); }
+  .range-val { font-family: var(--mono); font-size: 13px; color: var(--ink); }
+  .range-row { display: flex; justify-content: space-between; align-items: baseline; }
+
+  /* ---- Verdict banner ---- */
+  .verdict {
+    border-radius: 4px; padding: 16px 18px; margin-bottom: 18px;
+    border: 1px solid var(--hair); border-left: 5px solid var(--nbpt);
+    background: var(--panel);
+  }
+  .verdict .vlabel {
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--muted); margin-bottom: 4px;
+  }
+  .verdict .vmain { font-family: var(--serif); font-size: clamp(18px, 2.4vw, 23px); line-height: 1.2; }
+  .verdict .vsub { font-size: 14px; color: var(--muted); margin-top: 6px; }
+  .verdict .vsub strong { color: var(--ink); font-weight: 600; }
+
+  /* ---- Scenario cards ---- */
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-bottom: 26px; }
+  .card {
+    background: var(--panel); border: 1px solid var(--hair); border-radius: 4px;
+    padding: 15px 16px; position: relative; border-top: 3px solid var(--cardc, var(--hair));
+  }
+  .card.rec { box-shadow: 0 0 0 2px var(--nbpt); }
+  .card .badge {
+    position: absolute; top: -10px; right: 12px; background: var(--nbpt); color: #fff;
+    font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.1em; text-transform: uppercase;
+    padding: 3px 7px; border-radius: 2px;
+  }
+  .card .cname { display: flex; align-items: center; gap: 7px; font-weight: 600; font-size: 14.5px; }
+  .dot { width: 11px; height: 11px; border-radius: 50%; flex: none; }
+  .card .big {
+    font-family: var(--mono); font-size: 34px; font-weight: 600; line-height: 1; margin: 12px 0 2px;
+    font-variant-numeric: tabular-nums; letter-spacing: -0.02em;
+  }
+  .card .biglabel { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--faint); }
+  .card .range { font-size: 12.5px; color: var(--muted); font-family: var(--mono); margin-top: 2px; }
+  .card .stats { margin-top: 12px; padding-top: 11px; border-top: 1px dashed var(--hair); display: grid; gap: 5px; }
+  .card .stat { display: flex; justify-content: space-between; font-size: 12.5px; }
+  .card .stat span:first-child { color: var(--muted); }
+  .card .stat span:last-child { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  .card.na { opacity: 0.6; }
+
+  /* ---- Section headers ---- */
+  .sec-head { display: flex; align-items: baseline; gap: 12px; margin: 0 0 4px; }
+  .sec-head h2 { font-size: 19px; margin: 0; }
+  .sec-head .hint { font-size: 12.5px; color: var(--faint); }
+
+  /* ---- Chart ---- */
+  .chart-wrap { background: var(--panel); border: 1px solid var(--hair); border-radius: 4px; padding: 16px 12px 8px; margin-bottom: 8px; }
+  .chart-legend { display: flex; flex-wrap: wrap; gap: 16px; padding: 4px 8px 12px; font-size: 12.5px; }
+  .chart-legend .li { display: flex; align-items: center; gap: 6px; color: var(--muted); }
+  .chart-legend .swatch { width: 16px; height: 0; border-top-width: 3px; border-top-style: solid; }
+  svg { display: block; width: 100%; height: auto; }
+  .axis-label { font-family: var(--mono); font-size: 10px; fill: var(--faint); }
+  .tick-label { font-family: var(--mono); font-size: 10px; fill: var(--muted); }
+  .grid-line { stroke: var(--hair); stroke-width: 1; }
+  .guide { stroke: var(--ink); stroke-width: 1; stroke-dasharray: 3 3; opacity: 0; }
+  .hover-dot { opacity: 0; }
+
+  .tooltip {
+    position: absolute; pointer-events: none; background: var(--ink); color: #fff;
+    font-size: 12px; padding: 8px 10px; border-radius: 4px; opacity: 0; transition: opacity .08s;
+    z-index: 5; max-width: 220px; line-height: 1.45;
+  }
+  .tooltip .tt-day { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--lowconf); margin-bottom: 4px; }
+  .tooltip .tt-row { display: flex; justify-content: space-between; gap: 14px; font-variant-numeric: tabular-nums; }
+  .tooltip .tt-row span:last-child { font-family: var(--mono); }
+
+  /* ---- Daily table ---- */
+  .table-scroll { overflow-x: auto; border: 1px solid var(--hair); border-radius: 4px; background: var(--panel); }
+  table.daily { border-collapse: collapse; width: 100%; min-width: 640px; font-size: 13px; }
+  table.daily th, table.daily td { padding: 8px 10px; text-align: left; }
+  table.daily thead th {
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--muted); border-bottom: 1.5px solid var(--ink); font-weight: 500; white-space: nowrap;
+  }
+  table.daily tbody tr { border-bottom: 1px solid var(--hair); cursor: default; }
+  table.daily tbody tr:last-child { border-bottom: none; }
+  table.daily tbody tr.lowconf { background: rgba(205,206,192,0.22); }
+  table.daily tbody tr.active { background: rgba(47,125,78,0.12); }
+  table.daily td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  .daycell { font-family: var(--mono); font-weight: 600; }
+  .bar-cell { display: flex; align-items: center; gap: 7px; }
+  .bar { height: 7px; border-radius: 2px; flex: none; }
+  .bar-track { background: rgba(0,0,0,0.05); border-radius: 2px; flex: 1; min-width: 34px; max-width: 80px; height: 7px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 2px; }
+  .incorp-flag { font-family: var(--mono); font-size: 9.5px; color: var(--wait); letter-spacing: 0.04em; white-space: nowrap; }
+  .carried { color: var(--faint); font-style: italic; }
+
+  .legend-note { font-size: 12px; color: var(--faint); margin: 10px 2px 0; }
+
+  /* ---- Footer ---- */
+  footer { margin-top: 30px; padding-top: 16px; border-top: 1px solid var(--hair); font-size: 12.5px; color: var(--muted); }
+  footer p { margin: 0 0 8px; max-width: 80ch; }
+  footer .src { font-family: var(--mono); font-size: 11px; color: var(--faint); }
+  .disclaimer { background: rgba(178,66,40,0.06); border: 1px solid rgba(178,66,40,0.2); border-radius: 4px; padding: 10px 12px; color: var(--loss); font-size: 12.5px; margin-top: 14px; }
+
+  @media (max-width: 560px) {
+    .ctrl.span2 { grid-column: span 1; }
+    .card .big { font-size: 28px; }
+  }
+</style>
+
+<div class="vf-root">
+  <header class="masthead">
+    <p class="eyebrow">Broadcast Urea &middot; Ammonia-N Volatilization</p>
+    <h1>Will your nitrogen blow away before the rain comes?</h1>
+    <p>Estimates how much broadcast urea-N you'll lose to ammonia volatilization over the next two weeks &mdash; and whether stabilizing with NBPT (e.g. Agrotain) earns its keep. Adjust your field below; hover any day to see the conditions driving the curve.</p>
+  </header>
+
+  <div class="controls" id="controls">
+    <div class="ctrl span2">
+      <label for="loc">Forecast / location</label>
+      <select id="loc"></select>
+    </div>
+    <div class="ctrl">
+      <label for="rate">Rate &mdash; lb N/ac</label>
+      <input type="number" id="rate" value="100" min="10" max="300" step="5">
+    </div>
+    <div class="ctrl">
+      <div class="range-row"><label for="ph">Soil pH</label><span class="range-val" id="phVal">7.0</span></div>
+      <input type="range" id="ph" min="5" max="8.5" step="0.1" value="7">
+    </div>
+    <div class="ctrl">
+      <label for="texture">Soil texture</label>
+      <select id="texture">
+        <option value="sand">Sand</option>
+        <option value="loamy sand">Loamy sand</option>
+        <option value="sandy loam">Sandy loam</option>
+        <option value="loam" selected>Loam</option>
+        <option value="silt loam">Silt loam</option>
+        <option value="clay loam">Clay loam</option>
+        <option value="clay">Clay</option>
+      </select>
+    </div>
+    <div class="ctrl">
+      <label for="tillage">Tillage</label>
+      <select id="tillage">
+        <option value="no-till">No-till</option>
+        <option value="minimum-till">Minimum-till</option>
+        <option value="conventional" selected>Conventional</option>
+      </select>
+    </div>
+    <div class="ctrl">
+      <label for="nprice">N price &mdash; $/lb</label>
+      <input type="number" id="nprice" value="0.55" min="0.1" max="2" step="0.01">
+    </div>
+    <div class="ctrl">
+      <label for="nbptcost">NBPT cost &mdash; $/ac</label>
+      <input type="number" id="nbptcost" value="6" min="0" max="30" step="0.5">
+    </div>
+  </div>
+
+  <div class="verdict" id="verdict">
+    <div class="vlabel">Recommendation &middot; judged over the full 14-day episode</div>
+    <div class="vmain" id="vmain">&mdash;</div>
+    <div class="vsub" id="vsub">&mdash;</div>
+  </div>
+
+  <div class="cards" id="cards"></div>
+
+  <div class="sec-head">
+    <h2>Loss curves</h2>
+    <span class="hint">cumulative N lost, % of applied &middot; hover to inspect a day</span>
+  </div>
+  <div class="chart-wrap" style="position:relative;">
+    <div class="chart-legend">
+      <div class="li"><span class="swatch" style="border-color:var(--loss)"></span> Untreated urea</div>
+      <div class="li"><span class="swatch" style="border-color:var(--nbpt)"></span> Urea + NBPT</div>
+      <div class="li"><span class="swatch" style="border-color:var(--wait);border-top-style:dashed"></span> Wait, apply before rain</div>
+    </div>
+    <div id="chart"></div>
+    <div class="tooltip" id="tooltip"></div>
+  </div>
+  <p class="legend-note" id="chartnote"></p>
+
+  <div class="sec-head" style="margin-top:26px;">
+    <h2>Daily forecast &amp; loss drivers</h2>
+    <span class="hint">the conditions behind each point on the curve</span>
+  </div>
+  <div class="table-scroll">
+    <table class="daily">
+      <thead>
+        <tr>
+          <th>Day</th><th>Date</th><th>Soil temp</th><th>Humidity</th><th>Rain</th><th>Loss that day</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+  <p class="legend-note">Shaded rows (day 8+) are lower-confidence &mdash; forecast skill, especially for rain, drops after about a week. Humidity stands in for surface wetness (it's forecast across the full window, unlike soil moisture).</p>
+
+  <footer>
+    <p><strong>How it works.</strong> A daily loss accrues from a susceptible pool of applied urea-N until a &ge;0.5&nbsp;in rain incorporates it into the soil and shuts loss off. The daily rate scales with soil temperature (urease activity ~doubles per 10&deg;C), relative humidity as a surface-wetness proxy, soil pH, texture/CEC, and tillage. NBPT suppresses loss during a temperature-dependent lag (~7&ndash;14 days) &mdash; buying time for rain. If no rain arrives within the lag, losses resume, which is why a 5-day-only view over-sells NBPT and the pay-off verdict is judged over the full 14-day episode.</p>
+    <p class="src">Calibrated to Montana State University dryland trials &middot; MSU Extension EB0208 &middot; landresources.montana.edu/ureavolatilization &middot; Engel et al. 2017 (SSSAJ). Weather: Open-Meteo. Forecasts fetched 2026-06-29.</p>
+    <div class="disclaimer"><strong>Estimate only.</strong> Field volatilization is highly variable; treat figures as ranges. Not a substitute for a soil test or your local agronomist.</div>
+  </footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  // ---------- Model (ported 1:1 from the Python engine) ----------
+  var K_BASE = 0.055, S0 = 0.45, REF_T = 15, Q10 = 2, KCAP = 0.30;
+  var INCORP = 12.7, PARTIAL = 7.6, NBPT_SUP = 0.05, LAG_MIN = 7, LAG_MAX = 14;
+  var UNC_LO = 0.60, UNC_HI = 1.40;
+  var TEX = { "sand":1.30,"loamy sand":1.25,"sandy loam":1.15,"loam":1.00,"silt loam":1.00,"silt":1.00,"clay loam":0.85,"silty clay":0.78,"clay":0.70 };
+  var TILL = { "no-till":1.30,"minimum-till":1.15,"conventional":1.00 };
+
+  function clamp(v, lo, hi) { return Math.max(lo, Math.min(v, hi)); }
+  function tempF(t) { return Math.pow(Q10, (t - REF_T) / 10); }
+  function humidF(rh) { var h = clamp((rh - 20) / 65, 0, 1); return 0.15 + 1.60 * Math.pow(h, 1.2); }
+  function phF(ph) { return clamp(1 + 0.30 * (ph - 7), 0.40, 1.60); }
+  function lagDays(meanT) { return clamp(LAG_MIN + (REF_T - meanT) * 0.5, LAG_MIN, LAG_MAX); }
+  function band(loss) { return [Math.max(0, loss * UNC_LO), Math.min(S0, loss * UNC_HI)]; }
+
+  function simulate(days, field, opts) {
+    opts = opts || {};
+    var nbpt = !!opts.nbpt, startDay = opts.startDay || 0;
+    var fp = phF(field.ph), ftex = (TEX[field.texture] || 1), ftill = (TILL[field.tillage] || 1);
+    var meanT = days.reduce(function (a, d) { return a + d.soil_temp_c; }, 0) / days.length;
+    var lag = nbpt ? lagDays(meanT) : 0;
+    var susc = S0, cum = 0, daily = [], cumul = [], incorporated = false, incorpDay = null;
+
+    for (var i = 0; i < days.length; i++) {
+      var d = days[i], dayLoss = 0;
+      if (i >= startDay && !incorporated) {
+        var k = K_BASE * tempF(d.soil_temp_c) * humidF(d.rel_humidity) * fp * ftex * ftill;
+        if (nbpt && (i - startDay) < lag) k *= NBPT_SUP;
+        k = Math.min(k, KCAP);
+        dayLoss = susc * k;
+        cum += dayLoss; susc -= dayLoss;
+      }
+      daily.push(dayLoss); cumul.push(cum);
+      if (i >= startDay && !incorporated) {
+        if (d.precip_mm >= INCORP) { incorporated = true; incorpDay = i + 1; }
+        else if (d.precip_mm >= PARTIAL) { susc *= 0.5; }
+      }
+    }
+    return { daily: daily, cum: cumul, incorpDay: incorpDay };
+  }
+
+  function runScenarios(days, field) {
+    var untreated = simulate(days, field);
+    var nbpt = simulate(days, field, { nbpt: true });
+    var rainIdx = -1;
+    for (var i = 0; i < days.length; i++) { if (days[i].precip_mm >= INCORP) { rainIdx = i; break; } }
+    var wait = null;
+    if (rainIdx >= 0) {
+      var w = simulate(days, field, { startDay: rainIdx });
+      w.applicable = true; w.startDay = rainIdx; wait = w;
+    } else {
+      wait = { daily: days.map(function () { return 0; }), cum: days.map(function () { return 0; }), incorpDay: null, applicable: false };
+    }
+    return { untreated: untreated, nbpt: nbpt, wait: wait };
+  }
+
+  function lossAt(sc, day) { var i = clamp(day, 1, sc.cum.length) - 1; return sc.cum[i]; }
+
+  // ---------- Data ----------
+  var FORECASTS = [{"name":"Great Falls, MT","days":[{"date":"2026-06-29","soil_temp_c":11.6,"rel_humidity":87.8,"precip_mm":16.0},{"date":"2026-06-30","soil_temp_c":15.86,"rel_humidity":77.6,"precip_mm":1.5},{"date":"2026-07-01","soil_temp_c":17.53,"rel_humidity":67.8,"precip_mm":1.4},{"date":"2026-07-02","soil_temp_c":17.79,"rel_humidity":62.6,"precip_mm":0.7},{"date":"2026-07-03","soil_temp_c":18.09,"rel_humidity":65.7,"precip_mm":0.0},{"date":"2026-07-04","soil_temp_c":18.92,"rel_humidity":48.1,"precip_mm":0.0},{"date":"2026-07-05","soil_temp_c":19.05,"rel_humidity":38.8,"precip_mm":0.0},{"date":"2026-07-06","soil_temp_c":19.42,"rel_humidity":47.5,"precip_mm":0.0},{"date":"2026-07-07","soil_temp_c":22.23,"rel_humidity":53.4,"precip_mm":0.0},{"date":"2026-07-08","soil_temp_c":24.75,"rel_humidity":42.8,"precip_mm":0.0},{"date":"2026-07-09","soil_temp_c":25.4,"rel_humidity":35.0,"precip_mm":0.0},{"date":"2026-07-10","soil_temp_c":22.21,"rel_humidity":61.3,"precip_mm":0.3},{"date":"2026-07-11","soil_temp_c":24.61,"rel_humidity":59.3,"precip_mm":0.3},{"date":"2026-07-12","soil_temp_c":25.68,"rel_humidity":45.6,"precip_mm":0.0}]},{"name":"Garden City, KS","days":[{"date":"2026-06-29","soil_temp_c":29.4,"rel_humidity":50.9,"precip_mm":0.0},{"date":"2026-06-30","soil_temp_c":28.41,"rel_humidity":61.6,"precip_mm":10.4},{"date":"2026-07-01","soil_temp_c":27.84,"rel_humidity":70.5,"precip_mm":1.8},{"date":"2026-07-02","soil_temp_c":27.99,"rel_humidity":53.3,"precip_mm":2.0},{"date":"2026-07-03","soil_temp_c":28.63,"rel_humidity":35.4,"precip_mm":0.0},{"date":"2026-07-04","soil_temp_c":29.24,"rel_humidity":33.2,"precip_mm":0.0},{"date":"2026-07-05","soil_temp_c":27.12,"rel_humidity":55.0,"precip_mm":0.0},{"date":"2026-07-06","soil_temp_c":27.37,"rel_humidity":47.9,"precip_mm":0.0},{"date":"2026-07-07","soil_temp_c":30.67,"rel_humidity":35.8,"precip_mm":0.0},{"date":"2026-07-08","soil_temp_c":33.23,"rel_humidity":27.5,"precip_mm":0.5},{"date":"2026-07-09","soil_temp_c":26.93,"rel_humidity":56.6,"precip_mm":1.0},{"date":"2026-07-10","soil_temp_c":27.25,"rel_humidity":48.4,"precip_mm":0.0},{"date":"2026-07-11","soil_temp_c":27.18,"rel_humidity":52.2,"precip_mm":0.0},{"date":"2026-07-12","soil_temp_c":27.3,"rel_humidity":43.8,"precip_mm":0.0}]},{"name":"Fargo, ND","days":[{"date":"2026-06-29","soil_temp_c":22.56,"rel_humidity":86.8,"precip_mm":18.0},{"date":"2026-06-30","soil_temp_c":22.03,"rel_humidity":60.3,"precip_mm":0.0},{"date":"2026-07-01","soil_temp_c":22.03,"rel_humidity":55.0,"precip_mm":0.0},{"date":"2026-07-02","soil_temp_c":22.36,"rel_humidity":72.2,"precip_mm":7.2},{"date":"2026-07-03","soil_temp_c":21.4,"rel_humidity":82.5,"precip_mm":59.1},{"date":"2026-07-04","soil_temp_c":22.61,"rel_humidity":77.1,"precip_mm":0.0},{"date":"2026-07-05","soil_temp_c":23.34,"rel_humidity":77.4,"precip_mm":0.0},{"date":"2026-07-06","soil_temp_c":23.88,"rel_humidity":73.8,"precip_mm":0.0},{"date":"2026-07-07","soil_temp_c":24.2,"rel_humidity":76.0,"precip_mm":0.5},{"date":"2026-07-08","soil_temp_c":22.73,"rel_humidity":75.8,"precip_mm":1.6},{"date":"2026-07-09","soil_temp_c":23.35,"rel_humidity":65.8,"precip_mm":0.0},{"date":"2026-07-10","soil_temp_c":25.25,"rel_humidity":58.5,"precip_mm":0.0},{"date":"2026-07-11","soil_temp_c":25.0,"rel_humidity":66.4,"precip_mm":2.1},{"date":"2026-07-12","soil_temp_c":26.74,"rel_humidity":68.7,"precip_mm":0.0}]},{"name":"Fresno, CA","days":[{"date":"2026-06-29","soil_temp_c":27.08,"rel_humidity":34.2,"precip_mm":0.0},{"date":"2026-06-30","soil_temp_c":28.25,"rel_humidity":31.0,"precip_mm":0.0},{"date":"2026-07-01","soil_temp_c":28.65,"rel_humidity":28.0,"precip_mm":0.0},{"date":"2026-07-02","soil_temp_c":28.32,"rel_humidity":24.6,"precip_mm":0.0},{"date":"2026-07-03","soil_temp_c":29.17,"rel_humidity":29.5,"precip_mm":0.0},{"date":"2026-07-04","soil_temp_c":30.6,"rel_humidity":22.5,"precip_mm":0.0},{"date":"2026-07-05","soil_temp_c":31.61,"rel_humidity":22.6,"precip_mm":0.0},{"date":"2026-07-06","soil_temp_c":30.26,"rel_humidity":23.7,"precip_mm":0.0},{"date":"2026-07-07","soil_temp_c":29.38,"rel_humidity":25.2,"precip_mm":0.0},{"date":"2026-07-08","soil_temp_c":30.97,"rel_humidity":22.4,"precip_mm":0.0},{"date":"2026-07-09","soil_temp_c":31.49,"rel_humidity":20.5,"precip_mm":0.0},{"date":"2026-07-10","soil_temp_c":33.06,"rel_humidity":16.3,"precip_mm":0.0},{"date":"2026-07-11","soil_temp_c":33.53,"rel_humidity":16.8,"precip_mm":0.0},{"date":"2026-07-12","soil_temp_c":34.24,"rel_humidity":13.6,"precip_mm":0.0}]}];
+
+  // Synthetic teaching case: a warm, dry, no-incorporating-rain fortnight.
+  var EMDASH = String.fromCharCode(8212), ENDASH = String.fromCharCode(8211), DEG = String.fromCharCode(176);
+  var demo = { name: "Demo " + EMDASH + " 14-day dry spell (teaching case)", synthetic: true, days: [] };
+  for (var i = 0; i < 14; i++) demo.days.push({ date: null, soil_temp_c: 22 - 0.15 * i, rel_humidity: 55, precip_mm: 1.0 });
+  FORECASTS = [demo].concat(FORECASTS);
+
+  // Pass forecast days through unchanged (humidity is forecast the full window,
+  // so there's no missing-data gap to patch the way soil moisture had).
+  function prep(fc) {
+    return fc.days.map(function (d) {
+      return { date: d.date, soil_temp_c: d.soil_temp_c, rel_humidity: d.rel_humidity, precip_mm: d.precip_mm };
+    });
+  }
+
+  // ---------- Display helpers ----------
+  function cToF(c) { return c * 9 / 5 + 32; }
+  function mmToIn(mm) { return mm / 25.4; }
+  function pct(f) { return Math.round(f * 100); }
+  function fmtDate(s) {
+    if (!s) return "&mdash;";
+    var m = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    var p = s.split("-"); return m[parseInt(p[1], 10) - 1] + " " + parseInt(p[2], 10);
+  }
+
+  // ---------- DOM refs ----------
+  var $ = function (id) { return document.getElementById(id); };
+  var els = { loc: $("loc"), rate: $("rate"), ph: $("ph"), phVal: $("phVal"), texture: $("texture"),
+    tillage: $("tillage"), nprice: $("nprice"), nbptcost: $("nbptcost"),
+    cards: $("cards"), vmain: $("vmain"), vsub: $("vsub"), verdict: $("verdict"),
+    chart: $("chart"), tooltip: $("tooltip"), chartnote: $("chartnote"), tbody: $("tbody") };
+
+  FORECASTS.forEach(function (fc, idx) {
+    var o = document.createElement("option"); o.value = idx; o.textContent = fc.name; els.loc.appendChild(o);
+  });
+  els.loc.value = 0; // open on the teaching case
+
+  var state = { days: [], sc: null, nearDay: 5, farDay: 14, scaleX: null, plot: null, n: 0, econ: null };
+
+  // ---------- Chart (inline SVG) ----------
+  var SVG = "http://www.w3.org/2000/svg";
+  var COL = { loss: "#B24228", nbpt: "#2F7D4E", wait: "#36688F" };
+
+  function buildChart() {
+    var W = 900, H = 380, m = { t: 18, r: 16, b: 38, l: 44 };
+    var n = state.n;
+    var maxLoss = Math.max(lossAt(state.sc.untreated, n) * 100, 10);
+    var yMax = Math.ceil(maxLoss / 10) * 10 + 5;
+    var px = function (day) { return m.l + (day - 1) / (n - 1) * (W - m.l - m.r); };
+    var py = function (v) { return H - m.b - (v / yMax) * (H - m.t - m.b); };
+    state.scaleX = px; state.plot = { W: W, H: H, m: m, yMax: yMax, py: py };
+
+    var s = '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Cumulative nitrogen loss over 14 days">';
+
+    // low-confidence shading (day 8+)
+    if (n >= 8) {
+      var x8 = px(7.5), xEnd = px(n) + (W - m.r - px(n)) * 0 + 6;
+      s += '<rect x="' + x8.toFixed(1) + '" y="' + m.t + '" width="' + (W - m.r - x8).toFixed(1) + '" height="' + (H - m.t - m.b) + '" fill="#CDCEC0" opacity="0.28"></rect>';
+      s += '<text class="axis-label" x="' + ((x8 + W - m.r) / 2).toFixed(1) + '" y="' + (m.t + 13) + '" text-anchor="middle">lower-confidence forecast</text>';
+    }
+
+    // y gridlines + labels
+    for (var v = 0; v <= yMax; v += 10) {
+      var y = py(v);
+      s += '<line class="grid-line" x1="' + m.l + '" y1="' + y.toFixed(1) + '" x2="' + (W - m.r) + '" y2="' + y.toFixed(1) + '"></line>';
+      s += '<text class="tick-label" x="' + (m.l - 8) + '" y="' + (y + 3).toFixed(1) + '" text-anchor="end">' + v + '%</text>';
+    }
+    // x ticks
+    for (var d = 1; d <= n; d++) {
+      s += '<text class="tick-label" x="' + px(d).toFixed(1) + '" y="' + (H - m.b + 15) + '" text-anchor="middle">' + d + '</text>';
+    }
+    s += '<text class="axis-label" x="' + ((m.l + W - m.r) / 2).toFixed(1) + '" y="' + (H - 4) + '" text-anchor="middle">Days after application</text>';
+
+    // near-term marker
+    s += '<line x1="' + px(state.nearDay).toFixed(1) + '" y1="' + m.t + '" x2="' + px(state.nearDay).toFixed(1) + '" y2="' + (H - m.b) + '" stroke="#8B9082" stroke-width="1" stroke-dasharray="2 3"></line>';
+    s += '<text class="axis-label" x="' + (px(state.nearDay) + 4).toFixed(1) + '" y="' + (m.t + 11) + '">day ' + state.nearDay + '</text>';
+
+    // rain incorporation marker
+    var inc = state.sc.untreated.incorpDay;
+    if (inc) {
+      s += '<line x1="' + px(inc).toFixed(1) + '" y1="' + m.t + '" x2="' + px(inc).toFixed(1) + '" y2="' + (H - m.b) + '" stroke="' + COL.wait + '" stroke-width="1.2" stroke-dasharray="5 3" opacity="0.6"></line>';
+      s += '<text class="axis-label" x="' + (px(inc) + 4).toFixed(1) + '" y="' + (m.t + 24) + '" fill="' + COL.wait + '">rain incorporates</text>';
+    }
+
+    function path(sc, color, dashed) {
+      var dd = "";
+      for (var i = 0; i < n; i++) dd += (i ? "L" : "M") + px(i + 1).toFixed(1) + " " + py(sc.cum[i] * 100).toFixed(1) + " ";
+      return '<path d="' + dd + '" fill="none" stroke="' + color + '" stroke-width="2.4"' + (dashed ? ' stroke-dasharray="6 4"' : '') + ' stroke-linejoin="round"></path>';
+    }
+    if (state.sc.wait.applicable) s += path(state.sc.wait, COL.wait, true);
+    s += path(state.sc.nbpt, COL.nbpt, false);
+    s += path(state.sc.untreated, COL.loss, false);
+
+    // endpoint dots
+    function endDot(sc, color) {
+      if (!sc.applicable && sc.applicable !== undefined) return "";
+      return '<circle cx="' + px(n).toFixed(1) + '" cy="' + py(sc.cum[n - 1] * 100).toFixed(1) + '" r="3.5" fill="' + color + '"></circle>';
+    }
+    s += endDot(state.sc.untreated, COL.loss) + endDot(state.sc.nbpt, COL.nbpt);
+    if (state.sc.wait.applicable) s += endDot(state.sc.wait, COL.wait);
+
+    // hover layer
+    s += '<line class="guide" id="guide" y1="' + m.t + '" y2="' + (H - m.b) + '"></line>';
+    s += '<circle class="hover-dot" id="hd-loss" r="4.5" fill="#fff" stroke="' + COL.loss + '" stroke-width="2.5"></circle>';
+    s += '<circle class="hover-dot" id="hd-nbpt" r="4.5" fill="#fff" stroke="' + COL.nbpt + '" stroke-width="2.5"></circle>';
+    s += '<circle class="hover-dot" id="hd-wait" r="4.5" fill="#fff" stroke="' + COL.wait + '" stroke-width="2.5"></circle>';
+    s += '<rect id="capture" x="0" y="0" width="' + W + '" height="' + H + '" fill="transparent"></rect>';
+    s += '</svg>';
+    els.chart.innerHTML = s;
+
+    var cap = $("capture");
+    cap.addEventListener("mousemove", onHover);
+    cap.addEventListener("mouseleave", clearHover);
+  }
+
+  function onHover(e) {
+    var svg = els.chart.querySelector("svg");
+    var r = svg.getBoundingClientRect();
+    var sx = (e.clientX - r.left) / r.width * state.plot.W;
+    var n = state.n, m = state.plot.m;
+    var frac = (sx - m.l) / (state.plot.W - m.l - m.r);
+    var day = clamp(Math.round(frac * (n - 1)) + 1, 1, n);
+    setActiveDay(day, true);
+  }
+
+  function setActiveDay(day, fromChart) {
+    var n = state.n, px = state.scaleX, py = state.plot.py;
+    var g = $("guide"); if (!g) return;
+    var x = px(day);
+    g.setAttribute("x1", x); g.setAttribute("x2", x); g.style.opacity = 1;
+    function place(id, sc) {
+      var el = $(id); if (!sc || (sc.applicable === false)) { if (el) el.style.opacity = 0; return; }
+      el.setAttribute("cx", x); el.setAttribute("cy", py(sc.cum[day - 1] * 100)); el.style.opacity = 1;
+    }
+    place("hd-loss", state.sc.untreated); place("hd-nbpt", state.sc.nbpt); place("hd-wait", state.sc.wait);
+
+    // tooltip
+    var d = state.days[day - 1];
+    var tt = els.tooltip;
+    var rain = mmToIn(d.precip_mm);
+    var html = '<div class="tt-day">Day ' + day + (d.date ? " &middot; " + fmtDate(d.date) : "") + '</div>';
+    html += '<div class="tt-row"><span>Soil temp</span><span>' + Math.round(cToF(d.soil_temp_c)) + DEG + 'F</span></div>';
+    html += '<div class="tt-row"><span>Humidity</span><span>' + Math.round(d.rel_humidity) + '%</span></div>';
+    html += '<div class="tt-row"><span>Rain</span><span>' + rain.toFixed(2) + ' in</span></div>';
+    html += '<div class="tt-row"><span style="color:' + COL.loss + '">Untreated loss</span><span>' + pct(state.sc.untreated.cum[day - 1]) + '%</span></div>';
+    html += '<div class="tt-row"><span style="color:' + COL.nbpt + '">NBPT loss</span><span>' + pct(state.sc.nbpt.cum[day - 1]) + '%</span></div>';
+    tt.innerHTML = html;
+    var wrap = els.chart.parentElement.getBoundingClientRect();
+    var svg = els.chart.querySelector("svg").getBoundingClientRect();
+    var screenX = svg.left + (x / state.plot.W) * svg.width;
+    var leftPx = screenX - wrap.left + 14;
+    if (leftPx + 230 > wrap.width) leftPx = screenX - wrap.left - 230;
+    tt.style.left = leftPx + "px";
+    tt.style.top = (svg.top - wrap.top + 30) + "px";
+    tt.style.opacity = 1;
+
+    // table highlight
+    var rows = els.tbody.children;
+    for (var i = 0; i < rows.length; i++) rows[i].classList.toggle("active", (i + 1) === day);
+  }
+
+  function clearHover() {
+    var g = $("guide"); if (g) g.style.opacity = 0;
+    ["hd-loss","hd-nbpt","hd-wait"].forEach(function (id) { var el = $(id); if (el) el.style.opacity = 0; });
+    els.tooltip.style.opacity = 0;
+    var rows = els.tbody.children;
+    for (var i = 0; i < rows.length; i++) rows[i].classList.remove("active");
+  }
+
+  // ---------- Cards + verdict ----------
+  function econFor(sc, field, treatCost, day) {
+    if (sc.applicable === false) return null;
+    var loss = lossAt(sc, day), b = band(loss);
+    var nLost = loss * field.rate, val = nLost * field.nprice;
+    return { loss: loss, lo: b[0], hi: b[1], nLost: nLost, val: val, treat: treatCost, net: val + treatCost };
+  }
+
+  function renderCards(field) {
+    var far = state.farDay, near = state.nearDay;
+    var meta = [
+      { key: "untreated", name: "Untreated urea", color: COL.loss, treat: 0 },
+      { key: "nbpt", name: "Urea + NBPT", color: COL.nbpt, treat: field.nbptcost },
+      { key: "wait", name: "Wait, apply before rain", color: COL.wait, treat: 0 }
+    ];
+    var econ = {};
+    meta.forEach(function (mt) { econ[mt.key] = econFor(state.sc[mt.key], field, mt.treat, far); });
+    state.econ = econ;
+
+    // recommendation = lowest net cost among applicable
+    var best = null;
+    meta.forEach(function (mt) { var e = econ[mt.key]; if (e && (best === null || e.net < econ[best].net)) best = mt.key; });
+
+    var html = "";
+    meta.forEach(function (mt) {
+      var e = econ[mt.key], sc = state.sc[mt.key];
+      var na = (e === null);
+      var nearLoss = na ? null : lossAt(sc, near);
+      html += '<div class="card' + (mt.key === best ? ' rec' : '') + (na ? ' na' : '') + '" style="--cardc:' + mt.color + '">';
+      if (mt.key === best) html += '<div class="badge">Recommended</div>';
+      html += '<div class="cname"><span class="dot" style="background:' + mt.color + '"></span>' + mt.name + '</div>';
+      if (na) {
+        html += '<div class="big" style="font-size:22px;color:var(--faint)">n/a</div>';
+        html += '<div class="range">No &ge;0.5&nbsp;in rain forecast &mdash; nothing to wait for.</div>';
+      } else {
+        html += '<div class="big">' + pct(e.loss) + '%</div>';
+        html += '<div class="biglabel">14-day loss</div>';
+        html += '<div class="range">range ' + pct(e.lo) + ENDASH + pct(e.hi) + '% &middot; 5-day: ' + pct(nearLoss) + '%</div>';
+        html += '<div class="stats">';
+        html += '<div class="stat"><span>N lost</span><span>' + e.nLost.toFixed(1) + ' lb/ac</span></div>';
+        html += '<div class="stat"><span>Value of N lost</span><span>$' + e.val.toFixed(2) + '/ac</span></div>';
+        if (mt.treat > 0) html += '<div class="stat"><span>+ NBPT cost</span><span>$' + e.treat.toFixed(2) + '/ac</span></div>';
+        html += '<div class="stat"><span>Net cost</span><span><strong>$' + e.net.toFixed(2) + '/ac</strong></span></div>';
+        html += '</div>';
+      }
+      html += '</div>';
+    });
+    els.cards.innerHTML = html;
+
+    // verdict text
+    var labels = { untreated: "Apply untreated urea now", nbpt: "Apply NBPT-stabilized urea now", wait: "Wait and apply just before the forecast rain" };
+    els.vmain.textContent = labels[best] + " " + EMDASH + " lowest net cost at $" + econ[best].net.toFixed(2) + "/ac.";
+    var u = econ.untreated, nb = econ.nbpt, sub = "";
+    if (u && nb) {
+      var savings = u.val - nb.net;
+      if (savings > 0) sub = "NBPT <strong>pays off</strong> here: it saves $" + savings.toFixed(2) + "/ac net of its $" + nb.treat.toFixed(2) + "/ac cost.";
+      else sub = "NBPT <strong>does not pay off</strong> here: it costs $" + (-savings).toFixed(2) + "/ac more than it saves under this forecast.";
+    }
+    els.vsub.innerHTML = sub;
+    els.verdict.style.borderLeftColor = (best === "untreated") ? COL.loss : (best === "wait") ? COL.wait : COL.nbpt;
+  }
+
+  // ---------- Daily table ----------
+  function renderTable(field) {
+    var n = state.n, sc = state.sc, html = "";
+    var maxDaily = Math.max.apply(null, sc.untreated.daily.map(function (v) { return v; })).valueOf() || 0.001;
+    for (var i = 0; i < n; i++) {
+      var d = state.days[i], day = i + 1;
+      var rain = mmToIn(d.precip_mm);
+      var incorp = d.precip_mm >= INCORP, partial = d.precip_mm >= PARTIAL && !incorp;
+      var humidW = clamp(d.rel_humidity, 0, 100);
+      var lossFrac = sc.untreated.daily[i], lossW = (lossFrac / maxDaily) * 100;
+      var rainW = clamp(rain / 1.0, 0, 1) * 100;
+      html += '<tr class="' + (day >= 8 ? "lowconf" : "") + '" data-day="' + day + '">';
+      html += '<td class="daycell">' + day + '</td>';
+      html += '<td class="num">' + fmtDate(d.date) + '</td>';
+      html += '<td class="num">' + Math.round(cToF(d.soil_temp_c)) + DEG + 'F</td>';
+      html += '<td><div class="bar-cell"><div class="bar-track"><div class="bar-fill" style="width:' + humidW.toFixed(0) + '%;background:var(--moist)"></div></div><span class="num">' + Math.round(d.rel_humidity) + '%</span></div></td>';
+      html += '<td><div class="bar-cell"><div class="bar-track"><div class="bar-fill" style="width:' + rainW.toFixed(0) + '%;background:var(--wait)"></div></div><span class="num">' + rain.toFixed(2) + '"</span>' + (incorp ? '<span class="incorp-flag">&check; incorporates</span>' : partial ? '<span class="incorp-flag">partial</span>' : '') + '</div></td>';
+      html += '<td><div class="bar-cell"><div class="bar-track"><div class="bar-fill" style="width:' + lossW.toFixed(0) + '%;background:var(--loss)"></div></div><span class="num">' + (lossFrac * 100).toFixed(1) + '%</span></div></td>';
+      html += '</tr>';
+    }
+    els.tbody.innerHTML = html;
+    var rows = els.tbody.children;
+    for (var j = 0; j < rows.length; j++) {
+      rows[j].addEventListener("mouseenter", function () { setActiveDay(parseInt(this.getAttribute("data-day"), 10)); });
+      rows[j].addEventListener("mouseleave", clearHover);
+    }
+  }
+
+  function renderNote() {
+    var inc = state.sc.untreated.incorpDay;
+    var note = inc
+      ? "A &ge;0.5 in rain on day " + inc + " incorporates the urea &mdash; every curve flattens there as loss shuts off."
+      : "No incorporating rain (&ge;0.5 in) in the 14-day window: untreated loss keeps climbing, and NBPT's lead erodes once its lag expires.";
+    els.chartnote.innerHTML = note;
+  }
+
+  // ---------- Orchestrate ----------
+  function field() {
+    return { ph: parseFloat(els.ph.value), texture: els.texture.value, tillage: els.tillage.value,
+      rate: parseFloat(els.rate.value) || 0, nprice: parseFloat(els.nprice.value) || 0, nbptcost: parseFloat(els.nbptcost.value) || 0 };
+  }
+
+  function render() {
+    els.phVal.textContent = parseFloat(els.ph.value).toFixed(1);
+    var fc = FORECASTS[parseInt(els.loc.value, 10)];
+    var f = field();
+    state.days = prep(fc);
+    state.n = state.days.length;
+    state.sc = runScenarios(state.days, f);
+    renderCards(f);
+    buildChart();
+    renderTable(f);
+    renderNote();
+  }
+
+  ["loc","rate","ph","texture","tillage","nprice","nbptcost"].forEach(function (id) {
+    var ev = (id === "rate" || id === "nprice" || id === "nbptcost") ? "input" : "change";
+    $(id).addEventListener("input", render);
+    $(id).addEventListener("change", render);
+  });
+
+  render();
+})();
+</script>
+
+</body>
+</html>
