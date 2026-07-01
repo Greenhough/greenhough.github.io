@@ -19,7 +19,11 @@ source of truth for the `/new-writing` and `/new-work` Claude Code commands.
   og:title), `og:description`, `og:url`, `og:image=https://evangreenhough.com/assets/og-image.png`
   (the shared site card) + `og:image:width/height` 1200/630, `twitter:card=summary_large_image`,
   `twitter:image` = same card.
-- **Meta description = the excerpt line** (reuse the same text). Keep ~110–155 chars.
+- **Meta description = the excerpt line** (reuse the same text for the page meta + OG
+  description). Keep ~110–155 chars.
+- **Listing preview text** (home + writing-hub cards, `<p class="post-excerpt">`) is a
+  **single line** — the post's opening sentence only, not the full excerpt. It may be
+  shorter than the meta description; the two do not have to match.
 - **Paths:** relative on content pages (`assets/...`, `styles.css`); root-relative for nav
   links (`/`, `/work`, `/writing`).
 - **Fonts:** already self-hosted via styles.css — nothing to add.
@@ -48,11 +52,11 @@ Template: `post.html` (unlinked reference — don't delete). Body uses `<article
    <a class="post" href="/{slug}">
      <h2 class="post-title">{Title}</h2>
      <span class="post-date">{Mon YYYY}</span>
-     <p class="post-excerpt">{excerpt}</p>
+     <p class="post-excerpt">{preview — single line, the opening sentence}</p>
    </a>
    ```
 7. **Home** (`index.html`) Writing section `<div class="post-list">` — same entry but
-   `<h3 class="post-title">`. Keep only the latest 3.
+   `<h3 class="post-title">`. Keep only the latest 3. Same single-line preview text.
 
 ## B) New WORK case study
 Template: `case-study-1.html` (full reference). Body uses `<article class="article">` (NOT narrow).
