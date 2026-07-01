@@ -493,6 +493,18 @@ a { color: inherit; }
 }
 .cs-head { margin-bottom: 48px; }
 
+/* inline post video (autoplay/loop/muted) */
+.post-video {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin: 4px 0 36px;
+  background: var(--ink);
+  border: 2.5px solid var(--ink);
+  border-radius: 4px;
+  box-shadow: var(--shadow);
+}
+
 /* prose (article body) */
 .prose { font-size: 18px; line-height: 1.75; color: #2E2B25; }
 .prose p { margin: 0 0 24px; }
