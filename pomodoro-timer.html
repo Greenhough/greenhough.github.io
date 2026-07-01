@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pomodoro timer that tracks project time to Notion | Evan Greenhough</title>
+  <meta name="description" content="A Pomodoro timer, built with Claude Code, that logs my deep work sessions to Notion, sorted by category and project.">
+  <link rel="canonical" href="https://evangreenhough.com/pomodoro-timer">
+
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="assets/favicon.png" sizes="any">
+  <link rel="apple-touch-icon" href="assets/favicon.png">
+
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="Pomodoro timer that tracks project time to Notion">
+  <meta property="og:description" content="A Pomodoro timer, built with Claude Code, that logs my deep work sessions to Notion, sorted by category and project.">
+  <meta property="og:url" content="https://evangreenhough.com/pomodoro-timer">
+  <meta property="og:image" content="https://evangreenhough.com/assets/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="https://evangreenhough.com/assets/og-image.png">
+
+  <!-- fonts: self-hosted via @font-face in styles.css -->
+
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="wrap">
+
+    <nav class="nav">
+      <a class="brand" href="/">
+        <span class="brand-mark">*</span>
+        <span class="brand-name">Evan Greenhough</span>
+      </a>
+      <button class="nav-toggle" aria-label="Menu" aria-expanded="false" aria-controls="nav-links">
+        <span></span><span></span><span></span>
+      </button>
+      <div class="nav-links" id="nav-links">
+        <a href="/work" class="active">Work</a>
+        <a href="/writing">Writing</a>
+      </div>
+    </nav>
+
+    <article class="article">
+      <a class="back" href="/work">&larr; Work</a>
+
+      <header class="cs-head">
+        <div class="eyebrow">Vibe Coding</div>
+        <h1 class="art-title">Pomodoro timer that tracks project time to Notion</h1>
+        <div class="tags cs-tags"><span class="tag tag-claude">Claude</span><span class="tag tag-notion">Notion</span></div>
+        <p class="cs-dek">A local Pomodoro timer that writes every focus session to a Notion database.</p>
+      </header>
+
+      <figure class="cs-fig narrow">
+        <img src="assets/pomodoro-timer.png" alt="The Pomodoro timer running a focus session" width="1126" height="1132">
+      </figure>
+
+      <section class="cs-sec">
+        <h2 class="cs-title"><span class="num">01</span>Why I built it</h2>
+        <p>I've always liked the Pomodoro technique. 25 minutes of focused work. 5 minutes break. Repeat. The technique served me well back in university and continues to do so to this day. For this project, I wanted to scratch my own itch. The goal was to build a Pomodoro timer that helped me focus, while also tracking the time I'm spending working on different projects.</p>
+        <p>The closest I've been to SQL is a sales qualified lead, so it was also a good opportunity for me to tinker with setting up a database in Notion.</p>
+      </section>
+
+      <section class="cs-sec">
+        <h2 class="cs-title"><span class="num">02</span>What I built</h2>
+        <p>A Pomodoro timer that runs on my computer. I pick a category and a project, run a 30-minute block, and when it ends, the session writes itself to a Notion database. I manage the list of categories and projects inside the timer, and I can mark a project complete to see the total hours it took. The reporting lives in Notion, with grouped views for hours by project and by category.</p>
+      </section>
+
+      <figure class="cs-fig">
+        <img src="assets/notion-database.png" alt="Notion database views showing focus sessions grouped by project with hour totals" width="2308" height="1220">
+      </figure>
+
+      <section class="cs-sec">
+        <h2 class="cs-title"><span class="num">03</span>How it works</h2>
+        <p>This was one of my first vibe coding projects, and I kept the build deliberately small. Instead of trying to build a hosted app with accounts and a login, I used Claude Code to build a local Python script that serves a browser page and writes to Notion through the API. This kept the scope small and works perfectly for just me.</p>
+        <p>The logged sessions live in Notion instead of being trapped in the app, so I can build whatever reporting I want on top of them.</p>
+        <p>Pomodoro timers typically run on a 25 minute focus/5 minute break cycle. I standardized on 30-minute blocks and decimal hours, so one session is exactly 0.5 hours. This helps the reporting come out cleaner in Notion.</p>
+      </section>
+
+      <section class="cs-sec">
+        <h2 class="cs-title"><span class="num">04</span>What broke &amp; what I learned</h2>
+        <p>The bugs in my life are usually limited to mosquitoes, ladybugs, and ants. Working with software bugs is a new experience for me, and I ran into a couple with this project. The first was that the timer wasn't working correctly. The timer counted down by subtracting a second every second, which I thought would make sense. However, when I switched tabs, the countdown stopped working and would occasionally freeze. I had Claude Code rebuild it to anchor to a real end time and compute what's left from the clock, then update the timer when I click back into the tab.</p>
+        <p>Another bug I ran into was with the data logging to Notion. In one of my study sessions, I realized that the timer said that the save was successful when nothing had actually been saved to Notion. To fix it, I restored the app's access to the Notion database and set up a process where, if the sync fails, the entry queues locally and automatically pushes the next time the app starts.</p>
+        <p>Overall, it was a great first project. It scratched a personal itch and taught me some lessons around planning, debugging, and working with databases.</p>
+      </section>
+
+      <div class="art-foot">
+        <a class="back" href="/work" style="margin-bottom:0;">&larr; All Work</a>
+      </div>
+    </article>
+
+    <footer class="footer spaced">
+      <span class="foot-name">Evan Greenhough</span>
+      <span class="dot">&middot;</span>
+      <a class="icon icon-li" href="https://www.linkedin.com/in/evangreenhough/" target="_blank" rel="noopener" aria-label="LinkedIn"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M4.98 3.5C4.98 4.88 3.87 6 2.5 6S0 4.88 0 3.5 1.12 1 2.5 1s2.48 1.12 2.48 2.5zM.2 8h4.6v14H.2V8zm7.4 0h4.4v1.9h.06c.61-1.16 2.1-2.38 4.34-2.38 4.64 0 5.5 3.05 5.5 7.02V22h-4.6v-6.2c0-1.48-.03-3.38-2.06-3.38-2.06 0-2.38 1.6-2.38 3.27V22H7.6V8z"/></svg></a>
+      <a class="icon icon-mail" href="mailto:evan.greenhough@gmail.com" aria-label="Email"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg></a>
+    </footer>
+
+  </div>
+</body>
+</html>
