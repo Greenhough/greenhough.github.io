@@ -640,3 +640,8 @@ a { color: inherit; }
 .cs-fig img { width: 100%; height: auto; border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow); }
 .cs-fig.narrow { max-width: 460px; }
 .cs-fig figcaption { font-size: 13px; color: var(--muted); text-align: center; margin-top: 10px; }
+
+/* lists inside case-study sections */
+.cs-sec ul { font-size: 16px; line-height: 1.7; color: var(--body); margin: 0 0 16px; padding-left: 22px; }
+.cs-sec li { margin-bottom: 8px; }
+.cs-sec li:last-child { margin-bottom: 0; }
