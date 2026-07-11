@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>An AI marketing system that doesn't start from scratch | Evan Greenhough</title>
+  <title>AI GTM System | Evan Greenhough</title>
   <meta name="description" content="How I built an AI GTM system in Claude Code using context files, skills, agents, and live data, so no task starts from scratch.">
   <link rel="canonical" href="https://evangreenhough.com/ai-marketing-system">
 
@@ -12,7 +12,7 @@
   <link rel="apple-touch-icon" href="assets/favicon.png">
 
   <meta property="og:type" content="article">
-  <meta property="og:title" content="An AI marketing system that doesn't start from scratch">
+  <meta property="og:title" content="AI GTM System">
   <meta property="og:description" content="How I built an AI GTM system in Claude Code using context files, skills, agents, and live data, so no task starts from scratch.">
   <meta property="og:url" content="https://evangreenhough.com/ai-marketing-system">
   <meta property="og:image" content="https://evangreenhough.com/assets/og-image.png">
@@ -47,13 +47,13 @@
 
       <header class="cs-head">
         <div class="eyebrow">Build</div>
-        <h1 class="art-title">An AI marketing system that doesn't start from scratch</h1>
+        <h1 class="art-title">AI GTM System</h1>
         <div class="tags cs-tags"><span class="tag tag-claude">Claude Code</span><span class="tag tag-marketing">Marketing</span></div>
       </header>
 
       <section class="cs-sec">
-        <p><strong>Tools:</strong> Claude Code &middot; Python &middot; GA4 &middot; Search Console &middot; Google Ads &middot; Clarity &middot; Leadfeeder &middot; Notion</p>
-        <p><strong>What it is:</strong> A GTM system where Claude already knows our company, customers, and competitors, with context that carries between sessions.</p>
+        <p><strong>Tools:</strong> Claude Code &middot; GA4 &middot; Google Search Console</p>
+        <p>A marketing system in Claude Code that knows our company, customers, competitors, and business context.</p>
       </section>
 
       <section class="cs-sec">
@@ -61,19 +61,13 @@
         <p>Working in enablement, I'm often faced with problems around scale. How do I scale an onboarding program to handle the increasing headcount? How do I scale sales best practices across multiple teams? How do I scale the creation of strategic content?</p>
         <p>As I get more immersed in using AI, a new opportunity for scale has started to emerge.</p>
         <p>How do I scale my impact in a way that previously wasn't possible?</p>
-        <p>The answer, like many of my enablement solutions, is to create a system. What's interesting about using AI to do this is that I'm now able to have an impact on parts of the business that I would otherwise have no ability to influence.</p>
-        <p>The idea and framework for this project were sparked by Matteo Tittarelli's article <a href="https://www.growthunhinged.com/p/how-to-build-your-ai-gtm-system" target="_blank" rel="noopener">"How to build your AI GTM system"</a>. In it, he breaks down how to create an AI GTM workspace into four layers:</p>
-        <ul>
-          <li>Context</li>
-          <li>Skills</li>
-          <li>Orchestration</li>
-          <li>Integrations</li>
-        </ul>
+        <p>The answer, like many of my enablement solutions, is to create a system. What's interesting about using AI to do this is that I'm now able to have an impact on parts of the business that I would otherwise have no ability to influence. This is especially true working on a lean revenue team where we don't have a dedicated product marketer, content strategist, or marketing ops.</p>
+        <p>The idea and framework for this project were sparked by Matteo Tittarelli's article <a href="https://www.growthunhinged.com/p/how-to-build-your-ai-gtm-system" target="_blank" rel="noopener">"How to build your AI GTM system"</a>. In it, he breaks down how to create an AI GTM workspace into four layers: context, skills, orchestration, and integrations.</p>
         <figure class="cs-fig narrow">
           <img src="assets/growth-unhinged-framework.webp" alt="Matteo Tittarelli's four-layer AI GTM framework infographic: system of context, system of skills, system of orchestration, and system of integrations" loading="lazy">
           <figcaption>The four-layer framework, from Matteo Tittarelli's article on Growth Unhinged.</figcaption>
         </figure>
-        <p>While the approach is adjacent to traditional sales enablement work, I decided to try his framework because I had already built many of the elements through the Marketing Ops work I've been tackling. I work on a lean revenue enablement team, and we don't have some of the traditional marketing roles you might find on other teams.</p>
+        <p>I decided to try Matteo's framework because I had already built many of the pieces from the Marketing work I've been tackling.</p>
         <p>The goal was to create a system that would:</p>
         <ul>
           <li>Reduce the context I needed to provide in my prompts</li>
@@ -81,20 +75,20 @@
           <li>Orchestrate the execution with specialized agents</li>
           <li>Pull in relevant data/insights from integrated tools</li>
         </ul>
-        <p>This would enable me to create higher-quality outputs faster, without having to start from scratch every time.</p>
+        <p>Ultimately, this would enable me to create more specific outputs faster, with higher quality, and without having to start from scratch every time.</p>
       </section>
 
       <section class="cs-sec">
         <h2 class="cs-title"><span class="num">02</span>What I built</h2>
         <p>An AI GTM operating system with four layers.</p>
-        <p><strong>Context</strong> is the foundational layer. I've built markdown files that cover the company, our ideal customer, our services, messaging by persona, and brand voice. These files are automatically loaded, so every session starts from the same foundation.</p>
-        <p><strong>Skills</strong> are the standard operating procedures that combine the context from the foundational layer with the prompt. They include marketing skills that write copy, audit content, or optimize ads. They are tools that the agents can use to solve problems.</p>
-        <p><strong>Agents</strong> can reason, use tools, and take feedback to improve their reasoning. The system currently has four of them, one per marketing lane (product marketing, content, paid ads, SEO).</p>
-        <p><strong>Integrations</strong> connect the agents to data sources. This shapes where they go to pull information and ensures that they are working with live data. I won't outline our entire stack, but they have access to a handful of analytics and data enrichment tools, including GA4 and Google Search Console.</p>
         <figure class="cs-fig">
           <img src="assets/ai-gtm-system.png" alt="The four layers of the system: context (the foundation), skills (the producers), orchestration (the coordinators), and integrations (the connectors)" loading="lazy">
           <figcaption>The four layers, from the system's interactive field guide.</figcaption>
         </figure>
+        <p><strong>Context</strong> is the foundational layer. I've built markdown files that cover the company, our ideal customer, our services, messaging by persona, and brand voice. These files are automatically loaded, so every session starts from the same foundation.</p>
+        <p><strong>Skills</strong> are the standard operating procedures that combine the context from the foundational layer with the prompt. They include marketing skills that write copy, create positioning, audit paid ads, or do SEO keyword research. The skills are tools that the agents can use to solve different problems.</p>
+        <p><strong>Agents</strong> can reason, use tools, and take feedback to improve their reasoning. The system currently has four of them, one per marketing lane (product marketing, content, paid ads, SEO).</p>
+        <p><strong>Integrations</strong> connect the agents to data sources. This shapes where they go to pull information and ensures that they are working with live data. I won't outline our entire stack, but they have access to a handful of analytics and data enrichment tools, including GA4 and Google Search Console.</p>
       </section>
 
       <section class="cs-sec">
