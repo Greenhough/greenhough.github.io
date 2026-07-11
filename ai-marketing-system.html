@@ -83,7 +83,7 @@
         <p>An AI GTM operating system with four layers.</p>
         <figure class="cs-fig">
           <img src="assets/ai-gtm-system.png" alt="The four layers of the system: context (the foundation), skills (the producers), orchestration (the coordinators), and integrations (the connectors)" loading="lazy">
-          <figcaption>The four layers, from the system's interactive field guide.</figcaption>
+          <figcaption>The four layers of the system.</figcaption>
         </figure>
         <p><strong>Context</strong> is the foundational layer. I've built markdown files that cover the company, our ideal customer, our services, messaging by persona, and brand voice. These files are automatically loaded, so every session starts from the same foundation.</p>
         <p><strong>Skills</strong> are the standard operating procedures that combine the context from the foundational layer with the prompt. They include marketing skills that write copy, create positioning, audit paid ads, or do SEO keyword research. The skills are tools that the agents can use to solve different problems.</p>
@@ -93,18 +93,17 @@
 
       <section class="cs-sec">
         <h2 class="cs-title"><span class="num">03</span>How it works</h2>
-        <p>The decisions mattered more than the files.</p>
-        <p><strong>Audit before building.</strong> My first instinct was to create everything new. The audit showed three of the four layers half-built already: a brand voice guide, audience research, working API scripts. Most of the project was consolidation, not creation. The genuinely new work was one layer (the agents) and the connective tissue.</p>
-        <p><strong>One glue file.</strong> The marketing skills all read a single condensed context file. That file mirrors the full context folder, which means two sources of truth that can drift apart. I accepted that tradeoff deliberately, because the skills read a fixed path, and made syncing them a written rule of the system instead of something to remember.</p>
-        <p><strong>Design for the leak.</strong> Some of our positioning comes from a confidential source. Instead of trusting anyone (including me) to remember which claims are public, the positioning file marks every claim as cleared, confirm first, or gated. Every agent is instructed to check the table before anything publishes. The system assumes the mistake will happen and blocks it, which is the same logic I'd apply to any enablement process.</p>
-        <p><strong>Tell the researchers to be honest.</strong> The competitor research agents had one instruction that mattered more than the rest: be honest about competitor strengths, and mark unknowns as unknown instead of guessing. The dossiers came back with findings I didn't want but needed, including places where our favorite talking points don't land on a specific competitor.</p>
+        <p>The best way to explain the finished system is to follow a prompt through it.</p>
+        <p><strong>The context loads in tiers.</strong> Every session automatically loads one file: a top-level orientation document that covers the four layers, the rules that always apply, and where everything lives. The detailed context files (positioning, messaging, ideal customer, brand voice) only load when they're needed. When an agent picks up a task, its instructions tell it exactly which files to read first. When a marketing skill runs, it reads a condensed context file that mirrors the full folder. Keeping that condensed file in sync is a written rule of the system, because two sources of truth can drift apart. The tradeoff is worth it because sessions use fewer tokens and nothing starts without the right background.</p>
+        <p><strong>The right agent is matched by description.</strong> Each agent is a file that describes the lane it owns. When a prompt comes in, Claude compares the request against those descriptions and hands the work to the best fit. Ask how a campaign is performing and the paid ads agent picks it up, loads its context, and pulls the live data. If I want to control the route, I can name the agent directly in the prompt.</p>
+        <p><strong>Anything outside the lanes falls back to plain Claude Code.</strong> The agents are designed to be specialists. When I'm connecting a new API or working on something none of them cover, the main session handles it like any other task. The system adds knowledge when it's relevant and stays out of the way when it isn't.</p>
       </section>
 
       <section class="cs-sec">
         <h2 class="cs-title"><span class="num">04</span>What broke &amp; what I learned</h2>
         <p>I haven't run into any major issues yet, but I'm still early in my experimentation with the outputs.</p>
         <p>One of the things I did overlook was that this system applies to anything I do in Claude that isn't related to work (such as writing this post). Funny enough, I realized this when I started working on this post. The WBM voice doesn't exactly match my own lol.</p>
-        <p>The fix was a scope rule that provides swim lanes based on the prompt: the company voice for company work, my voice for my own work, and a guideline to ask when it's ambiguous.</p>
+        <p>The fix was a rule that provides swim lanes based on the prompt: the company voice for company work, my voice for my own work, and a guideline to ask when it's ambiguous.</p>
         <p>The second issue was that I realized the need for a clearance gate. Some of the content I used to create the context files has information that isn't approved to be shared externally. When I saw some of it showing up in the outputs, I added a clearance gate that flags potentially sensitive data as approved for external sharing, needing review, or not approved.</p>
         <p>Overall, I'm very happy with this project. It's my first attempt at creating a proper harness for Claude, and I can notice a substantial difference in the quality of the outputs. There will be lots of tinkering to do with the context files and skills, but the foundation is in place.</p>
         <p>The main thing I'll be on the lookout for is drift over time. The context files may calcify and become outdated. To try and prevent this, I plan to explore adding a feedback layer, but that will be part of a future project.</p>
