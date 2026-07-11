@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>An AI marketing system that doesn't start from scratch | Evan Greenhough</title>
+  <meta name="description" content="How I built an AI GTM system in Claude Code using context files, skills, agents, and live data, so no task starts from scratch.">
+  <link rel="canonical" href="https://evangreenhough.com/ai-marketing-system">
+
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="assets/favicon.png" sizes="any">
+  <link rel="apple-touch-icon" href="assets/favicon.png">
+
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="An AI marketing system that doesn't start from scratch">
+  <meta property="og:description" content="How I built an AI GTM system in Claude Code using context files, skills, agents, and live data, so no task starts from scratch.">
+  <meta property="og:url" content="https://evangreenhough.com/ai-marketing-system">
+  <meta property="og:image" content="https://evangreenhough.com/assets/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="https://evangreenhough.com/assets/og-image.png">
+
+  <!-- fonts: self-hosted via @font-face in styles.css -->
+
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="wrap">
+
+    <nav class="nav">
+      <a class="brand" href="/">
+        <span class="brand-mark">*</span>
+        <span class="brand-name">Evan Greenhough</span>
+      </a>
+      <button class="nav-toggle" aria-label="Menu" aria-expanded="false" aria-controls="nav-links">
+        <span></span><span></span><span></span>
+      </button>
+      <div class="nav-links" id="nav-links">
+        <a href="/work" class="active">Work</a>
+        <a href="/writing">Writing</a>
+      </div>
+    </nav>
+
+    <article class="article">
+      <a class="back" href="/work">&larr; Work</a>
+
+      <header class="cs-head">
+        <div class="eyebrow">Build</div>
+        <h1 class="art-title">An AI marketing system that doesn't start from scratch</h1>
+        <div class="tags cs-tags"><span class="tag tag-claude">Claude Code</span><span class="tag tag-marketing">Marketing</span></div>
+      </header>
+
+      <section class="cs-sec">
+        <p><strong>Tools:</strong> Claude Code &middot; Python &middot; GA4 &middot; Search Console &middot; Google Ads &middot; Clarity &middot; Leadfeeder &middot; Notion</p>
+        <p><strong>What it is:</strong> A GTM system where Claude already knows our company, customers, and competitors, with context that carries between sessions.</p>
+      </section>
+
+      <section class="cs-sec">
+        <h2 class="cs-title"><span class="num">01</span>Why I built it</h2>
+        <p>Working in enablement, I'm often faced with problems around scale. How do I scale an onboarding program to handle the increasing headcount? How do I scale sales best practices across multiple teams? How do I scale the creation of strategic content?</p>
+        <p>As I get more immersed in using AI, a new opportunity for scale has started to emerge.</p>
+        <p>How do I scale my impact in a way that previously wasn't possible?</p>
+        <p>The answer, like many of my enablement solutions, is to create a system. What's interesting about using AI to do this is that I'm now able to have an impact on parts of the business that I would otherwise have no ability to influence.</p>
+        <p>The idea and framework for this project were sparked by Matteo Tittarelli's article <a href="https://www.growthunhinged.com/p/how-to-build-your-ai-gtm-system" target="_blank" rel="noopener">"How to build your AI GTM system"</a>. In it, he breaks down how to create an AI GTM workspace into four layers:</p>
+        <ul>
+          <li>Context</li>
+          <li>Skills</li>
+          <li>Orchestration</li>
+          <li>Integrations</li>
+        </ul>
+        <figure class="cs-fig narrow">
+          <img src="assets/growth-unhinged-framework.webp" alt="Matteo Tittarelli's four-layer AI GTM framework infographic: system of context, system of skills, system of orchestration, and system of integrations" loading="lazy">
+          <figcaption>The four-layer framework, from Matteo Tittarelli's article on Growth Unhinged.</figcaption>
+        </figure>
+        <p>While the approach is adjacent to traditional sales enablement work, I decided to try his framework because I had already built many of the elements through the Marketing Ops work I've been tackling. I work on a lean revenue enablement team, and we don't have some of the traditional marketing roles you might find on other teams.</p>
+        <p>The goal was to create a system that would:</p>
+        <ul>
+          <li>Reduce the context I needed to provide in my prompts</li>
+          <li>Standardize the approach to repeatable tasks with skills</li>
+          <li>Orchestrate the execution with specialized agents</li>
+          <li>Pull in relevant data/insights from integrated tools</li>
+        </ul>
+        <p>This would enable me to create higher-quality outputs faster, without having to start from scratch every time.</p>
+      </section>
+
+      <section class="cs-sec">
+        <h2 class="cs-title"><span class="num">02</span>What I built</h2>
+        <p>An AI GTM operating system with four layers.</p>
+        <p><strong>Context</strong> is the foundational layer. I've built markdown files that cover the company, our ideal customer, our services, messaging by persona, and brand voice. These files are automatically loaded, so every session starts from the same foundation.</p>
+        <p><strong>Skills</strong> are the standard operating procedures that combine the context from the foundational layer with the prompt. They include marketing skills that write copy, audit content, or optimize ads. They are tools that the agents can use to solve problems.</p>
+        <p><strong>Agents</strong> can reason, use tools, and take feedback to improve their reasoning. The system currently has four of them, one per marketing lane (product marketing, content, paid ads, SEO).</p>
+        <p><strong>Integrations</strong> connect the agents to data sources. This shapes where they go to pull information and ensures that they are working with live data. I won't outline our entire stack, but they have access to a handful of analytics and data enrichment tools, including GA4 and Google Search Console.</p>
+        <figure class="cs-fig">
+          <img src="assets/ai-gtm-system.png" alt="The four layers of the system: context (the foundation), skills (the producers), orchestration (the coordinators), and integrations (the connectors)" loading="lazy">
+          <figcaption>The four layers, from the system's interactive field guide.</figcaption>
+        </figure>
+      </section>
+
+      <section class="cs-sec">
+        <h2 class="cs-title"><span class="num">03</span>How it works</h2>
+        <p>The decisions mattered more than the files.</p>
+        <p><strong>Audit before building.</strong> My first instinct was to create everything new. The audit showed three of the four layers half-built already: a brand voice guide, audience research, working API scripts. Most of the project was consolidation, not creation. The genuinely new work was one layer (the agents) and the connective tissue.</p>
+        <p><strong>One glue file.</strong> The marketing skills all read a single condensed context file. That file mirrors the full context folder, which means two sources of truth that can drift apart. I accepted that tradeoff deliberately, because the skills read a fixed path, and made syncing them a written rule of the system instead of something to remember.</p>
+        <p><strong>Design for the leak.</strong> Some of our positioning comes from a confidential source. Instead of trusting anyone (including me) to remember which claims are public, the positioning file marks every claim as cleared, confirm first, or gated. Every agent is instructed to check the table before anything publishes. The system assumes the mistake will happen and blocks it, which is the same logic I'd apply to any enablement process.</p>
+        <p><strong>Tell the researchers to be honest.</strong> The competitor research agents had one instruction that mattered more than the rest: be honest about competitor strengths, and mark unknowns as unknown instead of guessing. The dossiers came back with findings I didn't want but needed, including places where our favorite talking points don't land on a specific competitor.</p>
+      </section>
+
+      <section class="cs-sec">
+        <h2 class="cs-title"><span class="num">04</span>What broke &amp; what I learned</h2>
+        <p>I haven't run into any major issues yet, but I'm still early in my experimentation with the outputs.</p>
+        <p>One of the things I did overlook was that this system applies to anything I do in Claude that isn't related to work (such as writing this post). Funny enough, I realized this when I started working on this post. The WBM voice doesn't exactly match my own lol.</p>
+        <p>The fix was a scope rule that provides swim lanes based on the prompt: the company voice for company work, my voice for my own work, and a guideline to ask when it's ambiguous.</p>
+        <p>The second issue was that I realized the need for a clearance gate. Some of the content I used to create the context files has information that isn't approved to be shared externally. When I saw some of it showing up in the outputs, I added a clearance gate that flags potentially sensitive data as approved for external sharing, needing review, or not approved.</p>
+        <p>Overall, I'm very happy with this project. It's my first attempt at creating a proper harness for Claude, and I can notice a substantial difference in the quality of the outputs. There will be lots of tinkering to do with the context files and skills, but the foundation is in place.</p>
+        <p>The main thing I'll be on the lookout for is drift over time. The context files may calcify and become outdated. To try and prevent this, I plan to explore adding a feedback layer, but that will be part of a future project.</p>
+        <p>A future iteration could also involve figuring out how to build this in a way that gives my coworkers access to the same system.</p>
+      </section>
+
+      <div class="art-foot">
+        <a class="back" href="/work" style="margin-bottom:0;">&larr; All Work</a>
+      </div>
+    </article>
+
+    <footer class="footer spaced">
+      <span class="foot-name">Evan Greenhough</span>
+      <span class="dot">&middot;</span>
+      <a class="icon icon-li" href="https://www.linkedin.com/in/evangreenhough/" target="_blank" rel="noopener" aria-label="LinkedIn"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M4.98 3.5C4.98 4.88 3.87 6 2.5 6S0 4.88 0 3.5 1.12 1 2.5 1s2.48 1.12 2.48 2.5zM.2 8h4.6v14H.2V8zm7.4 0h4.4v1.9h.06c.61-1.16 2.1-2.38 4.34-2.38 4.64 0 5.5 3.05 5.5 7.02V22h-4.6v-6.2c0-1.48-.03-3.38-2.06-3.38-2.06 0-2.38 1.6-2.38 3.27V22H7.6V8z"/></svg></a>
+      <a class="icon icon-mail" href="mailto:evan.greenhough@gmail.com" aria-label="Email"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg></a>
+    </footer>
+
+  </div>
+</body>
+</html>
