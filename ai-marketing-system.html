@@ -172,7 +172,7 @@
         <p>The right agent is matched by description. Each agent is a file that describes the lane it owns. When a prompt comes in, Claude compares the request against those descriptions and hands the work to the best fit. Ask how a campaign is performing and the paid ads agent picks it up. If I want to control the route, I can name the agent directly in the prompt.</p>
         <p>Anything outside the lanes falls back to plain Claude Code. The agents are designed to be specialists. When I'm connecting a new API or working on something none of them cover, the main session handles it like any other task. The system adds knowledge when it's relevant and stays out of the way when it isn't.</p>
         <p>Once an agent picks up the task, context loads in tiers. Every session automatically loads one file: a top-level orientation document that covers the four layers, the rules that always apply, and where everything lives. The detailed context files (positioning, messaging, ideal customer, brand voice) only load when they're needed, and the agent's instructions tell it exactly which ones to read first.</p>
-        <p>Then the skills and integrations do the work. When a marketing skill runs, it reads a condensed context file that mirrors the full folder. Keeping that condensed file in sync is a written rule of the system, because two sources of truth can drift apart. The tradeoff is worth it because sessions use fewer tokens and nothing starts without the right background. The integrations pull in live data, so the output is built on current numbers instead of my memory.</p>
+        <p>Then the skills and integrations do the work. When a marketing skill runs, it reads a condensed context file that mirrors the full folder. Keeping that condensed file in sync is a written rule of the system, because two sources of truth can drift apart. The tradeoff is worth it because sessions use fewer tokens and nothing starts without the right background. The integrations pull in live data, so the output is built on current numbers.</p>
       </section>
 
       <section class="cs-sec">
@@ -182,8 +182,6 @@
         <p>The fix was a rule that provides swim lanes based on the prompt: the company voice for company work, my voice for my own work, and a guideline to ask when it's ambiguous.</p>
         <p>The second issue was that I realized the need for a clearance gate. Some of the content I used to create the context files has information that isn't approved to be shared externally. When I saw some of it showing up in the outputs, I added a clearance gate that flags potentially sensitive data as approved for external sharing, needing review, or not approved.</p>
         <p>Overall, I'm very happy with this project. It's my first attempt at creating a proper harness for Claude, and I can notice a substantial difference in the quality of the outputs. There will be lots of tinkering to do with the context files and skills, but the foundation is in place.</p>
-        <p>The main thing I'll be on the lookout for is drift over time. The context files may calcify and become outdated. To try and prevent this, I plan to explore adding a feedback layer, but that will be part of a future project.</p>
-        <p>A future iteration could also involve figuring out how to build this in a way that gives my coworkers access to the same system.</p>
       </section>
 
       <div class="art-foot">
