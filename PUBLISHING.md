@@ -102,6 +102,10 @@ To add a new one, add a `.tag-{name}` rule in styles.css (bg + text color) match
 
 ## Notes / don't forget
 - Keep `post.html` and the case-study template as references (unlinked; fine to leave).
+- Every page carries the Google Analytics tag (`gtag.js`, ID `G-NSHF44RF80`) just before
+  `</head>`. New pages built from the templates inherit it automatically — if a page is
+  built from scratch, copy the snippet in. It also anchors Search Console verification,
+  so don't remove it.
 - No `sitemap.xml` exists yet. If one is added later, append each new page's URL on publish.
 - The "italicize feel/feeling" styling on the *Speed vs Velocity* post was a one-off
   request, **not** a standing rule.
