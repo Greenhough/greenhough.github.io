@@ -93,12 +93,15 @@ Available: `tag-claude`, `tag-clay`, `tag-automation`, `tag-enablement`, `tag-hu
 To add a new one, add a `.tag-{name}` rule in styles.css (bg + text color) matching the palette.
 
 ## Ship & verify (both)
-1. `git add` the new page + edited `index.html` + edited hub (+ `styles.css` only if a new
-   tag/block was added).
-2. Commit (clear message, `Co-Authored-By` trailer) and push to `main`.
-3. Poll the Pages build until the new commit is "built".
-4. Verify live: new URL → 200; home + hub link to it; no broken links. If the link will be
-   shared, remind to refresh the social cache (LinkedIn Post Inspector / FB Sharing Debugger).
+1. Append the new page's URL to `sitemap.xml` (extensionless, matching its canonical —
+   e.g. `<url><loc>https://evangreenhough.com/my-new-post</loc></url>` before `</urlset>`).
+2. `git add` the new page + edited `index.html` + edited hub + `sitemap.xml`
+   (+ `styles.css` only if a new tag/block was added).
+3. Commit (clear message, `Co-Authored-By` trailer) and push to `main`.
+4. Poll the Pages build until the new commit is "built".
+5. Verify live: new URL → 200; home + hub link to it; no broken links; new URL present in
+   live `/sitemap.xml`. If the link will be shared, remind to refresh the social cache
+   (LinkedIn Post Inspector / FB Sharing Debugger).
 
 ## Notes / don't forget
 - Keep `post.html` and the case-study template as references (unlinked; fine to leave).
@@ -106,6 +109,8 @@ To add a new one, add a `.tag-{name}` rule in styles.css (bg + text color) match
   `</head>`. New pages built from the templates inherit it automatically — if a page is
   built from scratch, copy the snippet in. It also anchors Search Console verification,
   so don't remove it.
-- No `sitemap.xml` exists yet. If one is added later, append each new page's URL on publish.
+- `sitemap.xml` lists all real pages (not the 404 or the unlinked templates) and is
+  submitted to Google Search Console once — no resubmission needed; just keep the file
+  current on publish (step 1 above). `robots.txt` points crawlers at it.
 - The "italicize feel/feeling" styling on the *Speed vs Velocity* post was a one-off
   request, **not** a standing rule.
