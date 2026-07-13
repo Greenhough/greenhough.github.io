@@ -112,5 +112,7 @@ To add a new one, add a `.tag-{name}` rule in styles.css (bg + text color) match
 - `sitemap.xml` lists all real pages (not the 404 or the unlinked templates) and is
   submitted to Google Search Console once — no resubmission needed; just keep the file
   current on publish (step 1 above). `robots.txt` points crawlers at it.
+- The two urea-volatilization pages are **deliberately excluded** from the sitemap —
+  they're temporary and will be pulled down; do not add them.
 - The "italicize feel/feeling" styling on the *Speed vs Velocity* post was a one-off
   request, **not** a standing rule.
