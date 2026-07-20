@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Quibble: a local dictation app for my Mac | Evan Greenhough</title>
+  <meta name="description" content="A hold-to-talk dictation app for macOS, built in an evening with Claude Code. Local transcription, paste anywhere, every capture archived.">
+  <link rel="canonical" href="https://evangreenhough.com/quibble">
+
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="assets/favicon.png" sizes="any">
+  <link rel="apple-touch-icon" href="assets/favicon.png">
+
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="Quibble: a local dictation app for my Mac">
+  <meta property="og:description" content="A hold-to-talk dictation app for macOS, built in an evening with Claude Code. Local transcription, paste anywhere, every capture archived.">
+  <meta property="og:url" content="https://evangreenhough.com/quibble">
+  <meta property="og:image" content="https://evangreenhough.com/assets/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="https://evangreenhough.com/assets/og-image.png">
+
+  <!-- fonts: self-hosted via @font-face in styles.css -->
+
+  <link rel="stylesheet" href="styles.css">
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-NSHF44RF80"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-NSHF44RF80');
+  </script>
+
+</head>
+<body>
+  <div class="wrap">
+
+    <nav class="nav">
+      <a class="brand" href="/">
+        <span class="brand-mark">*</span>
+        <span class="brand-name">Evan Greenhough</span>
+      </a>
+      <button class="nav-toggle" aria-label="Menu" aria-expanded="false" aria-controls="nav-links">
+        <span></span><span></span><span></span>
+      </button>
+      <div class="nav-links" id="nav-links">
+        <a href="/work" class="active">Work</a>
+        <a href="/writing">Writing</a>
+      </div>
+    </nav>
+
+    <article class="article">
+      <a class="back" href="/work">&larr; Work</a>
+
+      <header class="cs-head">
+        <div class="eyebrow">Build</div>
+        <h1 class="art-title">Quibble: a local dictation app for my Mac</h1>
+        <div class="tags cs-tags"><span class="tag tag-claude">Claude Code</span><span class="tag tag-swift">Swift</span></div>
+        <p class="cs-dek">Hold a key, talk, and the text lands wherever my cursor is.</p>
+      </header>
+
+      <figure class="cs-fig narrow" style="max-width:180px;">
+        <img src="assets/quibble-icon.png" alt="The Quibble app icon: a green lowercase q on a dark rounded square" width="1024" height="1024">
+      </figure>
+
+      <section class="cs-sec">
+        <h2 class="cs-title"><span class="num">01</span>Why I built it</h2>
+        <p>I've developed the habit of dictating prompts to Claude. This is due to 1) it being regularly shared as a best practice on LinkedIn (verbal prompts consistently provide more context than written ones) and 2) it being much faster than typing. I started experimenting with this approach a few months back, using Wispr Flow. It's a great tool, and I've really enjoyed the experience. It's intuitive to use, extremely accurate, filters out filler words, and you have access to some interesting insights around your usage.</p>
+        <p>But....</p>
+        <p>I've been regularly hitting the weekly word cap, and I'm not interested in paying for the subscription. Knowing that it's a relatively straightforward point solution, I decided to vibe code my own native Mac app in an evening.</p>
+      </section>
+
+      <section class="cs-sec">
+        <h2 class="cs-title"><span class="num">02</span>What I built</h2>
+        <p>Quibble is a voice-to-text app that turns my voice into text wherever I'm working. I hold the fn key, speak some magical words, and it pastes as text in whatever app I'm working in. Similar to Wispr Flow, a small pill floats at the bottom of the screen. While I'm using it, a little waveform pops up to show that it's active.</p>
+        <p>Transcription happens on the Mac with a local speech model. My V2 will switch on a call to Claude's API to clean up filler words and check spelling against my dictionary of common misspellings, so names like "Saskatoon" come out right every time. It would also open up functionality for summarizing or making other changes to the text.</p>
+      </section>
+
+      <figure class="cs-fig">
+        <img src="assets/quibble-screenshot.png" alt="The Quibble pill in locked mode floating over the Claude Code input bar" width="1602" height="260">
+        <figcaption>Locked mode: dictating into Claude Code, the tool that built it</figcaption>
+      </figure>
+
+      <section class="cs-sec">
+        <h2 class="cs-title"><span class="num">03</span>How it works</h2>
+        <p>I started this build with an extensive interview. I prompted Claude Code to grill me one question at a time: hold or toggle? what happens when a paste fails? how will you know when the audio is no longer being captured? This helped me think through the architecture before starting to build.</p>
+        <p>The transcription is local (NVIDIA's Parakeet model running through CoreML). I picked it because it's fast, free, and local on an Apple device. The app itself is native Swift, which I didn't write a line of. Claude Code did, because the hard parts of a dictation tool (grabbing the fn key, floating a panel over every app, low-latency microphone access) are things macOS only hands to a native app.</p>
+        <p>I've run into a few instances with Wispr Flow where the text didn't post. With Wispr, it's easy because you can just go into the app and copy the text. To make sure my app could deal with the same problem, I made every capture save to a local database. The additional benefit of this approach is that it gives me the data for a dashboard that tracks my usage stats.</p>
+      </section>
+
+      <figure class="cs-fig">
+        <img src="assets/quibble-dashboard.png" alt="The Quibble stats dashboard: words per day, speaking pace, and top apps" width="1676" height="1204">
+        <figcaption>Look ma, no hands</figcaption>
+      </figure>
+
+      <section class="cs-sec">
+        <h2 class="cs-title"><span class="num">04</span>What broke &amp; what I learned</h2>
+        <p>I didn't realize this before, but macOS uses the fn key for an emoji shortcut. Before I could use it for Quibble, I had to tell the OS to stop opening the emoji picker every time I held it down.</p>
+        <p>I also spent a stretch confused about why every dictation was pasting twice, once clean and once raw. The answer was a bug I hadn't anticipated. I had been comparing the functionality with Wispr and didn't realize that I was running both apps at the same time. Whoopsies.</p>
+        <p>The big takeaway from this project was the importance of a thorough plan before having Claude write any code. I've never planned a build this thoroughly before, and the benefit downstream was immediately apparent. It worked perfectly on the first try and the only thing I've had to debug so far is my own ignorance.</p>
+      </section>
+
+      <div class="art-foot">
+        <a class="back" href="/work" style="margin-bottom:0;">&larr; All Work</a>
+      </div>
+    </article>
+
+    <footer class="footer spaced">
+      <span class="foot-name">Evan Greenhough</span>
+      <span class="dot">&middot;</span>
+      <a class="icon icon-li" href="https://www.linkedin.com/in/evangreenhough/" target="_blank" rel="noopener" aria-label="LinkedIn"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M4.98 3.5C4.98 4.88 3.87 6 2.5 6S0 4.88 0 3.5 1.12 1 2.5 1s2.48 1.12 2.48 2.5zM.2 8h4.6v14H.2V8zm7.4 0h4.4v1.9h.06c.61-1.16 2.1-2.38 4.34-2.38 4.64 0 5.5 3.05 5.5 7.02V22h-4.6v-6.2c0-1.48-.03-3.38-2.06-3.38-2.06 0-2.38 1.6-2.38 3.27V22H7.6V8z"/></svg></a>
+      <a class="icon icon-mail" href="mailto:evan.greenhough@gmail.com" aria-label="Email"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg></a>
+    </footer>
+
+  </div>
+</body>
+</html>
