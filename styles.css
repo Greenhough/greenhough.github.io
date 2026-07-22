@@ -643,6 +643,7 @@ a { color: inherit; }
 .cs-fig img { width: 100%; height: auto; border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow); }
 .cs-fig svg.cs-flow { width: 100%; max-width: 540px; height: auto; aspect-ratio: 640 / 740; display: block; margin: 0 auto; padding: 22px 8px; border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow); background: var(--surface); box-sizing: border-box; }
 .cs-fig.narrow { max-width: 460px; }
+.cs-fig.logo img { border: none; border-radius: 0; box-shadow: none; }
 .cs-fig figcaption { font-size: 13px; color: var(--muted); text-align: center; margin-top: 10px; }
 
 /* lists inside case-study sections */

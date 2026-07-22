@@ -11,6 +11,13 @@ source of truth for the `/new-writing` and `/new-work` Claude Code commands.
 - Not cloned locally by default — clone fresh: `gh repo clone Greenhough/greenhough.github.io`.
 
 ## Conventions (both types)
+- **Title case:** all post/case-study titles use title case — capitalize the first word,
+  the last word, and every principal word; lowercase articles (`a`, `an`, `the`),
+  coordinating conjunctions (`and`, `but`, `or`, `nor`, `for`, `so`, `yet`), the word `to`,
+  short prepositions (`in`, `on`, `at`, `by`, `of`, `vs`, etc.), unless one falls first or
+  last. Leave proper nouns and acronyms as they are (`AI`, `GTM`, `HAL 9000`, `Notion`).
+  Apply it everywhere the title appears: the `<h1>`, the `<title>`, `og:title`/`twitter:title`,
+  and every card/hub/home listing.
 - **Filename / URL:** kebab-case slug → `my-title.html`, served at `/my-title`
   (Pages serves extensionless paths; never use a trailing slash).
 - **`<title>`:** `{Title} | Evan Greenhough` (pipe, never an em dash).
