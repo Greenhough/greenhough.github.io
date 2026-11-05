@@ -1,0 +1,42 @@
+---
+// A Project write-up: /quibble, /pomodoro-timer and so on.
+import Base from './Base.astro';
+import Tags from '../components/Tags.astro';
+
+interface Props {
+  title: string;
+  slug: string;
+  eyebrow: string;
+  tags: string[];
+  description: string;
+  dek?: string;
+}
+const { title, slug, eyebrow, tags, description, dek } = Astro.props;
+---
+
+<Base
+  title={`${title} | Evan Greenhough`}
+  ogTitle={title}
+  description={description}
+  path={`/${slug}`}
+  ogType="article"
+  active="work"
+  spacedFooter
+>
+  <article class="article">
+    <a class="back" href="/work">&larr; Work</a>
+
+    <header class="cs-head">
+      <div class="eyebrow">{eyebrow}</div>
+      <h1 class="art-title">{title}</h1>
+      <Tags tags={tags} extraClass="cs-tags" />
+      {dek && <p class="cs-dek">{dek}</p>}
+    </header>
+
+    <slot />
+
+    <div class="art-foot">
+      <a class="back" href="/work" style="margin-bottom:0;">&larr; All Work</a>
+    </div>
+  </article>
+</Base>

@@ -1,0 +1,38 @@
+---
+import { getCollection } from 'astro:content';
+import Base from '../layouts/Base.astro';
+import { monthYear } from '../lib/format';
+
+const INTRO = 'Ideas, notes, and essays on my experiments building with AI.';
+
+const posts = (await getCollection('posts')).sort(
+  (a, b) => b.data.date.valueOf() - a.data.date.valueOf()
+);
+---
+
+<Base
+  title="Writing | Evan Greenhough"
+  ogTitle="Writing | Evan Greenhough"
+  description={INTRO}
+  path="/writing"
+  active="writing"
+>
+  <header class="page-head">
+    <h1 class="page-title">Writing</h1>
+    <p class="page-intro">{INTRO}</p>
+  </header>
+
+  <section class="sec">
+    <div class="post-list index">
+      {
+        posts.map((post) => (
+          <a class="post" href={`/${post.data.slug}`}>
+            <h2 class="post-title">{post.data.title}</h2>
+            <span class="post-date">{monthYear(post.data.date)}</span>
+            <p class="post-excerpt" set:html={post.data.excerpt} />
+          </a>
+        ))
+      }
+    </div>
+  </section>
+</Base>

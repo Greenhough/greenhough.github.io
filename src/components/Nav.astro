@@ -1,0 +1,21 @@
+---
+interface Props {
+  /** Which nav link gets the green "active" state. */
+  active?: 'work' | 'writing';
+}
+const { active } = Astro.props;
+---
+
+<nav class="nav">
+  <a class="brand" href="/">
+    <span class="brand-mark">*</span>
+    <span class="brand-name">Evan Greenhough</span>
+  </a>
+  <button class="nav-toggle" aria-label="Menu" aria-expanded="false" aria-controls="nav-links">
+    <span></span><span></span><span></span>
+  </button>
+  <div class="nav-links" id="nav-links">
+    <a href="/work" class={active === 'work' ? 'active' : undefined}>Work</a>
+    <a href="/writing" class={active === 'writing' ? 'active' : undefined}>Writing</a>
+  </div>
+</nav>

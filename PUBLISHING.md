@@ -1,125 +1,259 @@
 # Publishing Guide — evangreenhough.com
 
-How to publish a new **writing** post or **work** case study. This is the single
-source of truth for the `/new-writing` and `/new-work` Claude Code commands.
+How to publish a **Post** (writing) or a **Project write-up** (work).
 
-## Repo & deploy basics
-- Repo: `Greenhough/greenhough.github.io` (public). GitHub Pages serves the `main`
-  branch root. Live at https://evangreenhough.com.
-- Work on `main`. After pushing, Pages rebuilds (~30–90s). **Always verify** the live
-  URL returns 200 and links resolve before calling it done.
-- Not cloned locally by default — clone fresh: `gh repo clone Greenhough/greenhough.github.io`.
+Since the Astro rebuild, publishing is: **add one Markdown file, push to `main`.**
+The home page, the hub page, `sitemap.xml`, the canonical URL, the Open Graph tags
+and the Google Analytics tag are all generated from that file. Nothing is
+maintained in two places any more, so the old rules about prepending to the hub,
+keeping the home page's top 3 in sync, and hand-editing `sitemap.xml` are gone.
 
-## Conventions (both types)
-- **Title case:** all post/case-study titles use title case — capitalize the first word,
-  the last word, and every principal word; lowercase articles (`a`, `an`, `the`),
-  coordinating conjunctions (`and`, `but`, `or`, `nor`, `for`, `so`, `yet`), the word `to`,
-  short prepositions (`in`, `on`, `at`, `by`, `of`, `vs`, etc.), unless one falls first or
-  last. Leave proper nouns and acronyms as they are (`AI`, `GTM`, `HAL 9000`, `Notion`).
-  Apply it everywhere the title appears: the `<h1>`, the `<title>`, `og:title`/`twitter:title`,
-  and every card/hub/home listing.
-- **Filename / URL:** kebab-case slug → `my-title.html`, served at `/my-title`
-  (Pages serves extensionless paths; never use a trailing slash).
-- **`<title>`:** `{Title} | Evan Greenhough` (pipe, never an em dash).
-- **Canonical + `og:url`:** `https://evangreenhough.com/{slug}`.
-- **OG/Twitter (every page):** `og:type=article`, `og:title={Title}` (no name suffix on
-  og:title), `og:description`, `og:url`, `og:image=https://evangreenhough.com/assets/og-image.png`
-  (the shared site card) + `og:image:width/height` 1200/630, `twitter:card=summary_large_image`,
-  `twitter:image` = same card.
-- **Meta description = the excerpt line** (reuse the same text for the page meta + OG
-  description). Keep ~110–155 chars.
-- **Listing preview text** (home + writing-hub cards, `<p class="post-excerpt">`) is a
-  **single line** — the post's opening sentence only, not the full excerpt. It may be
-  shorter than the meta description; the two do not have to match.
-- **Paths:** relative on content pages (`assets/...`, `styles.css`); root-relative for nav
-  links (`/`, `/work`, `/writing`).
-- **Fonts:** already self-hosted via styles.css — nothing to add.
-- **Date format:** `Mon YYYY` (e.g. `Jun 2026`) in listings and the article meta line.
-- **Voice:** place the author's text **verbatim** unless asked to write/polish. Ask
-  clarifying questions about formatting; never invent copy or facts.
+Vocabulary (Post, Project, Write-up, Theme, Tag, Flat Site, Archive) is defined in
+[`CONTEXT.md`](CONTEXT.md). The decisions behind this setup are in
+[`docs/adr/`](docs/adr/).
 
-## Home-page rule
-- Home shows the **latest 3** of each section (Recent Work, Writing), **newest first**.
-- Hub pages (`/work`, `/writing`) show **all** entries, newest first.
-- On publish: prepend the new entry to the hub list, then rebuild the home section to
-  mirror the hub's top 3.
+---
 
-## A) New WRITING post
-Template: `post.html` (unlinked reference — don't delete). Body uses `<article class="article narrow">`.
-1. Create `{slug}.html` from the article template.
-2. Head: title (pipe), meta description (= excerpt), canonical, OG/Twitter (`og:type=article`).
-3. Header: `<h1 class="art-title">{Title}</h1>` + `<div class="art-meta">{Mon YYYY} &middot; {N} min read</div>`
-   (estimate read time at ~225 wpm).
-4. Body in `<div class="prose">`: use `<p>`, `<h2>`, `<blockquote>`, `<ul><li>`, `<em>`,
-   and `<div class="defn">…</div>` for definition/equation blocks. Ask how to format
-   (preserve short-line rhythm vs flowing paragraphs; lists; pull-quote).
-5. Keep the `<div class="art-foot">` back-link and `<footer class="footer spaced">`.
-6. **Writing hub** (`writing.html`) — prepend inside `<div class="post-list index">`:
-   ```html
-   <a class="post" href="/{slug}">
-     <h2 class="post-title">{Title}</h2>
-     <span class="post-date">{Mon YYYY}</span>
-     <p class="post-excerpt">{preview — single line, the opening sentence}</p>
-   </a>
-   ```
-7. **Home** (`index.html`) Writing section `<div class="post-list">` — same entry but
-   `<h3 class="post-title">`. Keep only the latest 3. Same single-line preview text.
+## How the site is built
 
-## B) New WORK case study
-Template: `case-study-1.html` (full reference). Body uses `<article class="article">` (NOT narrow).
-1. Create `{slug}.html` from the case-study template.
-2. Head: title (pipe), meta description, canonical, OG/Twitter (`og:type=article`).
-3. Header: `<header class="cs-head">` → `<div class="eyebrow">{Category}</div>`,
-   `<h1 class="art-title">{Title}</h1>`, `<div class="tags cs-tags">{tags}</div>`.
-4. Body: numbered `<section class="cs-sec">` blocks →
-   `<h2 class="cs-title"><span class="num">01</span>{Heading}</h2>` + `<p>`.
-   Typical arc: 01 The Problem, 02 The Approach, 03 The Outcome (adapt to the content).
-5. **Work hub** (`work.html`) — prepend inside `<div class="proj-list">`:
-   ```html
-   <a class="proj" href="/{slug}">
-     <div class="eyebrow">{Category}</div>
-     <h2 class="proj-title">{Title}</h2>
-     <p class="proj-desc">{one-line description}</p>
-     <div class="tags">{tags}</div>
-   </a>
-   ```
-6. **Home** (`index.html`) Recent Work `<div class="card-grid">`:
-   ```html
-   <a class="card" href="/{slug}">
-     <div class="tags">{tags}</div>
-     <h3 class="card-title">{Title}</h3>
-     <p class="card-desc">{short description}</p>
-     <span class="arrow">&rarr;</span>
-   </a>
-   ```
-   Keep only the latest 3.
+| | |
+|---|---|
+| Framework | [Astro](https://astro.build), static output, no JavaScript framework |
+| Content | Markdown in `src/content/work/` and `src/content/posts/` |
+| Styling | One stylesheet, `src/styles/global.css` |
+| Hosting | GitHub Pages, from the `main` branch, built by `.github/workflows/deploy.yml` |
+| Live at | https://evangreenhough.com |
 
-### Tag classes (work cards)
-Available: `tag-claude`, `tag-clay`, `tag-automation`, `tag-enablement`, `tag-hubspot`,
-`tag-notion`, `tag-make`. A tag span looks like `<span class="tag tag-clay">Clay</span>`.
-To add a new one, add a `.tag-{name}` rule in styles.css (bg + text color) matching the palette.
+GitHub Pages is set to **Source: GitHub Actions** (Settings → Pages). It no longer
+serves raw files from the branch, because the site now has a build step.
 
-## Ship & verify (both)
-1. Append the new page's URL to `sitemap.xml` (extensionless, matching its canonical —
-   e.g. `<url><loc>https://evangreenhough.com/my-new-post</loc></url>` before `</urlset>`).
-2. `git add` the new page + edited `index.html` + edited hub + `sitemap.xml`
-   (+ `styles.css` only if a new tag/block was added).
-3. Commit (clear message, `Co-Authored-By` trailer) and push to `main`.
-4. Poll the Pages build until the new commit is "built".
-5. Verify live: new URL → 200; home + hub link to it; no broken links; new URL present in
-   live `/sitemap.xml`. If the link will be shared, remind to refresh the social cache
-   (LinkedIn Post Inspector / FB Sharing Debugger).
+**Always pull before editing.** Evan works on this from several Claude windows at
+once and a stale clone will diverge:
 
-## Notes / don't forget
-- Keep `post.html` and the case-study template as references (unlinked; fine to leave).
-- Every page carries the Google Analytics tag (`gtag.js`, ID `G-NSHF44RF80`) just before
-  `</head>`. New pages built from the templates inherit it automatically — if a page is
-  built from scratch, copy the snippet in. It also anchors Search Console verification,
-  so don't remove it.
-- `sitemap.xml` lists all real pages (not the 404 or the unlinked templates) and is
-  submitted to Google Search Console once — no resubmission needed; just keep the file
-  current on publish (step 1 above). `robots.txt` points crawlers at it.
-- The two urea-volatilization pages are **deliberately excluded** from the sitemap —
-  they're temporary and will be pulled down; do not add them.
-- The "italicize feel/feeling" styling on the *Speed vs Velocity* post was a one-off
-  request, **not** a standing rule.
+```bash
+git pull
+```
+
+### Running it locally
+
+```bash
+npm install
+```
+
+```bash
+npm run dev
+```
+
+That serves the site at http://localhost:4321 and reloads as you edit. To check
+exactly what will be deployed, build it and serve the output:
+
+```bash
+npm run build && npm run preview
+```
+
+---
+
+## A) Publishing a Post
+
+1. Create `src/content/posts/{slug}.md`.
+2. Fill in the frontmatter (see the reference below).
+3. Write the body in ordinary Markdown.
+4. Commit and push to `main`.
+
+```markdown
+---
+title: "The Title In Title Case"
+slug: "the-title-in-title-case"
+date: 2026-11-04
+description: "The meta description. One or two sentences, roughly 110-155 characters."
+excerpt: "The opening sentence only. This is the preview line on the listings."
+readTime: 3
+---
+The first paragraph.
+
+The second paragraph, with *italics* where you want them.
+
+> A pull quote.
+
+- A list item
+- Another list item
+```
+
+Markdown maps onto the site's styles automatically: `##` becomes a section
+heading, `>` becomes the green-bordered pull quote, `*text*` becomes italics, and
+`-` becomes a bulleted list. For the monospace definition block, drop in the HTML:
+
+```html
+<div class="defn">
+  <b>Speed</b> = distance/time<br>
+  <b>Velocity</b> = displacement/time
+</div>
+```
+
+To put a looping video above the prose, add `video` to the frontmatter rather than
+writing the tag in the body:
+
+```yaml
+video:
+  src: "/assets/the-file.mp4"
+  label: "A description of the video, read out by screen readers."
+```
+
+## B) Publishing a Project write-up
+
+1. Create `src/content/work/{slug}.md`.
+2. Fill in the frontmatter (see the reference below).
+3. Write the body using the numbered-section HTML described below.
+4. Commit and push to `main`.
+
+```markdown
+---
+title: "The Project Name"
+slug: "the-project-name"
+eyebrow: "Build"
+tags: ["Claude Code", "Python"]
+date: 2026-11-04
+description: "The meta description. Roughly 110-155 characters."
+summary: "The one-line card text shown on /work and on the home page."
+dek: "An optional standfirst line, shown under the title on the write-up itself."
+theme: "Built for Myself"
+---
+<section class="cs-sec">
+  <h2 class="cs-title"><span class="num">01</span>Why I built it</h2>
+  <p>...</p>
+  <p>...</p>
+</section>
+
+<figure class="cs-fig">
+  <img src="/assets/a-screenshot.png" alt="A real description of the image" width="1600" height="900">
+  <figcaption>An optional caption.</figcaption>
+</figure>
+
+<section class="cs-sec">
+  <h2 class="cs-title"><span class="num">02</span>What I built</h2>
+  <p>...</p>
+</section>
+```
+
+The usual arc is `01 Why I built it`, `02 What I built`, `03 How it works`,
+`04 What broke & what I learned`. Adapt it to the project.
+
+**Why write-up bodies are HTML and posts are not.** The numbered sections, the
+figures that sit between them, and the occasional section with no heading at all
+are hand-placed editorial layout. Markdown headings cannot express that, so the
+body keeps its HTML. The frontmatter above it is still the single source of truth
+for everything that appears in more than one place.
+
+**Two rules for the body HTML:**
+
+- **No blank lines inside an element.** Markdown ends a raw-HTML block at the
+  first blank line, so a blank line in the middle of a `<section>` would split it
+  in half. Put blank lines only *between* top-level elements.
+- **Image paths start with `/`.** Images live in `public/assets/` and are
+  referenced as `/assets/filename.png`.
+
+Figure variants: `cs-fig` on its own is full width, `cs-fig narrow` caps the
+width, and `cs-fig logo` drops the border and shadow for a logo or an app icon.
+
+---
+
+## Frontmatter reference
+
+Fields are checked at build time. A missing or misspelled field fails the build
+rather than shipping a broken page. The schema lives in `src/content.config.ts`.
+
+### Posts (`src/content/posts/`)
+
+| Field | Required | What it is |
+|---|---|---|
+| `title` | yes | Title case. Used for the `<h1>`, the `<title>`, `og:title` and every listing. |
+| `slug` | yes | The URL path without a leading slash. `hal-9000` serves at `/hal-9000`. |
+| `date` | yes | `YYYY-MM-DD`. Sorts the listings; displayed as `Mon YYYY`. |
+| `description` | yes | The meta description and `og:description`. Roughly 110-155 characters. |
+| `excerpt` | yes | The single preview line on the home page and `/writing`. Normally the opening sentence. May contain inline HTML such as `<em>`. |
+| `readTime` | yes | Whole minutes, at roughly 225 words per minute. |
+| `video` | no | `src` and `label`, for a looping video above the prose. |
+
+### Projects (`src/content/work/`)
+
+| Field | Required | What it is |
+|---|---|---|
+| `title` | yes | Title case. Used for the `<h1>`, the `<title>`, `og:title` and every listing. |
+| `slug` | yes | The URL path without a leading slash. |
+| `eyebrow` | yes | The small label above the title. Currently `Build` or `Vibe Coding`. |
+| `tags` | yes | A list of tag labels. Each must have a colour (see below). |
+| `date` | yes | `YYYY-MM-DD`. Sorts the listings. |
+| `description` | yes | The meta description and `og:description`. |
+| `summary` | yes | The one-line card text on `/work` and on the home page. |
+| `dek` | no | A standfirst line under the title on the write-up itself. |
+| `theme` | yes | `Built for Myself` or `Built for Work`. Not shown anywhere yet; it is the Section a Project will sit in on the Shelf (deploy two). |
+
+`description` and `summary` do different jobs: `description` is written for search
+results and link previews, `summary` is written for someone scanning a list of
+projects. `dek` is the line that sets up the write-up itself.
+
+### Adding a new tag colour
+
+Tag labels map to a colour class in `src/components/Tags.astro`. A label with no
+mapping fails the build on purpose, so a tag can never render unstyled. To add one:
+
+1. Add a `.tag-{name}` rule in `src/styles/global.css` with a background and text
+   colour that fits the palette.
+2. Add the label to the `TAG_CLASSES` map in `src/components/Tags.astro`.
+
+---
+
+## Conventions
+
+- **Title case:** capitalise the first word, the last word, and every principal
+  word. Lowercase articles (`a`, `an`, `the`), coordinating conjunctions (`and`,
+  `but`, `or`, `nor`, `for`, `so`, `yet`), the word `to`, and short prepositions
+  (`in`, `on`, `at`, `by`, `of`, `vs`), unless one falls first or last. Leave
+  proper nouns and acronyms alone (`AI`, `GTM`, `HAL 9000`, `Notion`). The title
+  is written once, in frontmatter, and used everywhere.
+- **Slug:** kebab-case, no leading slash, no trailing slash. It is the one thing
+  that decides the URL. Name the file after it.
+- **Dates:** only the month and year are displayed, but the day decides the order
+  within a month. If two items share a month, give the one that should appear
+  first the later date.
+- **Images:** put them in `public/assets/` and reference them as `/assets/name.png`.
+  Always set `alt`, and set `width` and `height` so the page does not jump while
+  loading.
+- **Voice:** place Evan's text **verbatim** unless he asks for writing or polish.
+  Ask about formatting; never invent copy or facts.
+
+---
+
+## What is generated for you
+
+Do not hand-maintain any of this:
+
+- The home page's latest three Projects and three Posts.
+- The `/work` and `/writing` listings.
+- `sitemap.xml`, built from the collections by `src/pages/sitemap.xml.ts`.
+- The `<title>`, meta description, canonical URL and all Open Graph and Twitter tags.
+- The Google Analytics tag (`G-NSHF44RF80`), which is in `src/components/BaseHead.astro`
+  and therefore on every page. It also anchors Search Console verification, so do
+  not remove it.
+
+## What is not in the collections
+
+- **`public/urea-volatilization.html`** and **`public/urea-volatilization-methodology.html`**
+  are static leftovers, deliberately excluded from the sitemap, and are coming
+  down soon. Do not convert them.
+- **`public/archive/v1/`** is the frozen, noindexed copy of the pre-rebuild flat
+  site. It is self-contained and should not be edited. The matching commit is
+  tagged `v1-flat-site`.
+
+---
+
+## Ship and verify
+
+1. `npm run build` locally. If it fails, the frontmatter is wrong; the error says which field.
+2. Commit the new Markdown file plus any new images in `public/assets/`.
+3. Push to `main`. The Action builds and deploys (about a minute).
+4. Check the Actions tab shows a green run.
+5. Verify live: the new URL returns 200, the home page and the hub link to it, and
+   the URL appears in https://evangreenhough.com/sitemap.xml.
+6. If the link will be shared, refresh the social cache (LinkedIn Post Inspector
+   or the Facebook Sharing Debugger).

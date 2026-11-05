@@ -3,17 +3,28 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Page not found | Evan Greenhough</title>
-  <meta name="description" content="That page couldn't be found.">
-  <meta name="robots" content="noindex">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Writing | Evan Greenhough</title>
+  <meta name="description" content="Ideas, notes, and essays on my experiments building with AI.">
+  <link rel="canonical" href="https://evangreenhough.com/writing">
 
-  <!-- favicon -->
   <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/assets/favicon.png" sizes="any">
   <link rel="apple-touch-icon" href="/assets/favicon.png">
 
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Writing | Evan Greenhough">
+  <meta property="og:description" content="Ideas, notes, and essays on my experiments building with AI.">
+  <meta property="og:url" content="https://evangreenhough.com/writing">
+  <meta property="og:image" content="https://evangreenhough.com/assets/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="https://evangreenhough.com/assets/og-image.png">
+
   <!-- fonts: self-hosted via @font-face in styles.css -->
-  <link rel="stylesheet" href="/styles.css">
+
+  <link rel="stylesheet" href="styles.css">
   <!-- Google tag (gtag.js) -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-NSHF44RF80"></script>
   <script>
@@ -28,7 +39,7 @@
   <div class="wrap">
 
     <nav class="nav">
-      <a class="brand" href="/">
+      <a class="brand" href="index.html">
         <span class="brand-mark">*</span>
         <span class="brand-name">Evan Greenhough</span>
       </a>
@@ -36,17 +47,30 @@
         <span></span><span></span><span></span>
       </button>
       <div class="nav-links" id="nav-links">
-        <a href="/work">Work</a>
-        <a href="/writing">Writing</a>
+        <a href="work.html">Work</a>
+        <a href="writing.html" class="active">Writing</a>
       </div>
     </nav>
 
-    <header class="hero">
-      <div class="badge">Error 404</div>
-      <h1 class="hero-title">Page <span class="accent">not found.</span></h1>
-      <p class="lead">That page doesn't exist — it may have moved or the link was mistyped. Let's get you back on track.</p>
-      <a class="sec-link" href="/">&larr; Back home</a>
+    <header class="page-head">
+      <h1 class="page-title">Writing</h1>
+      <p class="page-intro">Ideas, notes, and essays on my experiments building with AI.</p>
     </header>
+
+    <section class="sec">
+      <div class="post-list index">
+        <a class="post" href="hal-9000.html">
+          <h2 class="post-title">HAL 9000</h2>
+          <span class="post-date">Jun 2026</span>
+          <p class="post-excerpt">Every once in a while, I put a prompt into Claude and fully expect it to push back.</p>
+        </a>
+        <a class="post" href="speed-vs-velocity.html">
+          <h2 class="post-title">Speed vs Velocity</h2>
+          <span class="post-date">Jun 2026</span>
+          <p class="post-excerpt">AI <em>feels</em> fast, but speed without direction isn't velocity.</p>
+        </a>
+      </div>
+    </section>
 
     <footer class="footer">
       <span class="foot-name">Evan Greenhough</span>
@@ -56,6 +80,5 @@
     </footer>
 
   </div>
-  <script src="/script.js"></script>
 </body>
 </html>

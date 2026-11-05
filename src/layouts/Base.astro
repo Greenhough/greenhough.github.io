@@ -1,0 +1,56 @@
+---
+// The page shell every page on the site shares: head, nav, content, footer.
+import BaseHead from '../components/BaseHead.astro';
+import Nav from '../components/Nav.astro';
+import Footer from '../components/Footer.astro';
+
+interface Props {
+  title: string;
+  ogTitle: string;
+  description: string;
+  path: string;
+  ogType?: 'website' | 'article';
+  robots?: string;
+  active?: 'work' | 'writing';
+  /** Article pages use the taller footer. */
+  spacedFooter?: boolean;
+}
+
+const {
+  title,
+  ogTitle,
+  description,
+  path,
+  ogType,
+  robots,
+  active,
+  spacedFooter = false,
+} = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <BaseHead
+      title={title}
+      ogTitle={ogTitle}
+      description={description}
+      path={path}
+      ogType={ogType}
+      robots={robots}
+    />
+  </head>
+  <body>
+    <div class="wrap">
+      <Nav active={active} />
+      <slot />
+      <Footer spaced={spacedFooter} />
+    </div>
+    <script>
+      // Typewriter badge on the home page, plus the mobile menu and the nav
+      // shadow on scroll. Before the rebuild this only loaded on the home page
+      // and the 404, so the mobile menu button did nothing on every other page.
+      import '../scripts/site.js';
+    </script>
+  </body>
+</html>
