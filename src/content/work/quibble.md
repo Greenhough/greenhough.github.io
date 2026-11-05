@@ -8,6 +8,7 @@ description: "A hold-to-talk dictation app for macOS, built in an evening with C
 summary: "A private, hold-to-talk dictation app for my Mac, built in an evening with Claude Code."
 dek: "Hold a key, talk, and the text lands wherever my cursor is."
 theme: "Built for Myself"
+cover: "../../assets/covers/quibble.png"
 ---
 <figure class="cs-fig narrow logo" style="max-width:180px;">
   <img src="/assets/quibble-icon.png" alt="The Quibble app icon: a green lowercase q on a dark rounded square" width="1024" height="1024">

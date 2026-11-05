@@ -653,3 +653,143 @@ a { color: inherit; }
 .cs-sec ul { font-size: 16px; line-height: 1.7; color: var(--body); margin: 0 0 16px; padding-left: 22px; }
 .cs-sec li { margin-bottom: 8px; }
 .cs-sec li:last-child { margin-bottom: 0; }
+
+/* ============================================================
+   The Shelf (deploy two)
+   The 3D home page. Everything it shows also exists as ordinary
+   HTML underneath, which is what visitors without WebGL, visitors
+   who asked for reduced motion, and crawlers get instead.
+   ============================================================ */
+
+/* Set synchronously in the head before first paint, so the Flat Site never
+   flashes before the Shelf covers it. Removed again by the failsafe if the
+   island does not come up. */
+html.shelf-capable body { overflow: hidden; }
+html.shelf-capable .wrap { display: none; }
+
+.shelf {
+  position: fixed;
+  inset: 0;
+  /* Explicit dimensions, not just inset: react-three-fiber measures its
+     container on mount and will not start the frame loop if that measurement
+     comes back zero, which leaves the canvas at its default 300x150. */
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  background: var(--paper);
+}
+/* The wrapper react-three-fiber puts around the canvas. Scoped to that one
+   element: a bare `.shelf > div` would also stretch the HUD to full height. */
+.shelf > .shelf-canvas { width: 100%; height: 100%; }
+.shelf canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+
+/* ---------- Power On ---------- */
+.shelf-power {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  text-align: center;
+  padding: 24px;
+}
+.shelf-power-line {
+  margin: 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+.shelf-power-btn {
+  font-family: 'Archivo', sans-serif;
+  font-weight: 800;
+  font-size: clamp(30px, 7vw, 54px);
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  background: none;
+  border: none;
+  border-bottom: 4px solid var(--green);
+  padding: 2px 6px 6px;
+  cursor: pointer;
+  transition: color .15s ease, border-color .15s ease;
+}
+.shelf-power-btn:hover { color: var(--green); }
+.shelf-power-btn:focus-visible { outline: 3px solid var(--green); outline-offset: 6px; }
+.shelf-skip {
+  font-size: 14px;
+  color: var(--muted);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.shelf-skip:hover { color: var(--green); }
+
+/* ---------- the HUD while Browsing and Inspecting ---------- */
+.shelf-hud {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 28px 32px;
+  background: linear-gradient(to top, var(--paper) 42%, rgba(251,250,247,0));
+  pointer-events: none;
+}
+.shelf-hud-text { max-width: 46ch; }
+.shelf-hud-eyebrow {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--green);
+  margin-bottom: 6px;
+}
+.shelf-hud-title {
+  font-family: 'Archivo', sans-serif;
+  font-weight: 800;
+  font-size: clamp(22px, 3.4vw, 34px);
+  letter-spacing: -0.02em;
+  margin: 0 0 6px;
+  color: var(--ink);
+}
+.shelf-hud-summary {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+.shelf-hud-actions { display: flex; gap: 10px; flex-shrink: 0; pointer-events: auto; }
+.shelf-btn {
+  font-family: 'Archivo', sans-serif;
+  font-weight: 700;
+  font-size: 14px;
+  padding: 11px 18px;
+  border-radius: 10px;
+  border: 1.5px solid var(--ink);
+  background: var(--ink);
+  color: var(--paper);
+  cursor: pointer;
+  transition: background .15s ease, color .15s ease;
+}
+.shelf-btn:hover { background: var(--green); border-color: var(--green); }
+.shelf-btn.ghost { background: none; color: var(--ink); }
+.shelf-btn.ghost:hover { background: none; color: var(--green); border-color: var(--green); }
+.shelf-btn:focus-visible { outline: 3px solid var(--green); outline-offset: 3px; }
+
+@media (max-width: 760px) {
+  .shelf-hud {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 20px;
+    gap: 14px;
+  }
+  .shelf-hud-summary { display: none; }
+  .shelf-hud-actions { justify-content: stretch; }
+  .shelf-btn { flex: 1; }
+}

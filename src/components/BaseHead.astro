@@ -16,6 +16,11 @@ interface Props {
   ogType?: 'website' | 'article';
   /** Set for pages that should stay out of search results. */
   robots?: string;
+  /**
+   * Where this page's content really lives, when that is not `path`. The Shelf's
+   * /box/{slug} state URLs point at the Write-up they are a view of.
+   */
+  canonicalPath?: string;
 }
 
 const {
@@ -25,9 +30,10 @@ const {
   path,
   ogType = 'website',
   robots,
+  canonicalPath,
 } = Astro.props;
 
-const canonical = new URL(path, Astro.site).href;
+const canonical = new URL(canonicalPath ?? path, Astro.site).href;
 const ogImage = new URL('/assets/og-image.png', Astro.site).href;
 ---
 
