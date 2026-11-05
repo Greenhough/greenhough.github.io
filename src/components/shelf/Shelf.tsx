@@ -30,7 +30,7 @@ export default function Shelf({ sections, initialSlug = null }: Props) {
     [sections]
   );
 
-  const [state, setState] = useState<ShelfState>(initialSlug ? 'inspecting' : 'power-on');
+  const [state, setState] = useState<ShelfState>(initialSlug ? 'inspecting' : 'browsing');
   const [focusedSlug, setFocusedSlug] = useState<string | null>(
     initialSlug ?? ordered[0]?.slug ?? null
   );
@@ -83,7 +83,7 @@ export default function Shelf({ sections, initialSlug = null }: Props) {
         setFocusedSlug(match[1]);
         setState('inspecting');
       } else {
-        setState((s) => (s === 'power-on' ? s : 'browsing'));
+        setState('browsing');
       }
     };
     window.addEventListener('popstate', onPop);
@@ -94,14 +94,6 @@ export default function Shelf({ sections, initialSlug = null }: Props) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
-
-      if (state === 'power-on') {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          browse();
-        }
-        return;
-      }
 
       const i = ordered.findIndex((p) => p.slug === focusedSlug);
 
@@ -129,8 +121,6 @@ export default function Shelf({ sections, initialSlug = null }: Props) {
     return () => window.removeEventListener('keydown', onKey);
   }, [state, ordered, focusedSlug, browse, inspect, open]);
 
-  const lit = state !== 'power-on';
-
   return (
     <div className="shelf" data-state={state}>
       <Canvas
@@ -141,7 +131,7 @@ export default function Shelf({ sections, initialSlug = null }: Props) {
         resize={{ debounce: 0, scroll: false }}
         dpr={[1, phone.current ? 1.5 : 2]}
         camera={{ position: [0, 0, 4.4], fov: 42 }}
-        style={{ cursor: hovering && lit ? 'pointer' : 'default' }}
+        style={{ cursor: hovering ? 'pointer' : 'default' }}
       >
         <Scene
           sections={sections}
@@ -154,21 +144,20 @@ export default function Shelf({ sections, initialSlug = null }: Props) {
         />
       </Canvas>
 
-      {/* The controls are real HTML, so the Shelf is usable by keyboard and
-          readable by a screen reader without anything being re-implemented. */}
-      {!lit && (
-        <div className="shelf-power">
-          <p className="shelf-power-line">Five things I built. On a shelf.</p>
-          <button className="shelf-power-btn" onClick={browse} autoFocus>
-            Power on
-          </button>
-          <a className="shelf-skip" href="/work">
-            or read them as a list
-          </a>
+      {/* The Shelf hides the ordinary page chrome, so it carries its own way
+          out. Real links, not hit targets in the canvas. */}
+      <nav className="shelf-nav">
+        <a className="shelf-brand" href="/work">
+          <span className="shelf-brand-mark">*</span>
+          <span className="shelf-brand-name">Evan Greenhough</span>
+        </a>
+        <div className="shelf-nav-links">
+          <a href="/work">Work</a>
+          <a href="/writing">Writing</a>
         </div>
-      )}
+      </nav>
 
-      {lit && focused && (
+      {focused && (
         <div className="shelf-hud">
           <div className="shelf-hud-text">
             <div className="shelf-hud-eyebrow">{focused.eyebrow}</div>

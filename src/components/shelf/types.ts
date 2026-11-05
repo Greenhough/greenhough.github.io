@@ -17,9 +17,12 @@ export interface ShelfSection {
 }
 
 /**
- * Power On  — unlit, waiting for the one deliberate click.
- * Browsing  — lit, camera travelling the Shelf with one Box focused.
+ * Browsing  — the camera travelling the Shelf with one Box focused.
  * Inspecting— a Box held out of the Shelf, turned over and read.
  * Opened    — the lid lifts and hands over to the Write-up.
+ *
+ * There was a fourth, Power On: an unlit Shelf waiting for one deliberate
+ * click. It was built, and it read as a gate rather than an invitation, so it
+ * was removed. See docs/adr/0001.
  */
-export type ShelfState = 'power-on' | 'browsing' | 'inspecting' | 'opened';
+export type ShelfState = 'browsing' | 'inspecting' | 'opened';

@@ -683,48 +683,52 @@ html.shelf-capable .wrap { display: none; }
 .shelf > .shelf-canvas { width: 100%; height: 100%; }
 .shelf canvas { display: block; width: 100%; height: 100%; touch-action: none; }
 
-/* ---------- Power On ---------- */
-.shelf-power {
+/* ---------- the Shelf's own nav ---------- */
+/* The Shelf hides .wrap, so it carries its own way back to the Flat Site. */
+.shelf-nav {
   position: absolute;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 18px;
-  text-align: center;
-  padding: 24px;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 22px 32px;
+  pointer-events: none;
 }
-.shelf-power-line {
-  margin: 0;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 13px;
-  letter-spacing: .12em;
-  text-transform: uppercase;
-  color: var(--faint);
+.shelf-nav a { pointer-events: auto; }
+.shelf-brand {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 9px;
+  text-decoration: none;
 }
-.shelf-power-btn {
+.shelf-brand-mark { color: var(--green); font-weight: 800; font-size: 19px; }
+.shelf-brand-name {
   font-family: 'Archivo', sans-serif;
   font-weight: 800;
-  font-size: clamp(30px, 7vw, 54px);
-  letter-spacing: -0.02em;
+  font-size: 15px;
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
   color: var(--ink);
-  background: none;
-  border: none;
-  border-bottom: 4px solid var(--green);
-  padding: 2px 6px 6px;
-  cursor: pointer;
-  transition: color .15s ease, border-color .15s ease;
 }
-.shelf-power-btn:hover { color: var(--green); }
-.shelf-power-btn:focus-visible { outline: 3px solid var(--green); outline-offset: 6px; }
-.shelf-skip {
+.shelf-nav-links { display: flex; gap: 22px; }
+.shelf-nav-links a {
+  font-family: 'Archivo', sans-serif;
+  font-weight: 600;
   font-size: 14px;
   color: var(--muted);
-  text-decoration: underline;
-  text-underline-offset: 3px;
+  text-decoration: none;
+  transition: color .15s ease;
 }
-.shelf-skip:hover { color: var(--green); }
+.shelf-nav-links a:hover { color: var(--green); }
+.shelf-nav a:focus-visible { outline: 3px solid var(--green); outline-offset: 4px; }
+
+@media (max-width: 760px) {
+  .shelf-nav { padding: 16px 20px; }
+  .shelf-brand-name { font-size: 13px; }
+}
 
 /* ---------- the HUD while Browsing and Inspecting ---------- */
 .shelf-hud {

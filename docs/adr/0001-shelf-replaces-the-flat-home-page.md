@@ -37,3 +37,19 @@ one Box.
 - **Boxes stay code geometry** even though the Shelf and other props are imported models.
   The moment a Box is a hand-authored model, adding a Project means opening Blender and
   the Shelf stops scaling.
+
+## Addendum, 2026-11-05: Power On was built and removed
+
+The Shelf shipped without **Power On**, the single deliberate click that was to take the
+scene from unlit to lit. It was built as specified and cut after seeing it: on screen it
+read as a gate rather than an invitation, clunky and tacked on. `/` now lands lit, in
+Browsing, and the term is gone from `CONTEXT.md`.
+
+The instinct behind it still stands. An entrance is wanted, but a better one: opening a
+door and walking into a board game room. That is deferred to a later deploy, so this is a
+removal rather than a replacement — a stand-in gate built now would only be something the
+door deletes.
+
+Two other things stand in for what this ADR asks, pending real work: **Covers are
+generated from one template** rather than hand-designed, and **the Shelf is code geometry**
+rather than an imported model. Both are swaps, not rewrites, when the art exists.

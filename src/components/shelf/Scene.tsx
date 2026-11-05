@@ -30,7 +30,7 @@ interface Focus {
  * Box; Inspecting comes in close on the Box held out in front of it.
  */
 function cameraTargets(state: ShelfState, focus: Focus | null, pullBack: number) {
-  if (!focus || state === 'power-on') {
+  if (!focus) {
     return {
       position: new THREE.Vector3(0, 0, 4.4 * pullBack),
       lookAt: new THREE.Vector3(0, 0, 0),
@@ -97,21 +97,18 @@ export function Scene({
     camera.lookAt(lookAt.current);
   });
 
-  const lit = state !== 'power-on';
-
   return (
     <>
-      {/* Power On takes the scene from unlit to lit: the lights come up, nothing else. */}
-      <ambientLight intensity={lit ? 0.75 : 0.06} />
+      <ambientLight intensity={0.75} />
       <directionalLight
         position={[2.5, 4, 5]}
-        intensity={lit ? 1.5 : 0.08}
+        intensity={1.5}
         castShadow
         shadow-mapSize={[1024, 1024]}
         shadow-camera-near={0.5}
         shadow-camera-far={20}
       />
-      <directionalLight position={[-3, 1.5, 2]} intensity={lit ? 0.35 : 0.02} />
+      <directionalLight position={[-3, 1.5, 2]} intensity={0.35} />
 
       <ShelfUnit sections={sections.length} />
 
@@ -144,7 +141,7 @@ export function Scene({
 
       <ContactShadows
         position={[0, -(sections.length * (SHELF.openingHeight + SHELF.plank)) / 2 - 0.02, 0]}
-        opacity={lit ? 0.4 : 0}
+        opacity={0.4}
         scale={6}
         blur={2.4}
         far={2}

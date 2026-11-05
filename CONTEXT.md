@@ -51,10 +51,6 @@ _Avoid_: label, keyword, skill
 
 ## States
 
-**Power On**:
-The single deliberate click that takes the Shelf from unlit to lit and begins the experience.
-_Avoid_: intro, splash, loader, gate
-
 **Browsing**:
 The lit state in which the camera travels the Shelf with one Box focused.
 _Avoid_: idle, default view

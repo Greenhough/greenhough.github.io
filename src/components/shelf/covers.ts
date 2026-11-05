@@ -19,20 +19,16 @@ import type { ShelfProject } from './types';
 
 const COVER_ASPECT = 1.25; // height / width
 
-/** Load the self-hosted faces before painting; canvas text will not load them itself. */
+/**
+ * Load the self-hosted faces before painting; canvas text will not load them
+ * itself. Only the faces actually painted are awaited. An earlier version also
+ * awaited document.fonts.ready, which waits on every font the page will ever
+ * load and held the Shelf blank for several seconds.
+ */
 export async function ensureFonts(): Promise<void> {
   if (typeof document === 'undefined' || !document.fonts) return;
-  const faces = [
-    '800 100px Archivo',
-    '700 100px Archivo',
-    '500 100px "JetBrains Mono"',
-    '700 100px "JetBrains Mono"',
-    '600 100px Mulish',
-  ];
-  await Promise.all(
-    faces.map((f) => document.fonts.load(f).catch(() => undefined))
-  );
-  await document.fonts.ready;
+  const faces = ['800 100px Archivo', '700 100px "JetBrains Mono"', '500 100px "JetBrains Mono"'];
+  await Promise.all(faces.map((f) => document.fonts.load(f).catch(() => undefined)));
 }
 
 /** Break text into lines that fit `maxWidth`, at most `maxLines` (last one ellipsised). */
