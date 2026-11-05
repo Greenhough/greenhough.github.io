@@ -1,9 +1,14 @@
 import { defineConfig } from 'astro/config';
 import { satteri } from '@astrojs/markdown-satteri';
+import react from '@astrojs/react';
 
 export default defineConfig({
   // Used to build canonical URLs, og:url and sitemap.xml.
   site: 'https://evangreenhough.com',
+
+  // React powers the Shelf island on the home page. Every other page still
+  // ships zero JavaScript: Astro only hydrates the one component that asks for it.
+  integrations: [react()],
 
   // Build plain .html files at the root of dist/ (work.html, quibble.html) rather
   // than folders with an index.html inside. GitHub Pages then serves them at the

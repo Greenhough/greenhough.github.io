@@ -20,7 +20,7 @@ const work = defineCollection({
     // there is exactly one place that decides where a Project lives.
     generateId: ({ data }) => String(data.slug),
   }),
-  schema: z.object({
+  schema: ({ image }) => z.object({
     /** Title case. Used for the h1, the <title>, og:title and every listing. */
     title: z.string(),
     /** The URL path, without a leading slash: "quibble" serves at /quibble. */
@@ -37,8 +37,14 @@ const work = defineCollection({
     summary: z.string(),
     /** Optional standfirst line under the h1 on the write-up itself. */
     dek: z.string().optional(),
-    /** Which Section of the Shelf this Project belongs to (used in deploy two). */
+    /** Which Section of the Shelf this Project belongs to. */
     theme: z.enum(THEMES),
+    /**
+     * Art for this Project's Cover on the Shelf, from src/assets/covers/.
+     * Required: a Project with no Cover has no Box, so it could not be shelved.
+     * Astro resizes it at build time, so commit the full-resolution file.
+     */
+    cover: image(),
   }),
 });
 

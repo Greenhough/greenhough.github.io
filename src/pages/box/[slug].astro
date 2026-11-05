@@ -1,0 +1,56 @@
+---
+// Inspecting: a Box held out of the Shelf. ADR 0001 says every state is a URL,
+// so this one is real and shareable rather than something the scene holds in
+// memory. It is a view of a Write-up rather than a page of its own, so it is
+// noindexed, canonicalised to /{slug} and kept out of sitemap.xml.
+import { getCollection } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+import Tags from '../../components/Tags.astro';
+import { getShelfSections } from '../../lib/shelf';
+import ShelfBoot from '../../components/shelf/ShelfBoot.astro';
+import Shelf from '../../components/shelf/Shelf';
+
+export async function getStaticPaths() {
+  const work = await getCollection('work');
+  return work.map((entry) => ({
+    params: { slug: entry.data.slug },
+    props: { entry },
+  }));
+}
+
+const { entry } = Astro.props;
+const sections = await getShelfSections();
+---
+
+<Base
+  title={`${entry.data.title} | Evan Greenhough`}
+  ogTitle={entry.data.title}
+  description={entry.data.description}
+  path={`/box/${entry.data.slug}`}
+  canonicalPath={`/${entry.data.slug}`}
+  ogType="article"
+  robots="noindex, follow"
+  active="work"
+>
+  <ShelfBoot slot="head" />
+  <Shelf
+    slot="overlay"
+    client:only="react"
+    sections={sections}
+    initialSlug={entry.data.slug}
+  />
+
+  <header class="page-head">
+    <div class="eyebrow">{entry.data.eyebrow}</div>
+    <h1 class="page-title">{entry.data.title}</h1>
+    <p class="page-intro">{entry.data.summary}</p>
+    <Tags tags={entry.data.tags} />
+  </header>
+
+  <section class="sec">
+    <p class="lead">
+      <a class="sec-link" href={`/${entry.data.slug}`}>Read the write-up &rarr;</a>
+    </p>
+    <p><a class="back" href="/work">&larr; All Work</a></p>
+  </section>
+</Base>

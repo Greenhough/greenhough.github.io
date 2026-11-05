@@ -3,6 +3,9 @@ import { getCollection } from 'astro:content';
 import Base from '../layouts/Base.astro';
 import Tags from '../components/Tags.astro';
 import { monthYear } from '../lib/format';
+import { getShelfSections } from '../lib/shelf';
+import ShelfBoot from '../components/shelf/ShelfBoot.astro';
+import Shelf from '../components/shelf/Shelf';
 
 const byNewest = (a: { data: { date: Date } }, b: { data: { date: Date } }) =>
   b.data.date.valueOf() - a.data.date.valueOf();
@@ -11,6 +14,11 @@ const byNewest = (a: { data: { date: Date } }, b: { data: { date: Date } }) =>
 // add a Markdown file and it appears here and on the hub page automatically.
 const work = (await getCollection('work')).sort(byNewest).slice(0, 3);
 const posts = (await getCollection('posts')).sort(byNewest).slice(0, 3);
+
+// The Shelf. Everything below it in this file is the Flat Site: the same
+// content as ordinary HTML, which is what a crawler, a reduced-motion visitor
+// or a browser without WebGL reads instead.
+const sections = await getShelfSections();
 ---
 
 <Base
@@ -19,6 +27,9 @@ const posts = (await getCollection('posts')).sort(byNewest).slice(0, 3);
   description="A place to share the ideas and projects I'm tinkering with."
   path="/"
 >
+  <ShelfBoot slot="head" />
+  <Shelf slot="overlay" client:only="react" sections={sections} />
+
   <header class="hero">
     <div class="hero-text">
       <div class="badge">Sales Enablement &times; <span id="type"></span><span class="caret"></span></div>

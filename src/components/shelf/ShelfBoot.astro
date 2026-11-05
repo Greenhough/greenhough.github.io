@@ -1,0 +1,32 @@
+---
+// Runs in <head>, before first paint, so the Flat Site never flashes on screen
+// before the Shelf covers it. Deliberately tiny and inline: nothing here waits
+// on a download, which is what keeps first paint off the WebGL path.
+---
+
+<script is:inline>
+  (function () {
+    var root = document.documentElement;
+    try {
+      // Reduced-motion visitors get the Flat Site. It is a peer, not a fallback.
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+      var probe = document.createElement('canvas');
+      var gl = probe.getContext('webgl2') || probe.getContext('webgl');
+      if (!gl) return;
+      if (gl.getExtension) gl.getExtension('WEBGL_lose_context')?.loseContext();
+
+      root.classList.add('shelf-capable');
+
+      // Failsafe: if the island has not reported itself live, put the Flat Site
+      // back. Better a flat home page than a blank one.
+      window.setTimeout(function () {
+        if (!root.classList.contains('shelf-live')) {
+          root.classList.remove('shelf-capable');
+        }
+      }, 6000);
+    } catch (e) {
+      root.classList.remove('shelf-capable');
+    }
+  })();
+</script>
