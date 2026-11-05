@@ -5,20 +5,24 @@ import { ensureFonts, loadImage, paintCover, paintSpine, toTexture } from './cov
 import type { ShelfProject } from './types';
 
 export interface BoxTextures {
-  cover: THREE.CanvasTexture;
-  spine: THREE.CanvasTexture;
+  spine: THREE.CanvasTexture | null;
+  cover: THREE.CanvasTexture | null;
 }
 
 /**
- * Paints a Project's Cover and Spine once and keeps them.
+ * Paints a Project's Spine and Cover.
+ *
+ * The Spine goes first and on its own, because it is what you see while the Box
+ * is shelved and it needs no artwork: as soon as the fonts are in, the Shelf is
+ * readable. The Cover waits on its image and arrives after, which is soon
+ * enough, since a Cover is only seen once a Box is taken off the shelf.
  *
  * Phones get 512px Covers and desktops 1024px, which is the texture budget in
- * docs/adr/0002. The Spine is painted at half that: it is a narrow strip and
- * never fills much of the screen.
+ * docs/adr/0002.
  */
-export function useBoxTextures(project: ShelfProject, size: number): BoxTextures | null {
+export function useBoxTextures(project: ShelfProject, size: number): BoxTextures {
   const renderer = useThree((s) => s.gl);
-  const [textures, setTextures] = useState<BoxTextures | null>(null);
+  const [textures, setTextures] = useState<BoxTextures>({ spine: null, cover: null });
 
   useEffect(() => {
     let cancelled = false;
@@ -26,24 +30,24 @@ export function useBoxTextures(project: ShelfProject, size: number): BoxTextures
 
     (async () => {
       await ensureFonts();
+      if (cancelled) return;
+
+      const spineCanvas = document.createElement('canvas');
+      paintSpine(spineCanvas, project, Math.round(size * 0.75));
+      const spine = toTexture(spineCanvas, renderer);
+      made.push(spine);
+      if (cancelled) return;
+      setTextures({ spine, cover: null });
+
       const art = await loadImage(size <= 512 ? project.art.small : project.art.large);
       if (cancelled) return;
 
       const coverCanvas = document.createElement('canvas');
       paintCover(coverCanvas, project, art, size);
-
-      const spineCanvas = document.createElement('canvas');
-      paintSpine(spineCanvas, project, Math.round(size * 0.75));
-
       const cover = toTexture(coverCanvas, renderer);
-      const spine = toTexture(spineCanvas, renderer);
-      made.push(cover, spine);
-
-      if (cancelled) {
-        made.forEach((t) => t.dispose());
-        return;
-      }
-      setTextures({ cover, spine });
+      made.push(cover);
+      if (cancelled) return;
+      setTextures({ spine, cover });
     })();
 
     return () => {

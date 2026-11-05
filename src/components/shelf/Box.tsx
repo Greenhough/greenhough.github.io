@@ -79,11 +79,11 @@ export function Box({
   // Face order for BoxGeometry is +X, -X, +Y, -Y, +Z, -Z.
   // +X carries the Cover, +Z carries the Spine.
   const faces = [
-    textures?.cover, // +X  the printed face
+    textures.cover ?? undefined, // +X  the printed face
     undefined, // -X  back of the box
     undefined, // +Y  top
     undefined, // -Y  bottom
-    textures?.spine, // +Z  the edge you see while it is shelved
+    textures.spine ?? undefined, // +Z  the edge you see while it is shelved
     undefined, // -Z  the edge against the back panel
   ];
 
