@@ -797,3 +797,7 @@ html.shelf-capable .wrap { display: none; }
   .shelf-hud-actions { justify-content: stretch; }
   .shelf-btn { flex: 1; }
 }
+
+/* Pointer feedback lives in CSS rather than an inline style, so hovering a Box
+   does not hand <Canvas> a fresh style object on every render. */
+.shelf[data-hovering='true'] canvas { cursor: pointer; }

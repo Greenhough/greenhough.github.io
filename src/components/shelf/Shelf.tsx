@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { Scene } from './Scene';
 import type { ShelfProject, ShelfSection, ShelfState } from './types';
@@ -20,6 +20,13 @@ interface Props {
 /** Matches the failsafe in the inline script in index.astro. */
 const LIVE_CLASS = 'shelf-live';
 
+// These are passed to <Canvas> and must keep their identity between renders.
+// Fresh object literals make react-three-fiber reconfigure the renderer on
+// every render, which showed up as the scene initialising twice and a Box page
+// coming up blank.
+const RESIZE = { debounce: 0, scroll: false } as const;
+const CAMERA = { position: [0, 0, 4.4] as [number, number, number], fov: 42 };
+
 function isPhone() {
   return typeof window !== 'undefined' && window.matchMedia('(max-width: 760px)').matches;
 }
@@ -35,10 +42,12 @@ export default function Shelf({ sections, initialSlug = null }: Props) {
     initialSlug ?? ordered[0]?.slug ?? null
   );
   const [hovering, setHovering] = useState(false);
-  const phone = useRef(false);
+  // Read once, at mount. This island is client:only, so there is no server
+  // render to disagree with.
+  const [phone] = useState(() => isPhone());
+  const dpr = useMemo<[number, number]>(() => [1, phone ? 1.5 : 2], [phone]);
 
   useEffect(() => {
-    phone.current = isPhone();
     document.documentElement.classList.add(LIVE_CLASS);
     return () => document.documentElement.classList.remove(LIVE_CLASS);
   }, []);
@@ -122,22 +131,21 @@ export default function Shelf({ sections, initialSlug = null }: Props) {
   }, [state, ordered, focusedSlug, browse, inspect, open]);
 
   return (
-    <div className="shelf" data-state={state}>
+    <div className="shelf" data-state={state} data-hovering={hovering ? 'true' : undefined}>
       <Canvas
         className="shelf-canvas"
         shadows
         // Measure immediately rather than on a debounce, so the first frame is
         // not missed when the island mounts into a container still settling.
-        resize={{ debounce: 0, scroll: false }}
-        dpr={[1, phone.current ? 1.5 : 2]}
-        camera={{ position: [0, 0, 4.4], fov: 42 }}
-        style={{ cursor: hovering ? 'pointer' : 'default' }}
+        resize={RESIZE}
+        dpr={dpr}
+        camera={CAMERA}
       >
         <Scene
           sections={sections}
           focusedSlug={focusedSlug}
           state={state}
-          textureSize={phone.current ? 512 : 1024}
+          textureSize={phone ? 512 : 1024}
           onFocus={setFocusedSlug}
           onInspect={inspect}
           onHover={setHovering}
