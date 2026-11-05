@@ -1,0 +1,78 @@
+# evangreenhough.com
+
+Evan's personal site: a place he shows things he built with AI in his free time.
+The reader is a curious peer, not a hiring manager and not a prospective client.
+
+Terms only. No implementation details — those live in `docs/adr/`.
+
+## Language
+
+**Project**:
+A thing Evan built, with a Write-up and a place on the Shelf.
+_Avoid_: case study, portfolio piece, work item
+
+**Write-up**:
+The prose page for a Project.
+_Avoid_: post, article, case study
+
+**Post**:
+A piece of Evan's writing that is not about a Project. Posts live in a flat list and never appear on the Shelf.
+_Avoid_: blog, essay, note
+
+## The Shelf
+
+**Shelf**:
+The 3D scene that is the site's home page — a board game shelf on which every Project is a Box.
+_Avoid_: scene, canvas, hero, viewer
+
+**Section**:
+A labelled run of the Shelf holding the Projects of one Theme.
+_Avoid_: row, category, shelf (singular, when meaning a part of the Shelf)
+
+**Theme**:
+What a Section is about, and a field on every Project. Currently *Built for Myself* and *Built for Work*.
+_Avoid_: category, tag, collection
+
+**Box**:
+A Project's physical form on the Shelf — a board game box with a Cover, a Spine and a lid.
+_Avoid_: card, tile, model, item
+
+**Cover**:
+The printed face of a Box. Hand-designed per Project.
+_Avoid_: art, thumbnail, hero image
+
+**Spine**:
+The edge of a Box, and what is visible while it is shelved. Generated from the Project's data.
+_Avoid_: label, title bar
+
+**Tag**:
+A short technology or topic marker on a Project (Claude Code, Swift, Python), printed on the Box the way a publisher prints player count and play time.
+_Avoid_: label, keyword, skill
+
+## States
+
+**Power On**:
+The single deliberate click that takes the Shelf from unlit to lit and begins the experience.
+_Avoid_: intro, splash, loader, gate
+
+**Browsing**:
+The lit state in which the camera travels the Shelf with one Box focused.
+_Avoid_: idle, default view
+
+**Inspecting**:
+The state in which a Box is held out of the Shelf to be turned over and read.
+_Avoid_: zoomed, detail view, preview
+
+**Opened**:
+The state in which a Box's lid is lifted and its Write-up is shown.
+_Avoid_: modal, expanded, drawer
+
+## Everything else
+
+**Flat Site**:
+The non-3D rendering of the same content — every Project and Post as ordinary HTML. What crawlers, reduced-motion visitors and browsers without WebGL receive. A peer of the Shelf, not a degraded copy of it.
+_Avoid_: fallback, no-JS version, lite mode
+
+**Archive**:
+A frozen, noindexed copy of the pre-rebuild flat site, kept at a live URL.
+_Avoid_: old site, v1, legacy
