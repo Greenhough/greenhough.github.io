@@ -1,0 +1,38 @@
+---
+// Tag labels come from frontmatter; the colour class is looked up here, so a tag
+// written once in a Markdown file renders identically everywhere it appears.
+// To add a colour, add a `.tag-{name}` rule in styles/global.css and a line below.
+const TAG_CLASSES: Record<string, string> = {
+  'Claude': 'tag-claude',
+  'Claude Code': 'tag-claude',
+  'Clay': 'tag-clay',
+  'Automation': 'tag-automation',
+  'Enablement': 'tag-enablement',
+  'HubSpot': 'tag-hubspot',
+  'Notion': 'tag-notion',
+  'Make': 'tag-make',
+  'Marketing': 'tag-marketing',
+  'Swift': 'tag-swift',
+  'Python': 'tag-python',
+};
+
+interface Props {
+  tags: string[];
+  /** Write-up headers add the `cs-tags` spacing class. */
+  extraClass?: string;
+}
+const { tags, extraClass } = Astro.props;
+
+for (const tag of tags) {
+  if (!TAG_CLASSES[tag]) {
+    throw new Error(
+      `Tag "${tag}" has no colour. Add a .tag-* rule in src/styles/global.css ` +
+        `and map it in src/components/Tags.astro.`
+    );
+  }
+}
+---
+
+<div class:list={['tags', extraClass]}>
+  {tags.map((tag) => <span class={`tag ${TAG_CLASSES[tag]}`}>{tag}</span>)}
+</div>

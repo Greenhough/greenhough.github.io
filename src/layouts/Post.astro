@@ -1,0 +1,58 @@
+---
+// A Post: /hal-9000, /speed-vs-velocity.
+import Base from './Base.astro';
+import { monthYear } from '../lib/format';
+
+interface Props {
+  title: string;
+  slug: string;
+  description: string;
+  date: Date;
+  readTime: number;
+  video?: { src: string; label: string };
+}
+const { title, slug, description, date, readTime, video } = Astro.props;
+---
+
+<Base
+  title={`${title} | Evan Greenhough`}
+  ogTitle={title}
+  description={description}
+  path={`/${slug}`}
+  ogType="article"
+  active="writing"
+  spacedFooter
+>
+  <article class="article narrow">
+    <a class="back" href="/writing">&larr; Writing</a>
+
+    <header class="art-head">
+      <h1 class="art-title">{title}</h1>
+      <div class="art-meta">{monthYear(date)} &middot; {readTime} min read</div>
+    </header>
+
+    {
+      video && (
+        <video
+          class="post-video"
+          autoplay
+          loop
+          muted
+          playsinline
+          preload="auto"
+          aria-label={video.label}
+        >
+          <source src={video.src} type="video/mp4" />
+        </video>
+      )
+    }
+
+    <div class="prose">
+      <slot />
+    </div>
+
+    <div class="art-foot">
+      <a class="back" href="/writing" style="margin-bottom:0;">&larr; All posts</a>
+    </div>
+  </article>
+</Base>

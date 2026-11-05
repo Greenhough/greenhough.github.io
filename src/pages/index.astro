@@ -1,0 +1,72 @@
+---
+import { getCollection } from 'astro:content';
+import Base from '../layouts/Base.astro';
+import Tags from '../components/Tags.astro';
+import { monthYear } from '../lib/format';
+
+const byNewest = (a: { data: { date: Date } }, b: { data: { date: Date } }) =>
+  b.data.date.valueOf() - a.data.date.valueOf();
+
+// The home page shows the latest three of each. Nothing is listed by hand:
+// add a Markdown file and it appears here and on the hub page automatically.
+const work = (await getCollection('work')).sort(byNewest).slice(0, 3);
+const posts = (await getCollection('posts')).sort(byNewest).slice(0, 3);
+---
+
+<Base
+  title="Evan Greenhough | Sales Enablement & AI"
+  ogTitle="Evan Greenhough | Sales Enablement & AI"
+  description="A place to share the ideas and projects I'm tinkering with."
+  path="/"
+>
+  <header class="hero">
+    <div class="hero-text">
+      <div class="badge">Sales Enablement &times; <span id="type"></span><span class="caret"></span></div>
+      <h1 class="hero-title">Work in <span class="accent">progress.</span></h1>
+      <p class="lead">
+        Hi, I'm Evan. I'm a sales enablement manager who likes to tinker and build with AI.
+        This is a place for me to share some of the projects I'm working on and what I'm learning.
+      </p>
+    </div>
+    <div class="hero-photo">
+      <img src="/assets/evan-portrait.jpg" alt="Evan Greenhough" width="500" height="500" />
+    </div>
+  </header>
+
+  <section class="sec">
+    <div class="sec-head">
+      <h2 class="sec-title">Recent Work</h2>
+      <a class="sec-link" href="/work">All Work &rarr;</a>
+    </div>
+    <div class="card-grid">
+      {
+        work.map((project) => (
+          <a class="card" href={`/${project.data.slug}`}>
+            <Tags tags={project.data.tags} />
+            <h3 class="card-title">{project.data.title}</h3>
+            <p class="card-desc">{project.data.summary}</p>
+            <span class="arrow">&rarr;</span>
+          </a>
+        ))
+      }
+    </div>
+  </section>
+
+  <section class="sec">
+    <div class="sec-head">
+      <h2 class="sec-title">Writing</h2>
+      <a class="sec-link" href="/writing">All posts &rarr;</a>
+    </div>
+    <div class="post-list">
+      {
+        posts.map((post) => (
+          <a class="post" href={`/${post.data.slug}`}>
+            <h3 class="post-title">{post.data.title}</h3>
+            <span class="post-date">{monthYear(post.data.date)}</span>
+            <p class="post-excerpt" set:html={post.data.excerpt} />
+          </a>
+        ))
+      }
+    </div>
+  </section>
+</Base>

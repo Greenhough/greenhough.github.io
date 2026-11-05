@@ -1,0 +1,58 @@
+---
+// One route serves every write-up and every post, because both live at the root
+// of the site: /quibble and /hal-9000 sit side by side. The explicit routes
+// (index, work, writing, 404) take precedence over this one.
+import type { CollectionEntry } from 'astro:content';
+import { getCollection, render } from 'astro:content';
+import Writeup from '../layouts/Writeup.astro';
+import Post from '../layouts/Post.astro';
+
+export async function getStaticPaths() {
+  const work = await getCollection('work');
+  const posts = await getCollection('posts');
+
+  return [
+    ...work.map((entry) => ({
+      params: { slug: entry.data.slug },
+      props: { kind: 'work' as const, entry },
+    })),
+    ...posts.map((entry) => ({
+      params: { slug: entry.data.slug },
+      props: { kind: 'post' as const, entry },
+    })),
+  ];
+}
+
+type Props =
+  | { kind: 'work'; entry: CollectionEntry<'work'> }
+  | { kind: 'post'; entry: CollectionEntry<'posts'> };
+
+const props = Astro.props as Props;
+const { Content } = await render(props.entry);
+---
+
+{
+  props.kind === 'work' ? (
+    <Writeup
+      title={props.entry.data.title}
+      slug={props.entry.data.slug}
+      eyebrow={props.entry.data.eyebrow}
+      tags={props.entry.data.tags}
+      description={props.entry.data.description}
+      dek={props.entry.data.dek}
+    >
+      <Content />
+    </Writeup>
+  ) : (
+    <Post
+      title={props.entry.data.title}
+      slug={props.entry.data.slug}
+      description={props.entry.data.description}
+      date={props.entry.data.date}
+      readTime={props.entry.data.readTime}
+      video={props.entry.data.video}
+    >
+      <Content />
+    </Post>
+  )
+}

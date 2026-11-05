@@ -1,0 +1,39 @@
+---
+import { getCollection } from 'astro:content';
+import Base from '../layouts/Base.astro';
+import Tags from '../components/Tags.astro';
+
+const INTRO = "Sales enablement case studies and the projects I'm building with AI.";
+
+const work = (await getCollection('work')).sort(
+  (a, b) => b.data.date.valueOf() - a.data.date.valueOf()
+);
+---
+
+<Base
+  title="Work | Evan Greenhough"
+  ogTitle="Work | Evan Greenhough"
+  description={INTRO}
+  path="/work"
+  active="work"
+>
+  <header class="page-head">
+    <h1 class="page-title">Work</h1>
+    <p class="page-intro">{INTRO}</p>
+  </header>
+
+  <section class="sec">
+    <div class="proj-list">
+      {
+        work.map((project) => (
+          <a class="proj" href={`/${project.data.slug}`}>
+            <div class="eyebrow">{project.data.eyebrow}</div>
+            <h2 class="proj-title">{project.data.title}</h2>
+            <p class="proj-desc">{project.data.summary}</p>
+            <Tags tags={project.data.tags} />
+          </a>
+        ))
+      }
+    </div>
+  </section>
+</Base>
