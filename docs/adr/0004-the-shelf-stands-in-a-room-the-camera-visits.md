@@ -152,3 +152,36 @@ its hour is changed. If night is wanted later, it is a re-bake and a palette, no
   camera unchanged; then the dressing; then the views and the navigation; then the doorway
   move. Nothing here needs to land at once, and the history of this scene says that things
   which land at once do not get looked at properly.
+
+## Addendum, 2026-11-09: the room goes to evening
+
+"Daylight stays" above was deferred rather than rejected, with the note that if the room
+worked in the light we already had and still felt flat, going to evening was a re-bake and
+a palette rather than a rebuild. The room shell shipped, and the window read as a backlit
+panel: a flat even blue with nothing behind it, cold against warm oak, with a blown halo
+on the wall around the opening. A daylit window is a hard thing to make convincing,
+because it has to stand in for a whole sky. A night window is a dark rectangle with glow
+in it, which is a far easier promise to keep — and the atmosphere being chased here was
+always the night one.
+
+Two of the three reasons for keeping daylight have now gone. The Covers stopped being
+screenshots, so their readability no longer depends on being brightly lit. And the bake
+is minutes rather than half an hour, since the window's light moved into its aperture, so
+a re-bake is no longer a reason to avoid anything.
+
+**A practical light becomes load-bearing.** This is the part that is not just a palette.
+With only a dusk window the room goes nearly black and the Shelf disappears, so the room
+needs a lamp — and it has to be a visible lamp, because an unexplained pool of light is
+the exact fault the window was added to fix. It stands camera-right, so the warm lamp and
+the cool window bracket the Shelf from opposite sides. Cross-lighting of that kind is most
+of why evening interiors look like anything at all.
+
+**The Boxes have to be retuned with it.** They are real-time, and `Scene.tsx` lights them
+with an environment built to match baked daylight: warm key where the window is, cool sky
+opposite, warm bounce off the floor. Left alone, that environment puts a daylit Box in a
+night room, which is the "second sun" fault in `docs/adr/0003` wearing a different hat.
+The environment moves with the bake or neither is right.
+
+The order follows from this. Evening is built before the dressing rather than after it,
+because the desk, the books and the clutter all have to be lit by the light they will
+ship under — otherwise they get made twice.
