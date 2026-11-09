@@ -9,11 +9,14 @@ import type { ShelfProject } from './types';
 /**
  * A Box: a Project in its physical form.
  *
- * One modelled box, from scripts/shelf.py, that every Project reuses. ADR 0001
- * ruled out modelled Boxes because a hand-authored one would mean opening
- * Blender to add a Project; a single scripted box does not have that problem,
- * because the Cover and Spine are still painted here, per Project, at runtime.
- * Same geometry, different printing.
+ * A clothbound hardback, from scripts/shelf.py, that every Project reuses. The
+ * board game box it replaced had a lid seam across a third of its face, which
+ * is not how a game box is made and is not what a shelf of them looks like.
+ *
+ * ADR 0001 ruled out modelled Boxes because a hand-authored one would mean
+ * opening Blender to add a Project; a single scripted book does not have that
+ * problem, because the Cover and Spine are still painted here, per Project, at
+ * runtime. Same boards, different printing.
  *
  * Dimensions are repeated in scripts/shelf.py and have to agree with it.
  */
@@ -23,11 +26,16 @@ export const BOX = {
   width: 0.82, // Z: the depth into the shelf, and the Cover's width
 };
 
-const MODEL = '/models/box.glb';
+const MODEL = '/models/book.glb';
 
 /** Material names the model carries, which is how the printing finds its faces. */
-const COVER_MATERIAL = 'BoxCover';
-const SPINE_MATERIAL = 'BoxSpine';
+const COVER_MATERIAL = 'BookCover';
+const SPINE_MATERIAL = 'BookSpine';
+
+/** The front board, hinged at the spine in the model so it can swing open. */
+const FRONT_BOARD = 'Book.FrontBoard';
+/** How far the cover opens. Not flat: a hardback does not lie open easily. */
+const COVER_SWING = -1.15;
 
 /** How far a Box slides out of the Shelf when it is the focused one. */
 const FOCUS_NUDGE = 0.1;
@@ -55,7 +63,7 @@ export function Box({
   onHover,
 }: Props) {
   const group = useRef<THREE.Group>(null);
-  const lid = useRef<THREE.Object3D | null>(null);
+  const frontBoard = useRef<THREE.Object3D | null>(null);
   const { scene } = useGLTF(MODEL);
   const textures = useBoxTextures(project, textureSize);
   const p = palette();
@@ -63,11 +71,8 @@ export function Box({
   // Every Box needs its own copy: the geometry is shared but the printing is
   // not, so the materials cannot be.
   const model = useMemo(() => {
-    const card = new THREE.MeshStandardMaterial({
-      color: p.border,
-      roughness: 0.72,
-      metalness: 0,
-    });
+    // Cloth and pages keep the materials the model was exported with: they are
+    // the same on every Book, so there is nothing to make per instance.
     const printed = (map: THREE.Texture | null) =>
       new THREE.MeshStandardMaterial({
         color: map ? '#ffffff' : p.border,
@@ -84,25 +89,19 @@ export function Box({
       const mesh = child as THREE.Mesh;
       if (!mesh.isMesh) return;
       const name = (mesh.material as THREE.Material)?.name ?? '';
-      mesh.material =
-        name === COVER_MATERIAL ? cover : name === SPINE_MATERIAL ? spine : card;
+      if (name === COVER_MATERIAL) mesh.material = cover;
+      else if (name === SPINE_MATERIAL) mesh.material = spine;
       mesh.castShadow = true;
       mesh.receiveShadow = true;
     });
 
-    lid.current = root.getObjectByName('Box.Lid') ?? null;
-    return root;
+    frontBoard.current = root.getObjectByName(FRONT_BOARD) ?? null;
+    return { root, made: [cover, spine] };
   }, [scene, textures, p.border]);
 
-  // Materials are made per Box, so they have to be let go per Box too.
-  useEffect(() => {
-    const made = new Set<THREE.Material>();
-    model.traverse((child) => {
-      const mesh = child as THREE.Mesh;
-      if (mesh.isMesh && mesh.material) made.add(mesh.material as THREE.Material);
-    });
-    return () => made.forEach((m) => m.dispose());
-  }, [model]);
+  // Only the printed materials are made per Book, so only those are let go.
+  // Disposing the shared cloth and pages would blank every other Book.
+  useEffect(() => () => model.made.forEach((m) => m.dispose()), [model]);
 
   // Where the Box wants to be, given the state. The frame loop eases towards it
   // rather than snapping, which is what makes it feel like an object.
@@ -124,9 +123,11 @@ export function Box({
     group.current.position.lerp(target, ease);
     group.current.rotation.y += (targetRotY - group.current.rotation.y) * ease;
 
-    if (lid.current) {
-      const lift = opened ? BOX.height * 0.55 : 0;
-      lid.current.position.y += (lift - lid.current.position.y) * ease;
+    if (frontBoard.current) {
+      // Hinged at the spine, so this swings the cover rather than spinning a
+      // board about its middle.
+      const swing = opened ? COVER_SWING : 0;
+      frontBoard.current.rotation.y += (swing - frontBoard.current.rotation.y) * ease;
     }
   });
 
@@ -144,7 +145,7 @@ export function Box({
       }}
       onPointerOut={() => onHover(false)}
     >
-      <primitive object={model} />
+      <primitive object={model.root} />
     </group>
   );
 }

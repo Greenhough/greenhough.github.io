@@ -20,7 +20,7 @@ import sys
 
 import bmesh
 import bpy
-from mathutils import Vector
+from mathutils import Matrix, Vector
 
 # --------------------------------------------------------------------------
 # dimensions, matching src/components/shelf/
@@ -634,7 +634,9 @@ def build_box():
     return [base, lid]
 
 
-def face_materials_and_uvs(obj, cover_slot, spine_slot, origin_z=0.0, total_h=1.0):
+def face_materials_and_uvs(
+    obj, cover_slot=None, spine_slot=None, origin_z=0.0, total_h=1.0
+):
     """
     Give the Cover and Spine faces their own material slots and a clean 0-1 UV
     square each, so the browser can drop a per-Project texture straight onto
@@ -662,12 +664,12 @@ def face_materials_and_uvs(obj, cover_slot, spine_slot, origin_z=0.0, total_h=1.
 
     for face in bm.faces:
         n = face.normal
-        if abs(n.x) > 0.9:
+        if cover_slot is not None and abs(n.x) > 0.9:
             face.material_index = cover_slot
             # Cover reads across local Y (width) and up local Z (height).
             across, up = 1, 2
             flip = n.x < 0
-        elif n.y < -0.9:
+        elif spine_slot is not None and n.y < -0.9:
             face.material_index = spine_slot
             # Spine is narrow across local X and tall up local Z.
             across, up = 0, 2
@@ -694,9 +696,145 @@ def face_materials_and_uvs(obj, cover_slot, spine_slot, origin_z=0.0, total_h=1.
     bm.free()
 
 
+
+# --------------------------------------------------------------------------
+# the Book
+# --------------------------------------------------------------------------
+
+# A clothbound hardback. The two things a slab cannot fake are the page block
+# and the square: the boards stand proud of the pages at head, tail and
+# fore-edge, and that overhang is what the eye reads as "book".
+BOARD_T = 0.013
+SQUARE = 0.024
+SPINE_T = 0.016
+BOOK_BEVEL = 0.0035
+
+
+def cloth_material(name="Cloth", colour=(0.085, 0.115, 0.105)):
+    """Book cloth: matte, slightly textured, no shine at all."""
+    mat = bpy.data.materials.new(name)
+    mat.use_nodes = True
+    nt = mat.node_tree
+    bsdf = nt.nodes["Principled BSDF"]
+    bsdf.inputs["Base Color"].default_value = (*colour, 1)
+    bsdf.inputs["Roughness"].default_value = 0.88
+
+    weave = nt.nodes.new("ShaderNodeTexNoise")
+    weave.inputs["Scale"].default_value = 420.0
+    weave.inputs["Detail"].default_value = 1.0
+    bump = nt.nodes.new("ShaderNodeBump")
+    bump.inputs["Strength"].default_value = 0.12
+    bump.inputs["Distance"].default_value = 0.0008
+    nt.links.new(weave.outputs["Fac"], bump.inputs["Height"])
+    nt.links.new(bump.outputs["Normal"], bsdf.inputs["Normal"])
+    return mat
+
+
+def paper_material(name="Pages"):
+    """The page block: cream, with the fine striation of stacked leaves."""
+    mat = bpy.data.materials.new(name)
+    mat.use_nodes = True
+    nt = mat.node_tree
+    bsdf = nt.nodes["Principled BSDF"]
+    bsdf.inputs["Base Color"].default_value = (0.86, 0.82, 0.71, 1)
+    bsdf.inputs["Roughness"].default_value = 0.94
+
+    # Leaves stack along the book's thickness, which is local X.
+    coord = nt.nodes.new("ShaderNodeTexCoord")
+    mapping = nt.nodes.new("ShaderNodeMapping")
+    mapping.inputs["Scale"].default_value = (260.0, 1.0, 1.0)
+    nt.links.new(coord.outputs["Object"], mapping.inputs["Vector"])
+    leaves = nt.nodes.new("ShaderNodeTexWave")
+    leaves.wave_type = "BANDS"
+    leaves.bands_direction = "X"
+    leaves.inputs["Scale"].default_value = 1.0
+    leaves.inputs["Distortion"].default_value = 1.2
+    nt.links.new(mapping.outputs["Vector"], leaves.inputs["Vector"])
+    bump = nt.nodes.new("ShaderNodeBump")
+    bump.inputs["Strength"].default_value = 0.30
+    bump.inputs["Distance"].default_value = 0.0006
+    nt.links.new(leaves.outputs["Fac"], bump.inputs["Height"])
+    nt.links.new(bump.outputs["Normal"], bsdf.inputs["Normal"])
+    return mat
+
+
+def build_book():
+    """
+    One hardback, which every Project reuses. Slots in a fixed order, because
+    the site assigns the painted textures by material name: cloth, Cover, Spine,
+    pages.
+
+    No lid and no seam. A board game box has neither of the things that make a
+    book read as a book, and the seam across a third of the face was wrong even
+    for a box.
+    """
+    cloth = cloth_material("BookCloth")
+    cover = cloth_material("BookCover", colour=(0.55, 0.52, 0.48))
+    spine = cloth_material("BookSpine", colour=(0.55, 0.52, 0.48))
+    pages = paper_material("BookPages")
+
+    t, h, w = BOX["thickness"], BOX["height"], BOX["width"]
+
+    # Along the shelf-facing axis: spine outermost, then boards, pages inset.
+    board_z = -SPINE_T / 2
+    board_len = w - SPINE_T
+    pages_len = w - SPINE_T - SQUARE
+    pages_z = (SQUARE - SPINE_T) / 2
+
+    parts = []
+
+    # Front board carries the Cover; the back board is plain cloth.
+    for sign, name, carries_cover in ((1, "Book.FrontBoard", True), (-1, "Book.BackBoard", False)):
+        obj = board(
+            name,
+            (BOARD_T, h, board_len),
+            (sign * (t / 2 - BOARD_T / 2), 0, board_z),
+            cloth,
+        )
+        obj.data.materials.append(cover)
+        if carries_cover:
+            face_materials_and_uvs(obj, cover_slot=1, total_h=h)
+            # Put the origin on the hinge, at the spine edge, so the site can
+            # swing the front board open by rotating it. Rotating a board about
+            # its own centre is not a book opening, it is a board spinning.
+            hinge_y = -(w / 2 - SPINE_T)
+            shift = hinge_y - obj.location.y
+            obj.data.transform(Matrix.Translation((0, -shift, 0)))
+            obj.location.y += shift
+        for mod in obj.modifiers:
+            if mod.type == "BEVEL":
+                mod.width = BOOK_BEVEL
+        parts.append(obj)
+
+    spine_obj = board(
+        "Book.Spine",
+        (t, h, SPINE_T),
+        (0, 0, w / 2 - SPINE_T / 2),
+        cloth,
+    )
+    spine_obj.data.materials.append(spine)
+    face_materials_and_uvs(spine_obj, spine_slot=1, total_h=h)
+    for mod in spine_obj.modifiers:
+        if mod.type == "BEVEL":
+            mod.width = BOOK_BEVEL
+    parts.append(spine_obj)
+
+    # The page block, standing in from the boards at head, tail and fore-edge.
+    block = board(
+        "Book.Pages",
+        (t - 2 * BOARD_T, h - 2 * SQUARE, pages_len),
+        (0, 0, pages_z),
+        pages,
+        bevel=False,
+    )
+    parts.append(block)
+
+    return parts
+
+
 def setup_box_camera(centre_z=0.0):
     """Three-quarter view, far enough back to see the whole box."""
-    bpy.ops.object.camera_add(location=(1.05, -2.9, centre_z + 0.32))
+    bpy.ops.object.camera_add(location=(1.35, -2.35, centre_z + 0.92))
     cam = bpy.context.active_object
     cam.name = "BoxCamera"
     cam.data.lens = 55
@@ -718,10 +856,30 @@ def main():
     ap.add_argument("--bake-room", help="bake the room to this PNG")
     ap.add_argument("--box-render", help="render one Box on its own, to this PNG")
     ap.add_argument("--box-export", help="write the Box .glb here")
+    ap.add_argument("--book-render", help="render one Book on its own, to this PNG")
+    ap.add_argument("--book-export", help="write the Book .glb here")
     ap.add_argument("--samples", type=int, default=160)
     args = ap.parse_args(argv)
 
     clear_scene()
+
+    if args.book_export:
+        export_glb(build_book(), args.book_export, materials="EXPORT")
+        return
+
+    if args.book_render:
+        bk = build_book()
+        drop = FLOOR_Y + BOX["height"] / 2
+        for obj in bk:
+            obj.location.z += drop
+        build_room()
+        setup_daylight()
+        setup_box_camera(centre_z=drop)
+        setup_render(samples=args.samples)
+        bpy.context.scene.render.filepath = args.book_render
+        bpy.ops.render.render(write_still=True)
+        print(f"[book] wrote {args.book_render}")
+        return
 
     if args.box_export:
         box = build_box()

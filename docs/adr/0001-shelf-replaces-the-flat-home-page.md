@@ -53,3 +53,27 @@ door deletes.
 Two other things stand in for what this ADR asks, pending real work: **Covers are
 generated from one template** rather than hand-designed, and **the Shelf is code geometry**
 rather than an imported model. Both are swaps, not rewrites, when the art exists.
+
+## Addendum, 2026-11-09: Boxes are books
+
+A Box is now a clothbound hardback rather than a board game box. The board game box was
+built and cut: its lid seam ran across a third of the face, which is not how a game box is
+made, and the form gave the eye nothing to hold onto.
+
+A shelf of books is a more natural object than a shelf of game boxes, and the vocabulary
+already fitted — Cover and Spine are book words before they are game words. What a book
+adds is a page block and the square, the overhang of the boards past the pages, and those
+are the two things a slab cannot fake.
+
+The term **Box** stays. It names the slot a Project occupies on the Shelf, not a claim
+about what that slot looks like, and renaming it through the codebase would cost more than
+it is worth. `CONTEXT.md` records the change in form.
+
+**Opened** changes with it: the front board swings open on a hinge at the spine, rather
+than a lid lifting off. The model carries the hinge, so the site rotates a board rather
+than spinning one about its middle.
+
+The Shelf itself is no longer code geometry either; see `docs/adr/0003`. The Boxes being
+modelled does not reopen the objection above, because there is **one** scripted book that
+every Project reuses, and the Cover and Spine are still painted per Project in the browser.
+Adding a Project is still a Markdown file.

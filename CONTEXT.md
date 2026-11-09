@@ -34,11 +34,11 @@ What a Section is about, and a field on every Project. Currently *Built for Myse
 _Avoid_: category, tag, collection
 
 **Box**:
-A Project's physical form on the Shelf — a board game box with a Cover, a Spine and a lid.
+A Project's physical form on the Shelf — a clothbound hardback with a Cover, a Spine and a page block. Still called a Box: the word is the slot a Project occupies, not a claim about what it looks like.
 _Avoid_: card, tile, model, item
 
 **Cover**:
-The printed face of a Box. Hand-designed per Project.
+The front board of a Box. Hand-designed per Project.
 _Avoid_: art, thumbnail, hero image
 
 **Spine**:
@@ -46,7 +46,7 @@ The edge of a Box, and what is visible while it is shelved. Generated from the P
 _Avoid_: label, title bar
 
 **Tag**:
-A short technology or topic marker on a Project (Claude Code, Swift, Python), printed on the Box the way a publisher prints player count and play time.
+A short technology or topic marker on a Project (Claude Code, Swift, Python), set on the Cover the way a publisher sets a series line.
 _Avoid_: label, keyword, skill
 
 ## States
@@ -60,7 +60,7 @@ The state in which a Box is held out of the Shelf to be turned over and read.
 _Avoid_: zoomed, detail view, preview
 
 **Opened**:
-The state in which a Box's lid is lifted and its Write-up is shown.
+The state in which a Box's front board swings open on its hinge and its Write-up is shown.
 _Avoid_: modal, expanded, drawer
 
 ## Everything else
