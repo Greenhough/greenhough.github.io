@@ -407,15 +407,130 @@ def setup_render(width=1000, height=760, samples=160):
     scene.view_settings.look = "AgX - Base Contrast"
 
 
+def select(objs, active=None):
+    bpy.ops.object.select_all(action="DESELECT")
+    for obj in objs:
+        obj.select_set(True)
+    bpy.context.view_layer.objects.active = active or objs[0]
+
+
+def join_carcass(parts):
+    """
+    One object for export. Done AFTER baking, never before: join applies each
+    object's transform into the merged mesh, and the oak material reads object
+    coordinates. Joining first collapses the uprights' local space into the
+    carcass's, and their grain and end-grain masks go wrong again.
+    """
+    select(parts)
+    bpy.ops.object.join()
+    joined = bpy.context.active_object
+    joined.name = "Carcass"
+    return joined
+
+
+def unwrap_all(parts, margin=0.004):
+    """Unwrap every board in one multi-object edit, so the islands of all of
+    them are packed into a single shared UV space ready for one atlas."""
+    select(parts)
+    bpy.ops.object.mode_set(mode="EDIT")
+    bpy.ops.mesh.select_all(action="SELECT")
+    bpy.ops.uv.smart_project(angle_limit=math.radians(66), island_margin=margin)
+
+    # smart_project packs each object into 0-1 on its own, so across several
+    # objects the islands land on top of each other and bake over one another.
+    # Repacking everything together is what makes a shared atlas actually
+    # shared. average_islands_scale first, so a 45mm board edge does not get
+    # the same texel budget as a whole shelf face.
+    bpy.ops.uv.select_all(action="SELECT")
+    bpy.ops.uv.average_islands_scale()
+    bpy.ops.uv.pack_islands(margin=0.012, rotate=True)
+
+    bpy.ops.object.mode_set(mode="OBJECT")
+
+
+def bake_combined(parts, path, size=2048, samples=64, margin=16):
+    """
+    Bake the lit result into one texture.
+
+    COMBINED means the image carries direct light, bounced light and the
+    occlusion in the corners. The browser then draws it unlit and gets the
+    Cycles result for the cost of one texture lookup. This is the whole bet in
+    ADR 0003, and the reason the Shelf can look rendered without being rendered.
+    """
+    image = bpy.data.images.new("ShelfBake", width=size, height=size)
+
+    # Every material in play needs the target image as its active node, or the
+    # bake has nowhere to land for the faces using it. Materials are shared
+    # between boards, so track which ones are already done.
+    seen = set()
+    for obj in parts:
+        for slot in obj.material_slots:
+            mat = slot.material
+            if mat.name in seen:
+                continue
+            seen.add(mat.name)
+            nt = mat.node_tree
+            tex = nt.nodes.new("ShaderNodeTexImage")
+            tex.image = image
+            tex.select = True
+            nt.nodes.active = tex
+
+    scene = bpy.context.scene
+    scene.render.engine = "CYCLES"
+    scene.cycles.samples = samples
+    scene.cycles.use_denoising = True
+    scene.render.bake.margin = margin
+    scene.render.bake.use_selected_to_active = False
+    scene.render.bake.use_clear = True
+
+    # All boards bake at once into the one shared image, each still in its own
+    # local space.
+    select(parts)
+
+    print(f"[shelf] baking {len(parts)} boards to {size}x{size} at {samples} samples ...")
+    bpy.ops.object.bake(type="COMBINED")
+
+    image.filepath_raw = path
+    image.file_format = "PNG"
+    image.save()
+    print(f"[shelf] wrote {path}")
+    return image
+
+
+def show_baked(obj, image):
+    """
+    Swap the object to an unlit material showing only the baked image, which is
+    what the browser will draw. Rendering this is the honest test: if it does
+    not match the lit render, the bake has not captured the look.
+    """
+    mat = bpy.data.materials.new("Baked")
+    mat.use_nodes = True
+    nt = mat.node_tree
+    nt.nodes.clear()
+    out = nt.nodes.new("ShaderNodeOutputMaterial")
+    emit = nt.nodes.new("ShaderNodeEmission")
+    tex = nt.nodes.new("ShaderNodeTexImage")
+    tex.image = image
+    nt.links.new(tex.outputs["Color"], emit.inputs["Color"])
+    nt.links.new(emit.outputs["Emission"], out.inputs["Surface"])
+
+    obj.data.materials.clear()
+    obj.data.materials.append(mat)
+
+
 def main():
     argv = sys.argv[sys.argv.index("--") + 1 :] if "--" in sys.argv else []
     ap = argparse.ArgumentParser()
     ap.add_argument("--render", help="write a preview PNG here")
+    ap.add_argument("--bake", help="bake the carcass to this PNG")
+    ap.add_argument("--bake-size", type=int, default=2048)
+    ap.add_argument("--bake-samples", type=int, default=64)
+    ap.add_argument("--show-baked", help="render the baked texture unlit, to this PNG")
     ap.add_argument("--samples", type=int, default=160)
     args = ap.parse_args(argv)
 
     clear_scene()
-    build_carcass()
+    parts = build_carcass()
     build_room()
     setup_daylight()
     setup_camera()
@@ -427,6 +542,22 @@ def main():
         bpy.context.scene.render.filepath = args.render
         bpy.ops.render.render(write_still=True)
         print(f"[shelf] wrote {args.render}")
+
+    if args.bake or args.show_baked:
+        unwrap_all(parts)
+        image = bake_combined(
+            parts,
+            args.bake or "/tmp/shelf-bake.png",
+            size=args.bake_size,
+            samples=args.bake_samples,
+        )
+        carcass = join_carcass(parts)
+
+        if args.show_baked:
+            show_baked(carcass, image)
+            bpy.context.scene.render.filepath = args.show_baked
+            bpy.ops.render.render(write_still=True)
+            print(f"[shelf] wrote {args.show_baked}")
 
 
 if __name__ == "__main__":
