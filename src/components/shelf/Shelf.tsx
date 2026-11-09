@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { Scene } from './Scene';
 import type { ShelfProject, ShelfSection, ShelfState } from './types';
@@ -141,15 +141,17 @@ export default function Shelf({ sections, initialSlug = null }: Props) {
         dpr={dpr}
         camera={CAMERA}
       >
-        <Scene
-          sections={sections}
-          focusedSlug={focusedSlug}
-          state={state}
-          textureSize={phone ? 512 : 1024}
-          onFocus={setFocusedSlug}
-          onInspect={inspect}
-          onHover={setHovering}
-        />
+        <Suspense fallback={null}>
+          <Scene
+            sections={sections}
+            focusedSlug={focusedSlug}
+            state={state}
+            textureSize={phone ? 512 : 1024}
+            onFocus={setFocusedSlug}
+            onInspect={inspect}
+            onHover={setHovering}
+          />
+        </Suspense>
       </Canvas>
 
       {/* The Shelf hides the ordinary page chrome, so it carries its own way

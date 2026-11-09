@@ -18,6 +18,7 @@ import argparse
 import math
 import sys
 
+import bmesh
 import bpy
 from mathutils import Vector
 
@@ -526,11 +527,16 @@ def show_baked(obj, image):
     obj.data.materials.append(mat)
 
 
-def export_glb(objs, path):
+def export_glb(objs, path, materials="NONE"):
     """
     Export geometry and UVs only. The baked atlas is loaded separately by the
     site and applied as an unlit material there, which keeps it a WebP (84KB)
     rather than whatever the glTF exporter would embed (PNG, 2MB).
+
+    materials="EXPORT" is needed whenever the site has to address faces
+    separately at runtime: glTF splits a mesh into one primitive per material
+    slot, and stripping the materials merges them back into one. The Box needs
+    that split so its Cover and Spine can be printed per-Project.
 
     No Draco: the carcass is seven boxes, so the geometry is already trivial,
     and drei's Draco loader reaches for a CDN-hosted decoder by default. Not
@@ -546,7 +552,7 @@ def export_glb(objs, path):
         export_format="GLB",
         use_selection=True,
         export_apply=True,
-        export_materials="NONE",
+        export_materials=materials,
         export_normals=True,
         export_texcoords=True,
         export_yup=True,
@@ -584,33 +590,40 @@ def build_box():
     scripted box that every Project is printed onto does not have that problem:
     the Cover and Spine are still painted per-Project in the browser.
 
+    Three material slots in a fixed order, because the site assigns the painted
+    textures by index: 0 card, 1 Cover, 2 Spine.
+
     Modelled standing as it sits on the Shelf, lid upward, so the lift in
     Box.tsx still reads as taking the lid off.
     """
     card = card_material("BoxCard")
+    cover = card_material("BoxCover", colour=(0.80, 0.78, 0.74))
+    spine = card_material("BoxSpine", colour=(0.80, 0.78, 0.74))
 
     lid_h = BOX["height"] * LID_FRACTION
     base_h = BOX["height"] - lid_h
+    base_z = -BOX["height"] / 2 + base_h / 2
+    lid_z = BOX["height"] / 2 - lid_h / 2
 
     base = board(
         "Box.Base",
         (BOX["thickness"], base_h, BOX["width"]),
-        (0, -BOX["height"] / 2 + base_h / 2, 0),
+        (0, base_z, 0),
         card,
     )
-
     lid = board(
         "Box.Lid",
-        (
-            BOX["thickness"] + LID_OVERSIZE,
-            lid_h,
-            BOX["width"] + LID_OVERSIZE,
-        ),
-        (0, BOX["height"] / 2 - lid_h / 2, 0),
+        (BOX["thickness"] + LID_OVERSIZE, lid_h, BOX["width"] + LID_OVERSIZE),
+        (0, lid_z, 0),
         card,
     )
 
-    for obj in (base, lid):
+    for obj, origin in ((base, base_z), (lid, lid_z)):
+        obj.data.materials.append(cover)
+        obj.data.materials.append(spine)
+        face_materials_and_uvs(
+            obj, cover_slot=1, spine_slot=2, origin_z=origin, total_h=BOX["height"]
+        )
         for mod in obj.modifiers:
             if mod.type == "BEVEL":
                 # Softer than the carcass: printed board rolls over at an edge
@@ -619,6 +632,66 @@ def build_box():
                 mod.segments = 3
 
     return [base, lid]
+
+
+def face_materials_and_uvs(obj, cover_slot, spine_slot, origin_z=0.0, total_h=1.0):
+    """
+    Give the Cover and Spine faces their own material slots and a clean 0-1 UV
+    square each, so the browser can drop a per-Project texture straight onto
+    them.
+
+    Done before the bevel modifier is applied at export, while the mesh is
+    still six flat faces. The bevel then interpolates these UVs, which insets
+    the printed area by the chamfer. That is correct: a real box's print stops
+    at the fold.
+
+    Axes, after board()'s conversion: the Cover is the large face on local X,
+    the Spine is the narrow face on local -Y (site +Z, the edge you see while
+    the Box is shelved).
+
+    origin_z and total_h map each piece to its slice of the whole Box. The art
+    spans the full height but the geometry is a base and a lid, so mapping each
+    piece to a full 0-1 would print the entire Cover twice, once on each.
+    """
+    mesh = obj.data
+    bm = bmesh.new()
+    bm.from_mesh(mesh)
+    bm.faces.ensure_lookup_table()
+
+    uv_layer = bm.loops.layers.uv.verify()
+
+    for face in bm.faces:
+        n = face.normal
+        if abs(n.x) > 0.9:
+            face.material_index = cover_slot
+            # Cover reads across local Y (width) and up local Z (height).
+            across, up = 1, 2
+            flip = n.x < 0
+        elif n.y < -0.9:
+            face.material_index = spine_slot
+            # Spine is narrow across local X and tall up local Z.
+            across, up = 0, 2
+            flip = False
+        else:
+            continue
+
+        coords = [l.vert.co for l in face.loops]
+        lo_a = min(c[across] for c in coords)
+        hi_a = max(c[across] for c in coords)
+        span_a = (hi_a - lo_a) or 1.0
+
+        for loop in face.loops:
+            co = loop.vert.co
+            u = (co[across] - lo_a) / span_a
+            # Vertical runs against the whole Box, not this piece of it.
+            v = (co[up] + origin_z + total_h / 2) / total_h
+            if flip:
+                u = 1.0 - u
+            # glTF samples with the origin at the top left.
+            loop[uv_layer].uv = (u, 1.0 - v)
+
+    bm.to_mesh(mesh)
+    bm.free()
 
 
 def setup_box_camera(centre_z=0.0):
@@ -644,10 +717,16 @@ def main():
     ap.add_argument("--export", help="write the .glb here")
     ap.add_argument("--bake-room", help="bake the room to this PNG")
     ap.add_argument("--box-render", help="render one Box on its own, to this PNG")
+    ap.add_argument("--box-export", help="write the Box .glb here")
     ap.add_argument("--samples", type=int, default=160)
     args = ap.parse_args(argv)
 
     clear_scene()
+
+    if args.box_export:
+        box = build_box()
+        export_glb(box, args.box_export, materials="EXPORT")
+        return
 
     if args.box_render:
         box = build_box()

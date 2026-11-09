@@ -1,6 +1,7 @@
-import { useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
+import { useGLTF } from '@react-three/drei';
 import { useBoxTextures } from './useBoxTextures';
 import { palette } from './palette';
 import type { ShelfProject } from './types';
@@ -8,17 +9,25 @@ import type { ShelfProject } from './types';
 /**
  * A Box: a Project in its physical form.
  *
- * Code geometry, not a model. ADR 0001: the moment a Box is hand-authored in
- * Blender, adding a Project means opening Blender and the Shelf stops scaling.
+ * One modelled box, from scripts/shelf.py, that every Project reuses. ADR 0001
+ * ruled out modelled Boxes because a hand-authored one would mean opening
+ * Blender to add a Project; a single scripted box does not have that problem,
+ * because the Cover and Spine are still painted here, per Project, at runtime.
+ * Same geometry, different printing.
  *
- * Dimensions are a board game box on its edge, so the narrow Spine faces out
- * and the Cover faces sideways, the way a shelved box actually sits.
+ * Dimensions are repeated in scripts/shelf.py and have to agree with it.
  */
 export const BOX = {
   thickness: 0.2, // X: what you see edge-on
   height: 1.0, // Y
   width: 0.82, // Z: the depth into the shelf, and the Cover's width
 };
+
+const MODEL = '/models/box.glb';
+
+/** Material names the model carries, which is how the printing finds its faces. */
+const COVER_MATERIAL = 'BoxCover';
+const SPINE_MATERIAL = 'BoxSpine';
 
 /** How far a Box slides out of the Shelf when it is the focused one. */
 const FOCUS_NUDGE = 0.1;
@@ -46,9 +55,54 @@ export function Box({
   onHover,
 }: Props) {
   const group = useRef<THREE.Group>(null);
-  const lid = useRef<THREE.Group>(null);
+  const lid = useRef<THREE.Object3D | null>(null);
+  const { scene } = useGLTF(MODEL);
   const textures = useBoxTextures(project, textureSize);
   const p = palette();
+
+  // Every Box needs its own copy: the geometry is shared but the printing is
+  // not, so the materials cannot be.
+  const model = useMemo(() => {
+    const card = new THREE.MeshStandardMaterial({
+      color: p.border,
+      roughness: 0.72,
+      metalness: 0,
+    });
+    const printed = (map: THREE.Texture | null) =>
+      new THREE.MeshStandardMaterial({
+        color: map ? '#ffffff' : p.border,
+        map: map ?? null,
+        roughness: 0.74,
+        metalness: 0,
+      });
+
+    const cover = printed(textures.cover);
+    const spine = printed(textures.spine);
+
+    const root = scene.clone(true);
+    root.traverse((child) => {
+      const mesh = child as THREE.Mesh;
+      if (!mesh.isMesh) return;
+      const name = (mesh.material as THREE.Material)?.name ?? '';
+      mesh.material =
+        name === COVER_MATERIAL ? cover : name === SPINE_MATERIAL ? spine : card;
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+    });
+
+    lid.current = root.getObjectByName('Box.Lid') ?? null;
+    return root;
+  }, [scene, textures, p.border]);
+
+  // Materials are made per Box, so they have to be let go per Box too.
+  useEffect(() => {
+    const made = new Set<THREE.Material>();
+    model.traverse((child) => {
+      const mesh = child as THREE.Mesh;
+      if (mesh.isMesh && mesh.material) made.add(mesh.material as THREE.Material);
+    });
+    return () => made.forEach((m) => m.dispose());
+  }, [model]);
 
   // Where the Box wants to be, given the state. The frame loop eases towards it
   // rather than snapping, which is what makes it feel like an object.
@@ -76,17 +130,6 @@ export function Box({
     }
   });
 
-  // Face order for BoxGeometry is +X, -X, +Y, -Y, +Z, -Z.
-  // +X carries the Cover, +Z carries the Spine.
-  const faces = [
-    textures.cover ?? undefined, // +X  the printed face
-    undefined, // -X  back of the box
-    undefined, // +Y  top
-    undefined, // -Y  bottom
-    textures.spine ?? undefined, // +Z  the edge you see while it is shelved
-    undefined, // -Z  the edge against the back panel
-  ];
-
   return (
     <group
       ref={group}
@@ -101,39 +144,9 @@ export function Box({
       }}
       onPointerOut={() => onHover(false)}
     >
-      <mesh castShadow receiveShadow>
-        <boxGeometry args={[BOX.thickness, BOX.height, BOX.width]} />
-        {/*
-          The key has to change when the Cover finishes painting. Without it
-          React patches the existing material in place, the shader keeps its
-          old no-texture program, and the Box renders solid black.
-        */}
-        {faces.map((map, i) => (
-          <meshStandardMaterial
-            key={`${i}-${map ? 'printed' : 'blank'}`}
-            attach={`material-${i}`}
-            {...(map ? { map } : { color: p.border })}
-            roughness={0.85}
-            metalness={0}
-          />
-        ))}
-      </mesh>
-
-      {/* The lid. Shallow, slightly proud of the base, and lifts when Opened. */}
-      <group ref={lid}>
-        <mesh castShadow position={[0, BOX.height * 0.36, 0]}>
-          <boxGeometry
-            args={[BOX.thickness * 1.04, BOX.height * 0.3, BOX.width * 1.02]}
-          />
-          <meshStandardMaterial
-            color={p.paper}
-            roughness={0.85}
-            transparent
-            opacity={opened ? 1 : 0}
-            depthWrite={opened}
-          />
-        </mesh>
-      </group>
+      <primitive object={model} />
     </group>
   );
 }
+
+useGLTF.preload(MODEL);
