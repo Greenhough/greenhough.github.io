@@ -518,6 +518,34 @@ def show_baked(obj, image):
     obj.data.materials.append(mat)
 
 
+def export_glb(obj, path):
+    """
+    Export geometry and UVs only. The baked atlas is loaded separately by the
+    site and applied as an unlit material there, which keeps it a WebP (84KB)
+    rather than whatever the glTF exporter would embed (PNG, 2MB).
+
+    No Draco: the carcass is seven boxes, so the geometry is already trivial,
+    and drei's Draco loader reaches for a CDN-hosted decoder by default. Not
+    worth an external dependency to save a few KB.
+
+    Blender (x, y, z) exports as glTF (x, z, -y). Boards were placed with
+    blender y = -site z, so the model arrives in the site's own coordinates
+    with no correction needed at the other end.
+    """
+    select([obj])
+    bpy.ops.export_scene.gltf(
+        filepath=path,
+        export_format="GLB",
+        use_selection=True,
+        export_apply=True,
+        export_materials="NONE",
+        export_normals=True,
+        export_texcoords=True,
+        export_yup=True,
+    )
+    print(f"[shelf] wrote {path}")
+
+
 def main():
     argv = sys.argv[sys.argv.index("--") + 1 :] if "--" in sys.argv else []
     ap = argparse.ArgumentParser()
@@ -526,6 +554,7 @@ def main():
     ap.add_argument("--bake-size", type=int, default=2048)
     ap.add_argument("--bake-samples", type=int, default=64)
     ap.add_argument("--show-baked", help="render the baked texture unlit, to this PNG")
+    ap.add_argument("--export", help="write the carcass .glb here")
     ap.add_argument("--samples", type=int, default=160)
     args = ap.parse_args(argv)
 
@@ -543,7 +572,7 @@ def main():
         bpy.ops.render.render(write_still=True)
         print(f"[shelf] wrote {args.render}")
 
-    if args.bake or args.show_baked:
+    if args.bake or args.show_baked or args.export:
         unwrap_all(parts)
         image = bake_combined(
             parts,
@@ -552,6 +581,9 @@ def main():
             samples=args.bake_samples,
         )
         carcass = join_carcass(parts)
+
+        if args.export:
+            export_glb(carcass, args.export)
 
         if args.show_baked:
             show_baked(carcass, image)

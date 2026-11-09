@@ -3,7 +3,8 @@ import * as THREE from 'three';
 import { useFrame, useThree } from '@react-three/fiber';
 import { ContactShadows } from '@react-three/drei';
 import { Box, BOX } from './Box';
-import { SHELF, ShelfUnit, SectionLabel, sectionFloorY, slotX } from './ShelfUnit';
+import { SHELF, SectionLabel, sectionFloorY, slotX } from './ShelfUnit';
+import { ShelfModel } from './ShelfModel';
 import { palette } from './palette';
 import type { ShelfSection, ShelfState } from './types';
 
@@ -99,18 +100,26 @@ export function Scene({
 
   return (
     <>
-      <ambientLight intensity={0.75} />
+      {/*
+        These light the Boxes only. The carcass is unlit, because its light is
+        baked in. They are placed to match the Blender key so a real-time Box
+        and the baked room read as being in one daylight rather than two.
+        Blender's key sits at (-2.6, 1.6, 2.2) once converted to these axes.
+      */}
+      <ambientLight intensity={0.55} />
       <directionalLight
-        position={[2.5, 4, 5]}
-        intensity={1.5}
+        position={[-2.6, 1.6, 2.2]}
+        intensity={1.9}
+        color="#fff4e2"
         castShadow
         shadow-mapSize={[1024, 1024]}
-        shadow-camera-near={0.5}
-        shadow-camera-far={20}
+        shadow-bias={-0.0004}
+        shadow-normalBias={0.02}
       />
-      <directionalLight position={[-3, 1.5, 2]} intensity={0.35} />
+      {/* Sky fill from the other side, matching the world colour in the bake. */}
+      <directionalLight position={[2.4, 0.8, 1.6]} intensity={0.4} color="#94a8c4" />
 
-      <ShelfUnit sections={sections.length} />
+      <ShelfModel />
 
       {sections.map((section, si) => {
         const floorY = sectionFloorY(si, sections.length);
