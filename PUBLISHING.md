@@ -109,6 +109,7 @@ video:
 ```markdown
 ---
 title: "The Project Name"
+spine: "Short Name"
 slug: "the-project-name"
 eyebrow: "Build"
 tags: ["Claude Code", "Python"]
@@ -117,6 +118,7 @@ description: "The meta description. Roughly 110-155 characters."
 summary: "The one-line card text shown on /work and on the home page."
 dek: "An optional standfirst line, shown under the title on the write-up itself."
 theme: "Built for Myself"
+cover: "../../assets/covers/the-project-name.png"
 ---
 <section class="cs-sec">
   <h2 class="cs-title"><span class="num">01</span>Why I built it</h2>
@@ -179,6 +181,7 @@ rather than shipping a broken page. The schema lives in `src/content.config.ts`.
 | Field | Required | What it is |
 |---|---|---|
 | `title` | yes | Title case. Used for the `<h1>`, the `<title>`, `og:title` and every listing. |
+| `spine` | no | A shorter title for the Spine. Leave it out and the Spine carries `title`. |
 | `slug` | yes | The URL path without a leading slash. |
 | `eyebrow` | yes | The small label above the title. Currently `Build` or `Vibe Coding`. |
 | `tags` | yes | A list of tag labels. Each must have a colour (see below). |
@@ -186,11 +189,17 @@ rather than shipping a broken page. The schema lives in `src/content.config.ts`.
 | `description` | yes | The meta description and `og:description`. |
 | `summary` | yes | The one-line card text on `/work` and on the home page. |
 | `dek` | no | A standfirst line under the title on the write-up itself. |
-| `theme` | yes | `Built for Myself` or `Built for Work`. Not shown anywhere yet; it is the Section a Project will sit in on the Shelf (deploy two). |
+| `theme` | yes | `Built for Myself` or `Built for Work`. The Section this Project sits in on the Shelf. |
+| `cover` | yes | Path to the Cover art in `src/assets/covers/`. Commit the full-resolution file; Astro resizes it. |
 
 `description` and `summary` do different jobs: `description` is written for search
 results and link previews, `summary` is written for someone scanning a list of
 projects. `dek` is the line that sets up the write-up itself.
+
+Add a `spine` when the title is long. The Spine is read edge-on from across a
+room, so the painted title shrinks to fit and a descriptive title ends up too
+small to read. A binder shortens a long title on a real spine for the same
+reason; the hub card and the write-up keep the full one.
 
 ### Adding a new tag colour
 

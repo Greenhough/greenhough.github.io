@@ -259,14 +259,18 @@ export function paintSpine(
   ctx.textAlign = 'left';
   ctx.letterSpacing = `${0.25 * u}px`;
 
+  // The Spine's own title, which is the full one unless the Project gives a
+  // shorter one. The loop below will fit anything, but "fits" and "reads
+  // across a room" are not the same thing, so a long title is shortened in
+  // frontmatter rather than shrunk to nothing here.
   let size = 8.6 * u;
   const run = H - 30 * u;
   ctx.font = `800 ${size}px Archivo, sans-serif`;
-  while (ctx.measureText(project.title).width > run && size > 3 * u) {
+  while (ctx.measureText(project.spine).width > run && size > 3 * u) {
     size -= 0.25 * u;
     ctx.font = `800 ${size}px Archivo, sans-serif`;
   }
-  ctx.fillText(project.title, 0, 0);
+  ctx.fillText(project.spine, 0, 0);
   ctx.letterSpacing = '0px';
   ctx.restore();
 

@@ -1,5 +1,6 @@
 ---
 title: "Quibble: A Local Dictation App"
+spine: "Quibble: Dictation App"
 slug: "quibble"
 eyebrow: "Build"
 tags: ["Claude Code", "Swift"]

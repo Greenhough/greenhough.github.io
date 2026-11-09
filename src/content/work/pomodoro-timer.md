@@ -1,5 +1,6 @@
 ---
 title: "Pomodoro Timer That Tracks Project Time to Notion"
+spine: "Pomodoro Timer"
 slug: "pomodoro-timer"
 eyebrow: "Vibe Coding"
 tags: ["Claude", "Notion"]

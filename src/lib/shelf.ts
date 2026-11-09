@@ -34,6 +34,7 @@ export async function getShelfSections(): Promise<ShelfSection[]> {
         return {
           slug: entry.data.slug,
           title: entry.data.title,
+          spine: entry.data.spine ?? entry.data.title,
           eyebrow: entry.data.eyebrow,
           tags: entry.data.tags,
           summary: entry.data.summary,
