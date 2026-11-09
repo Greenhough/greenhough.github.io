@@ -63,8 +63,19 @@ def clear_scene():
                 block.remove(item)
 
 
-def board(name, size, location, material, bevel=True):
-    """A rectangular board. Blender is Z-up; the site's Y-up is converted here."""
+def board(name, size, location, material, bevel=True, vertical=False):
+    """
+    A rectangular board. Blender is Z-up; the site's Y-up is converted here.
+
+    Every board is modelled with its length along local X and then rotated into
+    place, never re-proportioned. The material keys off object coordinates: it
+    stretches the grain along local X and treats faces pointing along local X
+    as end grain. If an upright were simply built tall, its length would lie on
+    local Y and both of those would be wrong on it.
+
+    The rotation is deliberately not applied, because applying it would turn
+    local space with the object and undo exactly what it is for.
+    """
     # site (x, y, z) -> blender (x, -z, y). The depth axis flips: three.js looks
     # down -Z, Blender's camera looks down +Y, so "behind the shelf" inverts.
     bpy.ops.mesh.primitive_cube_add(size=1, location=(location[0], -location[2], location[1]))
@@ -72,8 +83,14 @@ def board(name, size, location, material, bevel=True):
     obj.name = name
     # site (x, y, z) -> blender (x, z, y). primitive_cube_add(size=1) is already
     # a unit cube, so the scale IS the edge length, not half of it.
-    obj.scale = (size[0], size[2], size[1])
-    bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+    if vertical:
+        # length -> local X, depth -> local Y, thickness -> local Z, then stood up
+        obj.scale = (size[1], size[2], size[0])
+        bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+        obj.rotation_euler = (0, math.radians(90), 0)
+    else:
+        obj.scale = (size[0], size[2], size[1])
+        bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
 
     if bevel:
         mod = obj.modifiers.new(name="Bevel", type="BEVEL")
@@ -98,11 +115,23 @@ def board(name, size, location, material, bevel=True):
 # --------------------------------------------------------------------------
 
 
-def oak_material(name="Oak", base=(0.185, 0.112, 0.055), light=(0.345, 0.225, 0.118), scale=1.0):
+def oak_material(name="Oak", base=(0.148, 0.082, 0.036), light=(0.400, 0.262, 0.130), scale=1.0):
     """
-    Procedural oak: wave bands distorted by noise for the grain, finer noise for
-    the pores, both feeding colour, roughness and a bump so the surface has real
-    relief rather than a painted picture of it.
+    Procedural oak.
+
+    Everything is combined as a single greyscale figure and run through one
+    colour ramp at the end. Mixing colours node-by-node is where this kind of
+    material usually turns to mud, and float mixing avoids the ambiguous socket
+    names on ShaderNodeMix as a bonus.
+
+    Four things make it read as oak rather than as brown:
+
+    - grain stretched hard along the board's length
+    - broad tonal drift, so a board is not even end to end
+    - ray fleck: the pale irregular flecks across the grain that are the
+      giveaway for oak specifically
+    - end grain on the board ends, blended in by face normal, because a board
+      end showing face grain is wrong in a way the eye catches without naming
     """
     mat = bpy.data.materials.new(name)
     mat.use_nodes = True
@@ -114,43 +143,111 @@ def oak_material(name="Oak", base=(0.185, 0.112, 0.055), light=(0.345, 0.225, 0.
     nt.links.new(bsdf.outputs["BSDF"], out.inputs["Surface"])
 
     coord = nt.nodes.new("ShaderNodeTexCoord")
+
+    # Each board is cut from a different part of the log: offset every object's
+    # texture by its own random value so no two are identical.
+    info = nt.nodes.new("ShaderNodeObjectInfo")
+    jitter = nt.nodes.new("ShaderNodeMath")
+    jitter.operation = "MULTIPLY"
+    jitter.inputs[1].default_value = 23.0
+    nt.links.new(info.outputs["Random"], jitter.inputs[0])
+    offset = nt.nodes.new("ShaderNodeCombineXYZ")
+    nt.links.new(jitter.outputs["Value"], offset.inputs["X"])
+    nt.links.new(jitter.outputs["Value"], offset.inputs["Y"])
+
     mapping = nt.nodes.new("ShaderNodeMapping")
-    # Grain runs along the board's length: stretch the texture hard on one axis.
     mapping.inputs["Scale"].default_value = (scale * 0.30, scale * 6.0, scale * 6.0)
     nt.links.new(coord.outputs["Object"], mapping.inputs["Vector"])
+    nt.links.new(offset.outputs["Vector"], mapping.inputs["Location"])
 
-    # Grain from heavily stretched noise rather than wave bands. Bands give
-    # ruled stripes that read as corrugation; noise stretched along the board
-    # gives the long, irregular streaks actual timber has.
     grain = nt.nodes.new("ShaderNodeTexNoise")
     grain.inputs["Scale"].default_value = 5.5
     grain.inputs["Detail"].default_value = 8.0
     grain.inputs["Roughness"].default_value = 0.62
     nt.links.new(mapping.outputs["Vector"], grain.inputs["Vector"])
 
-    # Boards vary in tone end to end; without this the grain is even and reads
-    # as a brushed finish rather than as timber.
     broad = nt.nodes.new("ShaderNodeTexNoise")
     broad.inputs["Scale"].default_value = 1.1
     broad.inputs["Detail"].default_value = 2.0
     nt.links.new(mapping.outputs["Vector"], broad.inputs["Vector"])
 
-    blend = nt.nodes.new("ShaderNodeMix")
-    blend.data_type = "FLOAT"
-    blend.inputs["Factor"].default_value = 0.35
-    nt.links.new(grain.outputs["Fac"], blend.inputs["A"])
-    nt.links.new(broad.outputs["Fac"], blend.inputs["B"])
+    figure = nt.nodes.new("ShaderNodeMix")
+    figure.data_type = "FLOAT"
+    figure.inputs["Factor"].default_value = 0.35
+    nt.links.new(grain.outputs["Fac"], figure.inputs["A"])
+    nt.links.new(broad.outputs["Fac"], figure.inputs["B"])
+
+    # Ray fleck: short pale slashes lying across the grain, so sampled on a
+    # mapping stretched the other way.
+    fleck_map = nt.nodes.new("ShaderNodeMapping")
+    fleck_map.inputs["Scale"].default_value = (scale * 5.0, scale * 0.5, scale * 2.5)
+    nt.links.new(coord.outputs["Object"], fleck_map.inputs["Vector"])
+    nt.links.new(offset.outputs["Vector"], fleck_map.inputs["Location"])
+
+    fleck = nt.nodes.new("ShaderNodeTexNoise")
+    fleck.inputs["Scale"].default_value = 6.5
+    fleck.inputs["Detail"].default_value = 2.0
+    nt.links.new(fleck_map.outputs["Vector"], fleck.inputs["Vector"])
+
+    fleck_cut = nt.nodes.new("ShaderNodeValToRGB")
+    fleck_cut.color_ramp.elements[0].position = 0.56
+    fleck_cut.color_ramp.elements[0].color = (0, 0, 0, 1)
+    fleck_cut.color_ramp.elements[1].position = 0.80
+    fleck_cut.color_ramp.elements[1].color = (1, 1, 1, 1)
+    nt.links.new(fleck.outputs["Fac"], fleck_cut.inputs["Fac"])
+
+    fleck_amount = nt.nodes.new("ShaderNodeMath")
+    fleck_amount.operation = "MULTIPLY"
+    fleck_amount.inputs[1].default_value = 0.16
+    nt.links.new(fleck_cut.outputs["Color"], fleck_amount.inputs[0])
+
+    long_grain = nt.nodes.new("ShaderNodeMath")
+    long_grain.operation = "ADD"
+    nt.links.new(figure.outputs["Result"], long_grain.inputs[0])
+    nt.links.new(fleck_amount.outputs["Value"], long_grain.inputs[1])
+
+    # End grain: cut across the fibres, so a tight non-stretched texture.
+    end_grain = nt.nodes.new("ShaderNodeTexNoise")
+    end_grain.inputs["Scale"].default_value = 14.0
+    end_grain.inputs["Detail"].default_value = 6.0
+    nt.links.new(coord.outputs["Object"], end_grain.inputs["Vector"])
+
+    # A face is an end if its normal points along the board's length (local X).
+    # Geometry normals are world space, so convert first.
+    geom = nt.nodes.new("ShaderNodeNewGeometry")
+    to_object = nt.nodes.new("ShaderNodeVectorTransform")
+    to_object.vector_type = "NORMAL"
+    to_object.convert_from = "WORLD"
+    to_object.convert_to = "OBJECT"
+    nt.links.new(geom.outputs["Normal"], to_object.inputs["Vector"])
+
+    axis = nt.nodes.new("ShaderNodeSeparateXYZ")
+    nt.links.new(to_object.outputs["Vector"], axis.inputs["Vector"])
+    end_mask = nt.nodes.new("ShaderNodeMath")
+    end_mask.operation = "ABSOLUTE"
+    nt.links.new(axis.outputs["X"], end_mask.inputs[0])
+    sharpen = nt.nodes.new("ShaderNodeMath")
+    sharpen.operation = "POWER"
+    sharpen.inputs[1].default_value = 4.0
+    nt.links.new(end_mask.outputs["Value"], sharpen.inputs[0])
+
+    surface = nt.nodes.new("ShaderNodeMix")
+    surface.data_type = "FLOAT"
+    nt.links.new(sharpen.outputs["Value"], surface.inputs["Factor"])
+    nt.links.new(long_grain.outputs["Value"], surface.inputs["A"])
+    nt.links.new(end_grain.outputs["Fac"], surface.inputs["B"])
 
     ramp = nt.nodes.new("ShaderNodeValToRGB")
     ramp.color_ramp.interpolation = "B_SPLINE"
-    ramp.color_ramp.elements[0].position = 0.36
+    ramp.color_ramp.elements[0].position = 0.30
     ramp.color_ramp.elements[0].color = (*base, 1)
-    ramp.color_ramp.elements[1].position = 0.66
+    ramp.color_ramp.elements[1].position = 0.72
     ramp.color_ramp.elements[1].color = (*light, 1)
-    nt.links.new(blend.outputs["Result"], ramp.inputs["Fac"])
+    nt.links.new(surface.outputs["Result"], ramp.inputs["Fac"])
     nt.links.new(ramp.outputs["Color"], bsdf.inputs["Base Color"])
 
-    # Pores: fine, directional, and they show up in roughness more than colour.
+    # A satin finish: open pores sit duller than the planed surface between
+    # them, which is what makes light travel across a board.
     pores = nt.nodes.new("ShaderNodeTexNoise")
     pores.inputs["Scale"].default_value = 90.0
     pores.inputs["Detail"].default_value = 2.0
@@ -158,16 +255,16 @@ def oak_material(name="Oak", base=(0.185, 0.112, 0.055), light=(0.345, 0.225, 0.
 
     rough_mix = nt.nodes.new("ShaderNodeMix")
     rough_mix.data_type = "FLOAT"
-    rough_mix.inputs["A"].default_value = 0.34
-    rough_mix.inputs["B"].default_value = 0.62
+    rough_mix.inputs["A"].default_value = 0.30
+    rough_mix.inputs["B"].default_value = 0.58
     nt.links.new(pores.outputs["Fac"], rough_mix.inputs["Factor"])
     nt.links.new(rough_mix.outputs["Result"], bsdf.inputs["Roughness"])
 
     # Relief. This is the part that was impossible in the canvas version.
     bump = nt.nodes.new("ShaderNodeBump")
-    bump.inputs["Strength"].default_value = 0.22
+    bump.inputs["Strength"].default_value = 0.26
     bump.inputs["Distance"].default_value = 0.004
-    nt.links.new(grain.outputs["Fac"], bump.inputs["Height"])
+    nt.links.new(surface.outputs["Result"], bump.inputs["Height"])
     nt.links.new(bump.outputs["Normal"], bsdf.inputs["Normal"])
 
     return mat
@@ -211,6 +308,7 @@ def build_carcass():
                 (SHELF["side"], UNIT_HEIGHT, SHELF["depth"]),
                 (side * (SHELF["inner_width"] / 2 + SHELF["side"] / 2), 0, 0),
                 oak,
+                vertical=True,
             )
         )
 
