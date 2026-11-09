@@ -562,98 +562,24 @@ def export_glb(objs, path, materials="NONE"):
 
 
 # --------------------------------------------------------------------------
-# the Box
+# printing a Book
 # --------------------------------------------------------------------------
 
-# A board game box is a tray with a lid over it. The lid is a little larger all
-# round, which is what gives the seam you can see across every real box, and
-# what stops it reading as a solid brick.
-LID_FRACTION = 0.34
-LID_OVERSIZE = 0.006
-BOX_BEVEL = 0.009
-
-
-def card_material(name, colour=(0.62, 0.58, 0.52)):
-    """Printed board, slightly soft. Not paper, not plastic."""
-    mat = bpy.data.materials.new(name)
-    mat.use_nodes = True
-    bsdf = mat.node_tree.nodes["Principled BSDF"]
-    bsdf.inputs["Base Color"].default_value = (*colour, 1)
-    bsdf.inputs["Roughness"].default_value = 0.68
-    return mat
-
-
-def build_box():
+def face_materials_and_uvs(obj, cover_slot=None, inner_slot=None, outward=1, total_h=1.0):
     """
-    One Box, which every Project reuses. ADR 0001 ruled out modelled Boxes
-    because a hand-authored one means opening Blender to add a Project. One
-    scripted box that every Project is printed onto does not have that problem:
-    the Cover and Spine are still painted per-Project in the browser.
-
-    Three material slots in a fixed order, because the site assigns the painted
-    textures by index: 0 card, 1 Cover, 2 Spine.
-
-    Modelled standing as it sits on the Shelf, lid upward, so the lift in
-    Box.tsx still reads as taking the lid off.
-    """
-    card = card_material("BoxCard")
-    cover = card_material("BoxCover", colour=(0.80, 0.78, 0.74))
-    spine = card_material("BoxSpine", colour=(0.80, 0.78, 0.74))
-
-    lid_h = BOX["height"] * LID_FRACTION
-    base_h = BOX["height"] - lid_h
-    base_z = -BOX["height"] / 2 + base_h / 2
-    lid_z = BOX["height"] / 2 - lid_h / 2
-
-    base = board(
-        "Box.Base",
-        (BOX["thickness"], base_h, BOX["width"]),
-        (0, base_z, 0),
-        card,
-    )
-    lid = board(
-        "Box.Lid",
-        (BOX["thickness"] + LID_OVERSIZE, lid_h, BOX["width"] + LID_OVERSIZE),
-        (0, lid_z, 0),
-        card,
-    )
-
-    for obj, origin in ((base, base_z), (lid, lid_z)):
-        obj.data.materials.append(cover)
-        obj.data.materials.append(spine)
-        face_materials_and_uvs(
-            obj, cover_slot=1, spine_slot=2, origin_z=origin, total_h=BOX["height"]
-        )
-        for mod in obj.modifiers:
-            if mod.type == "BEVEL":
-                # Softer than the carcass: printed board rolls over at an edge
-                # rather than taking a planed arris.
-                mod.width = BOX_BEVEL
-                mod.segments = 3
-
-    return [base, lid]
-
-
-def face_materials_and_uvs(
-    obj, cover_slot=None, spine_slot=None, origin_z=0.0, total_h=1.0
-):
-    """
-    Give the Cover and Spine faces their own material slots and a clean 0-1 UV
-    square each, so the browser can drop a per-Project texture straight onto
-    them.
+    Give a board's two large faces their own material slots and a clean 0-1 UV
+    square, so the browser can drop a per-Project Cover straight onto one of
+    them and a pastedown onto the other.
 
     Done before the bevel modifier is applied at export, while the mesh is
     still six flat faces. The bevel then interpolates these UVs, which insets
-    the printed area by the chamfer. That is correct: a real box's print stops
-    at the fold.
+    the printed area by the chamfer. That is correct: printing on a bound board
+    stops at the turn-in.
 
-    Axes, after board()'s conversion: the Cover is the large face on local X,
-    the Spine is the narrow face on local -Y (site +Z, the edge you see while
-    the Box is shelved).
-
-    origin_z and total_h map each piece to its slice of the whole Box. The art
-    spans the full height but the geometry is a base and a lid, so mapping each
-    piece to a full 0-1 would print the entire Cover twice, once on each.
+    Axes, after board()'s conversion: the large faces are the ones on local X,
+    and `outward` says which way this board faces, +1 for the front board and
+    -1 for the back. The Spine is not done here: it is a curved shell, and
+    build_spine_shell wraps its UVs round the arc itself.
     """
     mesh = obj.data
     bm = bmesh.new()
@@ -664,18 +590,17 @@ def face_materials_and_uvs(
 
     for face in bm.faces:
         n = face.normal
-        if cover_slot is not None and abs(n.x) > 0.9:
-            face.material_index = cover_slot
-            # Cover reads across local Y (width) and up local Z (height).
-            across, up = 1, 2
-            flip = n.x < 0
-        elif spine_slot is not None and n.y < -0.9:
-            face.material_index = spine_slot
-            # Spine is narrow across local X and tall up local Z.
-            across, up = 0, 2
-            flip = False
-        else:
+        if inner_slot is not None and n.x * outward < -0.9:
+            # The face that looks in at the pages is a pastedown: paper, not
+            # cloth and certainly not the Cover printed a second time.
+            face.material_index = inner_slot
             continue
+        if cover_slot is None or n.x * outward < 0.9:
+            continue
+        face.material_index = cover_slot
+        # The Cover reads across local Y (the board's length) and up local Z.
+        across, up = 1, 2
+        flip = n.x < 0
 
         coords = [l.vert.co for l in face.loops]
         lo_a = min(c[across] for c in coords)
@@ -685,8 +610,7 @@ def face_materials_and_uvs(
         for loop in face.loops:
             co = loop.vert.co
             u = (co[across] - lo_a) / span_a
-            # Vertical runs against the whole Box, not this piece of it.
-            v = (co[up] + origin_z + total_h / 2) / total_h
+            v = (co[up] + total_h / 2) / total_h
             if flip:
                 u = 1.0 - u
             # glTF samples with the origin at the top left.
@@ -708,6 +632,180 @@ BOARD_T = 0.013
 SQUARE = 0.024
 SPINE_T = 0.016
 BOOK_BEVEL = 0.0035
+
+# A hardback's back is rounded, not flat, and that is most of why a flat strip
+# reads as a brick with a label on it. Rounding gives the spine a highlight that
+# travels as the camera moves, and it brings three more real features with it:
+# the French groove where the board hinges, the hollow between the rounded back
+# and the page block, and headbands closing the hollow at head and tail.
+SPINE_ROUND = 0.030  # how far the back bulges out past the joints
+FORE_ROUND = 0.022  # the fore-edge is concave by rather less, pages compress
+GROOVE = 0.005  # the channel the board hinges in
+HOLLOW = 0.009  # air between the back and the page block
+HEADBAND_T = 0.009
+HEADBAND_H = 0.008
+
+
+def arc_geometry(half_x, y_flat, depth):
+    """
+    The circle through (-half_x, y_flat), (0, y_flat - depth), (half_x, y_flat).
+
+    Returns its radius, its centre's y, and the half-angle it spans. Everything
+    curved on the Book is described this way: a chord across the thickness and a
+    depth it bulges by, which is how a binder would describe it.
+    """
+    r = (half_x**2 + depth**2) / (2 * depth)
+    return r, y_flat - depth + r, math.asin(min(1.0, half_x / r))
+
+
+def arc_points(radius, centre_y, span, n):
+    """n+1 points along an arc, left to right, bulging towards -Y."""
+    return [
+        (radius * math.sin(th), centre_y - radius * math.cos(th))
+        for th in (-span + 2 * span * i / n for i in range(n + 1))
+    ]
+
+
+def extrude_profile(name, profile, z0, z1, material):
+    """
+    Turn a closed 2D profile in the XY plane into a solid between two heights.
+
+    Blender has no primitive for "curved shell", so the Book's spine, headbands
+    and page block are all built this way: describe the cross-section once, then
+    give it a height. Normals are recalculated rather than reasoned about, so
+    the winding order of the profile does not matter.
+    """
+    mesh = bpy.data.meshes.new(name)
+    obj = bpy.data.objects.new(name, mesh)
+    bpy.context.collection.objects.link(obj)
+
+    bm = bmesh.new()
+    low = [bm.verts.new((x, y, z0)) for x, y in profile]
+    high = [bm.verts.new((x, y, z1)) for x, y in profile]
+    m = len(profile)
+    sides = [
+        bm.faces.new((low[i], low[(i + 1) % m], high[(i + 1) % m], high[i]))
+        for i in range(m)
+    ]
+    bm.faces.new(low)
+    bm.faces.new(high)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+    bm.to_mesh(mesh)
+    bm.free()
+
+    obj.data.materials.append(material)
+    bpy.ops.object.select_all(action="DESELECT")
+    obj.select_set(True)
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.shade_smooth_by_angle(angle=math.radians(25))
+    return obj, sides
+
+
+def build_spine_shell(material, spine_material):
+    """
+    The rounded back: a curved shell of cloth arcing over the thickness of the
+    Book, with the printed face given its own material slot and wrapped UVs so
+    the browser can paint the title round the curve.
+    """
+    half = BOX["thickness"] / 2
+    flat = -(BOX["width"] / 2 - SPINE_ROUND)  # Blender -Y is out of the Shelf
+    r_out, centre_y, span = arc_geometry(half, flat, SPINE_ROUND)
+    r_in = r_out - SPINE_T
+    segments = 16
+
+    outer = arc_points(r_out, centre_y, span, segments)
+    inner = arc_points(r_in, centre_y, span, segments)
+    profile = outer + list(reversed(inner))
+
+    h = BOX["height"]
+    obj, _ = extrude_profile("Book.Spine", profile, -h / 2, h / 2, material)
+    obj.data.materials.append(spine_material)
+
+    # The printed face is every face whose verts sit on the outer radius.
+    mesh = obj.data
+    bm = bmesh.new()
+    bm.from_mesh(mesh)
+    uv_layer = bm.loops.layers.uv.verify()
+
+    for face in bm.faces:
+        on_outer = all(
+            abs(Vector((v.co.x, v.co.y - centre_y)).length - r_out) < 1e-5
+            for v in face.verts
+        )
+        if not on_outer or len(face.verts) != 4:
+            continue
+        face.material_index = 1
+        for loop in face.loops:
+            co = loop.vert.co
+            # Across the printed face is the angle round the arc, so the title
+            # is painted on a flat strip and wrapped, exactly like a real one.
+            th = math.atan2(co.x, centre_y - co.y)
+            u = (th + span) / (2 * span)
+            v = (co.z + h / 2) / h
+            # glTF samples with the origin at the top left.
+            loop[uv_layer].uv = (u, 1.0 - v)
+
+    bm.to_mesh(mesh)
+    bm.free()
+
+    mod = obj.modifiers.new(name="Bevel", type="BEVEL")
+    mod.width = BOOK_BEVEL
+    mod.segments = 2
+    mod.limit_method = "ANGLE"
+    # Well above the angle between two arc segments, so the curve is left alone
+    # and only the joints and the head and tail get an arris.
+    mod.angle_limit = math.radians(40)
+    mod.harden_normals = False
+    return obj
+
+
+def build_headbands(material):
+    """
+    The little striped bands at head and tail, closing the hollow between the
+    rounded back and the page block. Two strips of thread, visible only from
+    above, and the kind of detail the eye reads without naming.
+    """
+    half = BOX["thickness"] / 2 - BOARD_T
+    flat = -(BOX["width"] / 2 - SPINE_ROUND)
+    r_out, centre_y, _ = arc_geometry(BOX["thickness"] / 2, flat, SPINE_ROUND)
+    r_out -= SPINE_T + 0.0005
+    span = math.asin(min(1.0, half / r_out))
+
+    outer = arc_points(r_out, centre_y, span, 12)
+    inner = arc_points(r_out - HEADBAND_T, centre_y, span, 12)
+    # Sits on the page block rather than beside it, which is where a binder
+    # glues one: it is meant to be seen from above and nowhere else.
+    profile = outer + list(reversed(inner))
+
+    top = BOX["height"] / 2 - SQUARE - HEADBAND_H * 0.4
+    bands = []
+    for name, z0 in (("Book.HeadbandHead", top), ("Book.HeadbandTail", -top - HEADBAND_H)):
+        obj, _ = extrude_profile(name, profile, z0, z0 + HEADBAND_H, material)
+        bands.append(obj)
+    return bands
+
+
+def build_page_block(material):
+    """
+    The pages. Rounded at the back to follow the spine and hollow at the
+    fore-edge, because backing a book bends the whole block: every leaf shifts a
+    little against the next, so the two long edges curve the same way.
+    """
+    half = BOX["thickness"] / 2 - BOARD_T
+    w = BOX["width"]
+
+    back_apex = -(w / 2 - SPINE_T - HOLLOW)
+    r_b, cy_b, span_b = arc_geometry(half, back_apex + SPINE_ROUND, SPINE_ROUND)
+    fore_flat = w / 2 - SQUARE
+    r_f, cy_f, span_f = arc_geometry(half, fore_flat, FORE_ROUND)
+
+    profile = arc_points(r_b, cy_b, span_b, 14) + list(
+        reversed(arc_points(r_f, cy_f, span_f, 14))
+    )
+
+    top = BOX["height"] / 2 - SQUARE
+    obj, _ = extrude_profile("Book.Pages", profile, -top, top, material)
+    return obj
 
 
 def cloth_material(name="Cloth", colour=(0.085, 0.115, 0.105)):
@@ -767,19 +865,26 @@ def build_book():
     No lid and no seam. A board game box has neither of the things that make a
     book read as a book, and the seam across a third of the face was wrong even
     for a box.
+
+    The back is rounded, which is what a hardback is. Rounding brings the rest
+    with it: a groove for the board to hinge in, a hollow behind the back, a
+    headband closing the hollow, and a page block curved to match at the back
+    and hollowed at the fore-edge.
     """
     cloth = cloth_material("BookCloth")
     cover = cloth_material("BookCover", colour=(0.55, 0.52, 0.48))
     spine = cloth_material("BookSpine", colour=(0.55, 0.52, 0.48))
     pages = paper_material("BookPages")
+    thread = flat_material("BookHeadband", (0.38, 0.11, 0.09), roughness=0.9)
+    pastedown = flat_material("BookPastedown", (0.74, 0.70, 0.60), roughness=0.94)
 
     t, h, w = BOX["thickness"], BOX["height"], BOX["width"]
 
-    # Along the shelf-facing axis: spine outermost, then boards, pages inset.
-    board_z = -SPINE_T / 2
-    board_len = w - SPINE_T
-    pages_len = w - SPINE_T - SQUARE
-    pages_z = (SQUARE - SPINE_T) / 2
+    # Along the shelf-facing axis, from the front: the rounded back, the groove,
+    # then the boards, with the page block inset behind them.
+    joint_z = w / 2 - SPINE_ROUND
+    board_len = w - SPINE_ROUND - GROOVE
+    board_z = -(SPINE_ROUND + GROOVE) / 2
 
     parts = []
 
@@ -792,12 +897,19 @@ def build_book():
             cloth,
         )
         obj.data.materials.append(cover)
+        obj.data.materials.append(pastedown)
+        face_materials_and_uvs(
+            obj,
+            cover_slot=1 if carries_cover else None,
+            inner_slot=2,
+            outward=sign,
+            total_h=h,
+        )
         if carries_cover:
-            face_materials_and_uvs(obj, cover_slot=1, total_h=h)
-            # Put the origin on the hinge, at the spine edge, so the site can
-            # swing the front board open by rotating it. Rotating a board about
-            # its own centre is not a book opening, it is a board spinning.
-            hinge_y = -(w / 2 - SPINE_T)
+            # Put the origin on the hinge, in the groove, so the site can swing
+            # the front board open by rotating it. Rotating a board about its
+            # own centre is not a book opening, it is a board spinning.
+            hinge_y = -(joint_z - GROOVE)
             shift = hinge_y - obj.location.y
             obj.data.transform(Matrix.Translation((0, -shift, 0)))
             obj.location.y += shift
@@ -806,38 +918,113 @@ def build_book():
                 mod.width = BOOK_BEVEL
         parts.append(obj)
 
-    spine_obj = board(
-        "Book.Spine",
-        (t, h, SPINE_T),
-        (0, 0, w / 2 - SPINE_T / 2),
-        cloth,
-    )
-    spine_obj.data.materials.append(spine)
-    face_materials_and_uvs(spine_obj, spine_slot=1, total_h=h)
-    for mod in spine_obj.modifiers:
-        if mod.type == "BEVEL":
-            mod.width = BOOK_BEVEL
-    parts.append(spine_obj)
-
-    # The page block, standing in from the boards at head, tail and fore-edge.
-    block = board(
-        "Book.Pages",
-        (t - 2 * BOARD_T, h - 2 * SQUARE, pages_len),
-        (0, 0, pages_z),
-        pages,
-        bevel=False,
-    )
-    parts.append(block)
+    parts.append(build_spine_shell(cloth, spine))
+    parts.extend(build_headbands(thread))
+    parts.append(build_page_block(pages))
 
     return parts
 
 
-def setup_box_camera(centre_z=0.0):
-    """Three-quarter view, far enough back to see the whole box."""
-    bpy.ops.object.camera_add(location=(1.35, -2.35, centre_z + 0.92))
+# Views to judge a Book from. The three-quarter shows the Cover and the curve
+# of the back at once; "head" looks down on the top, where the square, the
+# hollow and the headband live; "spine" is what the Shelf actually shows.
+BOOK_VIEWS = {
+    "three-quarter": ((1.35, -2.35, 0.92), 55),
+    "head": ((0.85, -1.25, 1.55), 50),
+    "spine": ((0.14, -2.20, 0.16), 45),
+}
+
+
+def bake_cloth_normal(path, size=512, threads=44):
+    """
+    Bake a tiling normal map of book cloth.
+
+    The reason the painted Spine looks like paint is that it is perfectly
+    smooth. Real book cloth is a visible weave, and what gives it away is not
+    its colour but the way light crawls across the threads as the camera moves.
+    A colour texture cannot do that; a normal map can, and one small tiling map
+    serves every Book on the Shelf.
+
+    The weave is two sine waves crossed, built from explicit maths nodes rather
+    than Blender's wave texture, because the number of periods across the image
+    has to be a whole number or the tile shows a seam.
+    """
+    bpy.ops.mesh.primitive_plane_add(size=1)
+    plane = bpy.context.active_object
+    plane.name = "ClothSwatch"
+
+    # Exact 0-1 UVs, so one bake is one whole number of threads each way.
+    bm = bmesh.new()
+    bm.from_mesh(plane.data)
+    uv_layer = bm.loops.layers.uv.verify()
+    for face in bm.faces:
+        for loop in face.loops:
+            co = loop.vert.co
+            loop[uv_layer].uv = (co.x + 0.5, co.y + 0.5)
+    bm.to_mesh(plane.data)
+    bm.free()
+
+    mat = bpy.data.materials.new("ClothWeave")
+    mat.use_nodes = True
+    nt = mat.node_tree
+    bsdf = nt.nodes["Principled BSDF"]
+    coord = nt.nodes.new("ShaderNodeTexCoord")
+    split = nt.nodes.new("ShaderNodeSeparateXYZ")
+    nt.links.new(coord.outputs["UV"], split.inputs["Vector"])
+
+    ridges = []
+    for axis in ("X", "Y"):
+        scale = nt.nodes.new("ShaderNodeMath")
+        scale.operation = "MULTIPLY"
+        scale.inputs[1].default_value = 2 * math.pi * threads
+        nt.links.new(split.outputs[axis], scale.inputs[0])
+        sine = nt.nodes.new("ShaderNodeMath")
+        sine.operation = "SINE"
+        nt.links.new(scale.outputs["Value"], sine.inputs[0])
+        ridges.append(sine)
+
+    # Over and under: at any point the thread nearer the surface wins.
+    weave = nt.nodes.new("ShaderNodeMath")
+    weave.operation = "MAXIMUM"
+    nt.links.new(ridges[0].outputs["Value"], weave.inputs[0])
+    nt.links.new(ridges[1].outputs["Value"], weave.inputs[1])
+
+    bump = nt.nodes.new("ShaderNodeBump")
+    bump.inputs["Strength"].default_value = 1.0
+    bump.inputs["Distance"].default_value = 1.1 / threads / 6
+    nt.links.new(weave.outputs["Value"], bump.inputs["Height"])
+    nt.links.new(bump.outputs["Normal"], bsdf.inputs["Normal"])
+    plane.data.materials.append(mat)
+
+    img = bpy.data.images.new("ClothNormal", size, size, alpha=False)
+    img.colorspace_settings.name = "Non-Color"
+    tex = nt.nodes.new("ShaderNodeTexImage")
+    tex.image = img
+    nt.nodes.active = tex
+
+    scene = bpy.context.scene
+    scene.render.engine = "CYCLES"
+    scene.cycles.samples = 16
+    bpy.ops.object.select_all(action="DESELECT")
+    plane.select_set(True)
+    bpy.context.view_layer.objects.active = plane
+    # No margin: the UVs fill the image, and a margin would bleed over the seam.
+    bpy.ops.object.bake(type="NORMAL", margin=0)
+
+    img.filepath_raw = path
+    img.file_format = "PNG"
+    img.save()
+    print(f"[cloth] wrote {path} ({threads} threads, tiling)")
+    return img
+
+
+def setup_box_camera(centre_z=0.0, view="three-quarter"):
+    """Put the camera somewhere a Book can be judged from."""
+    (x, y, z), lens = BOOK_VIEWS[view]
+    bpy.ops.object.camera_add(location=(x, y, centre_z + z))
     cam = bpy.context.active_object
     cam.name = "BoxCamera"
-    cam.data.lens = 55
+    cam.data.lens = lens
     target = Vector((0, 0, centre_z))
     cam.rotation_euler = (target - cam.location).to_track_quat("-Z", "Y").to_euler()
     bpy.context.scene.camera = cam
@@ -854,14 +1041,20 @@ def main():
     ap.add_argument("--show-baked", help="render the baked texture unlit, to this PNG")
     ap.add_argument("--export", help="write the .glb here")
     ap.add_argument("--bake-room", help="bake the room to this PNG")
-    ap.add_argument("--box-render", help="render one Box on its own, to this PNG")
-    ap.add_argument("--box-export", help="write the Box .glb here")
     ap.add_argument("--book-render", help="render one Book on its own, to this PNG")
+    ap.add_argument("--book-view", default="three-quarter", choices=sorted(BOOK_VIEWS))
+    ap.add_argument("--cloth-bake", help="bake the tiling cloth normal map here")
+    ap.add_argument("--cloth-size", type=int, default=256)
+    ap.add_argument("--cloth-threads", type=int, default=22)
     ap.add_argument("--book-export", help="write the Book .glb here")
     ap.add_argument("--samples", type=int, default=160)
     args = ap.parse_args(argv)
 
     clear_scene()
+
+    if args.cloth_bake:
+        bake_cloth_normal(args.cloth_bake, size=args.cloth_size, threads=args.cloth_threads)
+        return
 
     if args.book_export:
         export_glb(build_book(), args.book_export, materials="EXPORT")
@@ -874,32 +1067,11 @@ def main():
             obj.location.z += drop
         build_room()
         setup_daylight()
-        setup_box_camera(centre_z=drop)
+        setup_box_camera(centre_z=drop, view=args.book_view)
         setup_render(samples=args.samples)
         bpy.context.scene.render.filepath = args.book_render
         bpy.ops.render.render(write_still=True)
         print(f"[book] wrote {args.book_render}")
-        return
-
-    if args.box_export:
-        box = build_box()
-        export_glb(box, args.box_export, materials="EXPORT")
-        return
-
-    if args.box_render:
-        box = build_box()
-        # Stand it on the floor rather than leaving it in mid-air, so it has a
-        # contact shadow to be judged by.
-        drop = FLOOR_Y + BOX["height"] / 2
-        for obj in box:
-            obj.location.z += drop
-        build_room()
-        setup_daylight()
-        setup_box_camera(centre_z=drop)
-        setup_render(samples=args.samples)
-        bpy.context.scene.render.filepath = args.box_render
-        bpy.ops.render.render(write_still=True)
-        print(f"[box] wrote {args.box_render}")
         return
 
     parts = build_carcass()

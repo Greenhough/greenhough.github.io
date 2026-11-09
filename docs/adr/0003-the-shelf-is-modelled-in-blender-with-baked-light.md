@@ -76,3 +76,24 @@ moving object is wrong light.
   materials are judged from Cycles output before anything is wired into the site. Two
   directions were built all the way into the page before being looked at properly; this
   one gets looked at first.
+
+## Addendum, 2026-11-09: Blender also shapes the Boxes, without baking them
+
+The rule above still holds — the Boxes move, so their light is real-time — but it
+was being read as "Blender has nothing to offer a moving object", and that is not the
+same thing. Two things Blender makes are not light, and both now go on the Boxes.
+
+**Shape.** A hardback's back is rounded, and rounding brings a groove for the board to
+hinge in, a hollow behind the back, headbands closing the hollow, and a page block curved
+to match. None of that is lighting; it is geometry that produces a highlight travelling
+across the Spine as the camera moves, which is the single clearest signal that a Spine is
+an object and not a label.
+
+**A tiling cloth weave.** Baked as a normal map from a scripted weave, 256px and 46KB,
+tiled across the Cover and the Spine of every Box. A normal map perturbs how real-time
+light lands rather than storing light, so it is as correct on a moving object as on a
+fixed one. It is what stops a painted Spine reading as paint: cloth is given away by the
+light crawling over the threads, not by its colour.
+
+The board game box is deleted from `scripts/shelf.py` rather than left beside the book.
+It is recorded in `docs/adr/0001`; a cut direction kept as code is not documentation.

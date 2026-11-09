@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
-import { useFrame } from '@react-three/fiber';
-import { useGLTF } from '@react-three/drei';
+import { useFrame, useThree } from '@react-three/fiber';
+import { useGLTF, useTexture } from '@react-three/drei';
 import { useBoxTextures } from './useBoxTextures';
 import { palette } from './palette';
 import type { ShelfProject } from './types';
@@ -28,9 +28,60 @@ export const BOX = {
 
 const MODEL = '/models/book.glb';
 
+/**
+ * A tiling normal map of book cloth, baked in Blender. One small map, shared by
+ * every Box, is what stops a painted Spine reading as paint: cloth is given
+ * away by the light crawling over the weave rather than by its colour.
+ */
+const WEAVE = '/models/cloth-normal.webp';
+/** How wide one tile of the weave is, in scene units. 22 threads across it. */
+const WEAVE_TILE = 0.066;
+/** Shallow. A spine you can see the threads of from across the room is a rug. */
+const WEAVE_DEPTH = 0.55;
+
 /** Material names the model carries, which is how the printing finds its faces. */
 const COVER_MATERIAL = 'BookCover';
 const SPINE_MATERIAL = 'BookSpine';
+
+/**
+ * Mirrors the book constants in scripts/shelf.py, and has to agree with them.
+ * Only needed to tile the weave at the same density on a flat board and on a
+ * curved back, where the printed face is an arc rather than a chord.
+ */
+const SPINE_ROUND = 0.03;
+const GROOVE = 0.005;
+const COVER_SPAN = BOX.width - SPINE_ROUND - GROOVE;
+const SPINE_RADIUS = ((BOX.thickness / 2) ** 2 + SPINE_ROUND ** 2) / (2 * SPINE_ROUND);
+const SPINE_SPAN = 2 * SPINE_RADIUS * Math.asin(BOX.thickness / 2 / SPINE_RADIUS);
+
+/**
+ * Two tilings of the one weave: the Cover's face is wide, the Spine's is
+ * narrow, and a shared texture cannot carry two repeats. Cloned once for the
+ * whole page rather than per Box, because a clone shares its image but gets its
+ * own upload to the card.
+ */
+const weaves = new WeakMap<THREE.Texture, { cover: THREE.Texture; spine: THREE.Texture }>();
+
+function weaveFor(base: THREE.Texture, anisotropy: number) {
+  const held = weaves.get(base);
+  if (held) return held;
+
+  const tiled = (span: number) => {
+    const t = base.clone();
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    t.colorSpace = THREE.NoColorSpace; // directions, not colours
+    t.repeat.set(span / WEAVE_TILE, BOX.height / WEAVE_TILE);
+    // Tiled this many times, the weave is sub-pixel at Shelf distance. Without
+    // anisotropy it would not fade to smooth cloth, it would crawl.
+    t.anisotropy = anisotropy;
+    t.needsUpdate = true;
+    return t;
+  };
+
+  const made = { cover: tiled(COVER_SPAN), spine: tiled(SPINE_SPAN) };
+  weaves.set(base, made);
+  return made;
+}
 
 /** The front board, hinged at the spine in the model so it can swing open. */
 const FRONT_BOARD = 'Book.FrontBoard';
@@ -65,6 +116,8 @@ export function Box({
   const group = useRef<THREE.Group>(null);
   const frontBoard = useRef<THREE.Object3D | null>(null);
   const { scene } = useGLTF(MODEL);
+  const renderer = useThree((s) => s.gl);
+  const weave = weaveFor(useTexture(WEAVE), renderer.capabilities.getMaxAnisotropy());
   const textures = useBoxTextures(project, textureSize);
   const p = palette();
 
@@ -73,16 +126,19 @@ export function Box({
   const model = useMemo(() => {
     // Cloth and pages keep the materials the model was exported with: they are
     // the same on every Book, so there is nothing to make per instance.
-    const printed = (map: THREE.Texture | null) =>
+    const printed = (map: THREE.Texture | null, normal: THREE.Texture) =>
       new THREE.MeshStandardMaterial({
         color: map ? '#ffffff' : p.border,
         map: map ?? null,
-        roughness: 0.74,
+        normalMap: normal,
+        normalScale: new THREE.Vector2(WEAVE_DEPTH, WEAVE_DEPTH),
+        // Cloth, not card. Nothing on a bound book is anywhere near shiny.
+        roughness: 0.84,
         metalness: 0,
       });
 
-    const cover = printed(textures.cover);
-    const spine = printed(textures.spine);
+    const cover = printed(textures.cover, weave.cover);
+    const spine = printed(textures.spine, weave.spine);
 
     const root = scene.clone(true);
     root.traverse((child) => {
@@ -97,7 +153,7 @@ export function Box({
 
     frontBoard.current = root.getObjectByName(FRONT_BOARD) ?? null;
     return { root, made: [cover, spine] };
-  }, [scene, textures, p.border]);
+  }, [scene, textures, weave, p.border]);
 
   // Only the printed materials are made per Book, so only those are let go.
   // Disposing the shared cloth and pages would blank every other Book.

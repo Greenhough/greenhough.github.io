@@ -42,7 +42,7 @@ The front board of a Box. Hand-designed per Project.
 _Avoid_: art, thumbnail, hero image
 
 **Spine**:
-The edge of a Box, and what is visible while it is shelved. Generated from the Project's data.
+The rounded back of a Box, and what is visible while it is shelved. Bound in the Theme's cloth and stamped with the title, generated from the Project's data.
 _Avoid_: label, title bar
 
 **Tag**:

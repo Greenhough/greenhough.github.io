@@ -173,55 +173,110 @@ export function paintCover(
   ctx.letterSpacing = '0px';
 }
 
+/** Read #rrggbb into its three channels. */
+function channels(hex: string): [number, number, number] {
+  const n = parseInt(hex.replace('#', ''), 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
+/** Mix two colours: t = 0 is all `a`, t = 1 is all `b`. */
+function mix(a: string, b: string, t: number): string {
+  const [ar, ag, ab] = channels(a);
+  const [br, bg, bb] = channels(b);
+  const c = (x: number, y: number) => Math.round(x + (y - x) * t);
+  return `rgb(${c(ar, br)} ${c(ag, bg)} ${c(ab, bb)})`;
+}
+
+/** A small, stable number from a string, for per-Project variation. */
+function hashed(text: string): number {
+  let h = 0;
+  for (let i = 0; i < text.length; i++) h = (h * 31 + text.charCodeAt(i)) >>> 0;
+  return (h % 1000) / 1000;
+}
+
 /**
- * The Spine: what you actually see while a Box is shelved, so it has to carry
- * the title on its own. Generated entirely from Project data.
+ * The Spine: what you see while a Box is shelved, so it carries the title on
+ * its own and is nearly all a visitor looks at.
+ *
+ * Painted as book cloth, not as a printed panel. The version this replaced was
+ * drawn for a board game box — cream ground, accent blocks at head and tail —
+ * and once the Box became a hardback it was the one part still arguing for the
+ * old idiom. A cloth spine is the binding colour edge to edge, with the title
+ * stamped on it and a pair of rules at head and tail, which is what a run of
+ * them on a shelf actually looks like.
+ *
+ * The weave itself is not painted here. It is a normal map baked in Blender
+ * (scripts/shelf.py --cloth-bake) and tiled over this, because what gives cloth
+ * away is the light crawling across the threads, and no colour texture does
+ * that.
  */
 export function paintSpine(
   canvas: HTMLCanvasElement,
   project: ShelfProject,
   height: number
 ) {
-  // The spine is tall and narrow; painted upright, then mapped onto the edge.
+  // Tall and narrow, painted flat and then wrapped round the rounded back. A
+  // shade wider than the Box is thick, because an arc is longer than its chord.
   const H = height;
-  const W = Math.round(height * 0.18);
+  const W = Math.round(height * 0.21);
   canvas.width = W;
   canvas.height = H;
 
   const ctx = canvas.getContext('2d')!;
   const p = palette();
-  const accent = themeColour(project.theme);
   const u = H / 100;
 
-  ctx.fillStyle = p.paper;
+  // Binding cloth: the Theme's colour, pulled towards the ink and varied a
+  // little per Project. Dye lots are never identical and six spines in a row
+  // out of the same tin reads as a rendering, not a shelf.
+  const jitter = hashed(project.slug);
+  const cloth = mix(themeColour(project.theme), p.ink, 0.16 + jitter * 0.14);
+  ctx.fillStyle = cloth;
   ctx.fillRect(0, 0, W, H);
 
-  // colour blocks top and bottom so a Section reads as one run
-  ctx.fillStyle = accent;
-  ctx.fillRect(0, 0, W, 7 * u);
-  ctx.fillRect(0, H - 7 * u, W, 7 * u);
+  // Stamping: not gold, which would fight the page, but the paper colour, laid
+  // on at less than full strength so it reads as pressed into the cloth.
+  const stamp = mix(cloth, p.paper, 0.86);
+  const rule = mix(cloth, p.paper, 0.45);
 
-  // title runs up the spine
+  const inset = 2.6 * u;
+  const rules = (y: number) => {
+    ctx.fillStyle = rule;
+    const t = Math.max(1, 0.35 * u);
+    ctx.fillRect(inset, y, W - inset * 2, t);
+    ctx.fillRect(inset, y + 1.7 * u, W - inset * 2, t);
+  };
+  rules(8 * u);
+  rules(H - 10 * u);
+
+  // Title runs up the spine, the way it is lettered on this side of the
+  // Atlantic: head at the top when the book is standing.
   ctx.save();
-  ctx.translate(W / 2, H - 11 * u);
+  ctx.translate(W / 2, H - 15 * u);
   ctx.rotate(-Math.PI / 2);
-  ctx.fillStyle = p.ink;
+  ctx.fillStyle = stamp;
   ctx.textBaseline = 'middle';
   ctx.textAlign = 'left';
+  ctx.letterSpacing = `${0.25 * u}px`;
 
-  let size = 9.5 * u;
-  const maxRun = H - 24 * u;
+  let size = 8.6 * u;
+  const run = H - 30 * u;
   ctx.font = `800 ${size}px Archivo, sans-serif`;
-  while (ctx.measureText(project.title).width > maxRun && size > 3 * u) {
-    size -= 0.3 * u;
+  while (ctx.measureText(project.title).width > run && size > 3 * u) {
+    size -= 0.25 * u;
     ctx.font = `800 ${size}px Archivo, sans-serif`;
   }
   ctx.fillText(project.title, 0, 0);
+  ctx.letterSpacing = '0px';
   ctx.restore();
 
-  ctx.strokeStyle = p.border;
-  ctx.lineWidth = Math.max(1, 0.3 * u);
-  ctx.strokeRect(0, 0, W, H);
+  // The site's mark at the foot, where a binder puts the publisher's device.
+  ctx.fillStyle = rule;
+  ctx.font = `800 ${5 * u}px Archivo, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('*', W / 2, H - 4.6 * u);
+  ctx.textAlign = 'left';
 }
 
 /**
