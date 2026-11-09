@@ -5,3 +5,6 @@ dist/
 
 # Blender preview renders; the .glb and baked maps are committed, these are not
 build/
+
+# scripts/shelf.py gets imported by hand for one-off checks, which leaves this
+__pycache__/

@@ -137,10 +137,6 @@ export function Scene({
 
       <ShelfModel />
 
-      {/* The baked room is 8m square and then simply stops. Fog to the page
-          colour hides that edge, so it reads as a room rather than as a prop. */}
-      <fog attach="fog" args={[p.paper, 5.5, 11]} />
-
       {sections.map((section, si) => {
         const floorY = sectionFloorY(si, sections.length);
         return (

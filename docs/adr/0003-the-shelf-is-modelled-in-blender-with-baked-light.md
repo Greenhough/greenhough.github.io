@@ -97,3 +97,36 @@ light crawling over the threads, not by its colour.
 
 The board game box is deleted from `scripts/shelf.py` rather than left beside the book.
 It is recorded in `docs/adr/0001`; a cut direction kept as code is not documentation.
+
+## Addendum, 2026-11-09: what "verification is by render" has to mean
+
+The rule above says the model is judged from Cycles output before anything is wired into
+the site, and that rendering the baked textures unlit is the honest test. Both still hold.
+But building the room in `docs/adr/0004` showed the test as written was not honest, in two
+ways that cancel out in a flat backdrop and do not cancel out in a room.
+
+**A bake has no tone mapping, so the atlas clips at 1.0.** Blender's bake writes the raw
+combined result and ignores the view transform. Cycles renders of the same scene went
+through AgX, which rolls values over 1.0 gently back into range — so the lit render looked
+well exposed while the atlas behind it had already lost a fifth of its texels to flat
+white. The window was invisible in the baked room for exactly this reason: the glass and
+the wall beside it had both clipped, and AgX was concealing it in every render used to
+judge the lighting. `standard_view()` now turns the transform off for the baked render,
+and the light levels were set against that, not against AgX.
+
+**react-three-fiber tone maps the canvas, so the browser mapped it a second time.** Its
+default is ACES, which is right for the Boxes — they are really lit, and their shader
+output is scene-referred light that has to be mapped to a display. An atlas is not that:
+it left Blender already mapped. Tone mapping it again lifted its midtones and crushed its
+highlights, which is why the window read as a window in the atlas and as a white rectangle
+in the browser. The baked materials now set `toneMapped: false`; the Boxes still do not.
+
+So the honest test is specifically: bake, render it unlit with the transform off, and
+check the clipped fraction. A render that merely looks right is the thing that hid this.
+
+**Also worth knowing: where the window's light sits decides the bake's cost.** With the
+area light behind the wall, every shadow ray from the room had to thread the opening and
+most were stopped by the wall instead — the slowest case Cycles has, and a bake that took
+thirty-five minutes. Moving it into the aperture brought that down to a few, with the same
+picture. A few centimetres behind the glass rather than flush with it, so the reveal is
+lit and the sill does not go black.

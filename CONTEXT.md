@@ -22,8 +22,16 @@ _Avoid_: blog, essay, note
 ## The Shelf
 
 **Shelf**:
-The 3D scene that is the site's home page — a board game shelf on which every Project is a Box.
+The 3D scene that is the site's home page — a shelf on which every Project is a Box.
 _Avoid_: scene, canvas, hero, viewer
+
+**Room**:
+The room the Shelf stands in. Floor, ceiling, three walls, a skirting board and a Window, with the fourth side left open towards the camera. Modelled and baked alongside the Shelf.
+_Avoid_: backdrop, environment, set, background, scene
+
+**Window**:
+The opening in the Room's back wall, left of the Shelf. The scene's daylight comes from it, which is the reason it exists.
+_Avoid_: light, lightbox, panel
 
 **Section**:
 A labelled run of the Shelf holding the Projects of one Theme.

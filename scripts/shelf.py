@@ -4,9 +4,22 @@ Builds the Shelf in Blender, from a script.
 This file is the source of truth for the model. The .glb and its baked textures
 are build artifacts. See docs/adr/0003.
 
-    # render a preview
+    # render a preview, through the camera the site actually uses
     /Applications/Blender.app/Contents/MacOS/Blender --background \
-        --python scripts/shelf.py -- --render build/shelf-preview.png
+        --python scripts/shelf.py -- --view site --render build/preview.png
+
+    # the full rebuild: both atlases, the .glb, and the unlit check
+    /Applications/Blender.app/Contents/MacOS/Blender --background \
+        --python scripts/shelf.py -- --view site --width 1280 --height 720 \
+        --bake build/shelf-bake.png --bake-room build/room-bake.png \
+        --export public/models/shelf.glb --show-baked build/baked-check.png
+    node scripts/bake-to-webp.mjs
+
+Judge the look from the --show-baked render, never from --render: see the
+addendum to docs/adr/0003. A lit render goes through AgX and the atlas does
+not, so a lit render will happily show you detail the atlas has already
+clipped away. Iterate at --bake-size 768 --bake-samples 24, which takes about
+a minute; the full 2048 bake takes about half an hour.
 
 Dimensions come from the site: a Box is 0.2 x 1.0 x 0.82 scene units, and the
 carcass is sized around six of them. Those numbers are repeated in
@@ -48,6 +61,43 @@ FLOOR_Y = -UNIT_HEIGHT / 2 - SHELF["plinth"]
 # A planed arris, not a rounded one: small, and sharp enough to catch a line of
 # light along every edge.
 BEVEL_WIDTH = 0.0035
+
+# --------------------------------------------------------------------------
+# the room, per docs/adr/0004
+# --------------------------------------------------------------------------
+
+# The depth is set by the camera, not by taste. src/components/shelf/Shelf.tsx
+# puts the camera 4.4 units back at a 42 degree lens, and Scene.tsx pulls it
+# back up to 2.2x on a phone held upright: 9.68 units. The room has to be deep
+# enough that the camera's cone still passes through the open fourth side at
+# that distance, or a phone sees the floor and ceiling end in mid-air. At 7.4
+# deep the cone is 0.99 x 2.15 where it crosses the opening, inside 5.6 x 3.0.
+#
+# Shrinking the room means pulling back less and widening the lens instead,
+# which belongs with the camera views rather than here.
+ROOM = {
+    "width": 5.6,
+    "depth": 7.4,
+    "height": 3.0,
+    "back": -0.52,  # the wall sits just clear of the carcass's back panel
+}
+
+# Chamfered softwood, the depth real skirting is. Its job is to be the reason
+# the floor stops, which is what docs/adr/0004 closed the room for.
+SKIRTING = {"height": 0.105, "depth": 0.020}
+
+# In the back wall, left of the carcass, because that is the only wall the
+# default camera sees all of: at 4.4 units back the left wall is in frame for
+# a 0.8 unit strip and no window would fit in it. Sized and placed so its
+# right jamb clears the carcass by 0.18.
+WINDOW = {
+    "x": -1.70,
+    "width": 1.40,
+    "sill": 0.82,
+    "height": 1.58,
+    "reveal": 0.14,  # how far the opening is recessed, so it has jambs
+    "bars": 2,  # glazing bars, giving three tall panes
+}
 
 
 # --------------------------------------------------------------------------
@@ -107,6 +157,36 @@ def board(name, size, location, material, bevel=True, vertical=False):
     # removed in 4.1; this operator replaces it.)
     bpy.ops.object.shade_smooth_by_angle(angle=math.radians(35))
 
+    obj.data.materials.append(material)
+    return obj
+
+
+def quad(name, corners, material, facing):
+    """
+    One flat, single-sided face from four site-space corners.
+
+    The room is built from these rather than from board(): a wall is seen from
+    one side only, so giving it six faces spends atlas on five that are never
+    drawn. Single-sided also means the room simply is not there from outside,
+    which is what lets the fourth side stay open.
+
+    `facing` is the site-space direction the face should look. The winding is
+    corrected to match it, so corners can be listed in whatever order reads
+    clearly at the call site.
+    """
+    pts = [Vector(c) for c in corners]
+    # Newell is overkill for a quad but costs nothing and does not care which
+    # three corners happen to be collinear.
+    normal = (pts[1] - pts[0]).cross(pts[2] - pts[0])
+    if normal.dot(Vector(facing)) < 0:
+        pts.reverse()
+
+    mesh = bpy.data.meshes.new(name)
+    # site (x, y, z) -> blender (x, -z, y), the same conversion board() makes.
+    mesh.from_pydata([(p.x, -p.z, p.y) for p in pts], [], [(0, 1, 2, 3)])
+    mesh.update()
+    obj = bpy.data.objects.new(name, mesh)
+    bpy.context.collection.objects.link(obj)
     obj.data.materials.append(material)
     return obj
 
@@ -335,50 +415,292 @@ def build_carcass():
     return parts
 
 
+def emission_material(name, colour, strength):
+    mat = bpy.data.materials.new(name)
+    mat.use_nodes = True
+    nt = mat.node_tree
+    nt.nodes.clear()
+    out = nt.nodes.new("ShaderNodeOutputMaterial")
+    emit = nt.nodes.new("ShaderNodeEmission")
+    emit.inputs["Color"].default_value = (*colour, 1)
+    emit.inputs["Strength"].default_value = strength
+    nt.links.new(emit.outputs["Emission"], out.inputs["Surface"])
+    return mat
+
+
+def room_bounds():
+    """The six numbers everything in the room is placed against."""
+    return {
+        "x0": -ROOM["width"] / 2,
+        "x1": ROOM["width"] / 2,
+        "y0": FLOOR_Y,
+        "y1": FLOOR_Y + ROOM["height"],
+        "z0": ROOM["back"],
+        "z1": ROOM["back"] + ROOM["depth"],
+    }
+
+
+def window_bounds():
+    w = WINDOW["width"] / 2
+    return {
+        "x0": WINDOW["x"] - w,
+        "x1": WINDOW["x"] + w,
+        "y0": FLOOR_Y + WINDOW["sill"],
+        "y1": FLOOR_Y + WINDOW["sill"] + WINDOW["height"],
+        "z": ROOM["back"] - WINDOW["reveal"],  # the glass plane, set back
+    }
+
+
+def build_window(wall_mat, trim_mat):
+    """
+    The opening, its reveal and its glass.
+
+    docs/adr/0004 calls the window the single object that does most for the
+    room, on the grounds that the daylight in the scene was otherwise
+    unexplained. So it is a real opening with jambs and a sill rather than a
+    bright rectangle painted on a wall: the recess is what makes it read as a
+    hole in something thick.
+    """
+    r = room_bounds()
+    w = window_bounds()
+    back, reveal = ROOM["back"], WINDOW["reveal"]
+    parts = []
+
+    # The back wall, as four panels around the opening rather than one with a
+    # hole in it. A quad cannot have a hole and a wall does not need to be one
+    # mesh.
+    for name, x0, x1, y0, y1 in (
+        ("Pier.L", r["x0"], w["x0"], r["y0"], r["y1"]),
+        ("Pier.R", w["x1"], r["x1"], r["y0"], r["y1"]),
+        ("Apron", w["x0"], w["x1"], r["y0"], w["y0"]),
+        ("Lintel", w["x0"], w["x1"], w["y1"], r["y1"]),
+    ):
+        parts.append(
+            quad(
+                f"Room.Wall.{name}",
+                [(x0, y0, back), (x1, y0, back), (x1, y1, back), (x0, y1, back)],
+                wall_mat,
+                (0, 0, 1),
+            )
+        )
+
+    # The reveal: the four faces of the wall's own thickness, seen because the
+    # glass is set back from the room side of the wall.
+    # No face along the bottom of the opening: the sill board below is already
+    # that surface, and a quad laid on top of it is coincident geometry. It
+    # baked as a hard black bar under the glass, which is what coincident
+    # surfaces look like when the darker one wins.
+    jambs = (
+        ("Head", [(w["x0"], w["y1"], back), (w["x1"], w["y1"], back),
+                  (w["x1"], w["y1"], w["z"]), (w["x0"], w["y1"], w["z"])], (0, -1, 0)),
+        ("Jamb.L", [(w["x0"], w["y0"], back), (w["x0"], w["y1"], back),
+                    (w["x0"], w["y1"], w["z"]), (w["x0"], w["y0"], w["z"])], (1, 0, 0)),
+        ("Jamb.R", [(w["x1"], w["y0"], back), (w["x1"], w["y1"], back),
+                    (w["x1"], w["y1"], w["z"]), (w["x1"], w["y0"], w["z"])], (-1, 0, 0)),
+    )
+    for name, pts, facing in jambs:
+        parts.append(quad(f"Room.Reveal.{name}", pts, trim_mat, facing))
+
+    # The glass. Emissive, and set not to cast shadow, so the daylight coming
+    # through is an area light outside while this is only what the eye sees.
+    # One surface doing both jobs means choosing between a window that looks
+    # right and a window that lights right.
+    pad = 0.012  # tucked under the reveal, so no seam shows at the corners
+    glass = quad(
+        "Room.Glass",
+        [
+            (w["x0"] - pad, w["y0"] - pad, w["z"]),
+            (w["x1"] + pad, w["y0"] - pad, w["z"]),
+            (w["x1"] + pad, w["y1"] + pad, w["z"]),
+            (w["x0"] - pad, w["y1"] + pad, w["z"]),
+        ],
+        # Just reaching white. The glass has to be the brightest thing in the
+        # atlas, and the atlas clips at 1.0 with nothing to roll it back, so
+        # anything higher only spreads flat white across the frame.
+        emission_material("Daylight", (0.86, 0.91, 1.0), 1.0),
+        (0, 0, 1),
+    )
+    # Seen by the camera and by nothing else. Without this the glass is a
+    # second light source sitting in front of the first, and the room washes
+    # out: the area light outside does the lighting, this only looks bright.
+    glass.visible_shadow = False
+    glass.visible_diffuse = False
+    glass.visible_glossy = False
+    glass.visible_transmission = False
+    parts.append(glass)
+
+    # Glazing bars, standing in the opening. Three tall panes rather than one
+    # sheet: the bars are what give the bright rectangle a scale.
+    for i in range(1, WINDOW["bars"] + 1):
+        x = w["x0"] + (w["x1"] - w["x0"]) * i / (WINDOW["bars"] + 1)
+        parts.append(
+            board(
+                f"Room.Bar.{i}",
+                (0.026, w["y1"] - w["y0"], 0.028),
+                (x, (w["y0"] + w["y1"]) / 2, w["z"] + 0.02),
+                trim_mat,
+            )
+        )
+
+    # A sill proud of the wall, which is the detail that stops the opening
+    # reading as a cut-out.
+    parts.append(
+        board(
+            "Room.Sill",
+            (w["x1"] - w["x0"] + 0.10, 0.028, reveal + 0.035),
+            (WINDOW["x"], w["y0"] - 0.014, back - reveal / 2 + 0.018),
+            trim_mat,
+        )
+    )
+
+    return parts
+
+
 def build_room():
     """
-    Floor and wall, sized for what the camera sees rather than stretching to
-    the horizon. A 24m plane baked into an atlas spends nearly all its texels
-    on emptiness; 8m gives the shadow somewhere to land at a density that holds
-    up. The site fades the far edges to the page colour with fog.
+    A closed room: floor, ceiling, three walls, a skirting board and a window.
+
+    docs/adr/0004 replaced the old floor-and-wall backdrop, whose far edges
+    faded to the page colour. The fade worked only because the camera looked
+    one way, and it was a per-view trick waiting to happen once the camera
+    started visiting places. Now the floor stops because the room stops.
+
+    The fourth side, towards the camera, stays open. Every surface is a
+    single-sided quad, so from outside the room is not there at all and the
+    open side costs nothing to leave open.
     """
-    floor_mat = flat_material("Floor", (0.52, 0.46, 0.38), roughness=0.75)
-    wall_mat = flat_material("Wall", (0.78, 0.75, 0.70), roughness=0.95)
+    # Darker than the open backdrop was. A closed room bounces: four more
+    # surfaces throw light back at each other, and an albedo that read as warm
+    # oak floor in the open goes to paper white in here.
+    floor_mat = flat_material("Floor", (0.17, 0.12, 0.08), roughness=0.70)
+    wall_mat = flat_material("Wall", (0.70, 0.67, 0.62), roughness=0.95)
+    ceil_mat = flat_material("Ceiling", (0.80, 0.79, 0.76), roughness=0.95)
+    trim_mat = flat_material("Trim", (0.86, 0.85, 0.81), roughness=0.55)
 
-    bpy.ops.mesh.primitive_plane_add(size=8, location=(0, 1.2, FLOOR_Y))
-    floor = bpy.context.active_object
-    floor.name = "Room.Floor"
-    floor.data.materials.append(floor_mat)
+    r = room_bounds()
+    parts = [
+        quad(
+            "Room.Floor",
+            [(r["x0"], r["y0"], r["z0"]), (r["x1"], r["y0"], r["z0"]),
+             (r["x1"], r["y0"], r["z1"]), (r["x0"], r["y0"], r["z1"])],
+            floor_mat,
+            (0, 1, 0),
+        ),
+        # A ceiling is not in docs/adr/0004's list, and is here because the
+        # camera needs it: on a phone it pulls back far enough to see 3.7 units
+        # above itself, which is over the top of any wall a room would have.
+        # It also catches the window's light, which is the best of it.
+        quad(
+            "Room.Ceiling",
+            [(r["x0"], r["y1"], r["z0"]), (r["x1"], r["y1"], r["z0"]),
+             (r["x1"], r["y1"], r["z1"]), (r["x0"], r["y1"], r["z1"])],
+            ceil_mat,
+            (0, -1, 0),
+        ),
+        quad(
+            "Room.Wall.L",
+            [(r["x0"], r["y0"], r["z0"]), (r["x0"], r["y0"], r["z1"]),
+             (r["x0"], r["y1"], r["z1"]), (r["x0"], r["y1"], r["z0"])],
+            wall_mat,
+            (1, 0, 0),
+        ),
+        quad(
+            "Room.Wall.R",
+            [(r["x1"], r["y0"], r["z0"]), (r["x1"], r["y0"], r["z1"]),
+             (r["x1"], r["y1"], r["z1"]), (r["x1"], r["y1"], r["z0"])],
+            wall_mat,
+            (-1, 0, 0),
+        ),
+    ]
 
-    bpy.ops.mesh.primitive_plane_add(size=8, location=(0, SHELF["depth"] / 2 + 0.06, FLOOR_Y + 3.2))
-    wall = bpy.context.active_object
-    wall.name = "Room.Wall"
-    wall.rotation_euler = (math.radians(90), 0, 0)
-    wall.scale = (1.0, 0.8, 1.0)
-    bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
-    wall.data.materials.append(wall_mat)
+    parts += build_window(wall_mat, trim_mat)
 
-    return [floor, wall]
+    # Skirting. Chamfered by board()'s bevel, which is the whole reason it is a
+    # board rather than another quad: the chamfer catches a line of light along
+    # the base of every wall, and that line is what the eye reads as a corner.
+    h, d = SKIRTING["height"], SKIRTING["depth"]
+    y = r["y0"] + h / 2
+    parts.append(
+        board("Room.Skirting.B", (ROOM["width"], h, d), (0, y, r["z0"] + d / 2), trim_mat)
+    )
+    for side, x in (("L", r["x0"]), ("R", r["x1"])):
+        parts.append(
+            board(
+                f"Room.Skirting.{side}",
+                (d, h, ROOM["depth"]),
+                (x - math.copysign(d / 2, x), y, (r["z0"] + r["z1"]) / 2),
+                trim_mat,
+            )
+        )
+
+    return parts
 
 
 def setup_daylight():
-    """One strong soft key standing in for a window, plus sky fill."""
+    """
+    Sky fill, the window, and a bounce off the floor.
+
+    The window is now a real opening, so the light that was a free-floating
+    area light standing in for one is placed in it and shaped like it. What
+    comes through lands where the hole is, which is the whole point of
+    docs/adr/0004 putting a window in: the daylight stops being unexplained.
+
+    A second, softer key keeps the carcass's front faces modelled. It stands
+    for light from the open fourth side, which is where the camera is and
+    where a room of this shape would have its other window. Without it the
+    Covers are lit edge-on, and they were approved lit from the front.
+    """
     world = bpy.data.worlds.new("World")
     bpy.context.scene.world = world
     world.use_nodes = True
     bg = world.node_tree.nodes["Background"]
     bg.inputs["Color"].default_value = (0.58, 0.66, 0.78, 1)
-    bg.inputs["Strength"].default_value = 0.65
+    # Far weaker than the open backdrop wanted, for two reasons. The fourth
+    # side is a hole the full width of the room, so the world is a sky-sized
+    # panel of flat frontal fill that washes every shadow out of it. And a
+    # closed room bounces: the same energies that were right in the open light
+    # this about a stop hotter, which the atlas cannot absorb — see the note on
+    # clipping in standard_view(). Every level below was set together with this
+    # one against a baked render, not a lit one.
+    # Much weaker than the open backdrop wanted. The fourth side is a hole the
+    # full width of the room, so the world is a sky-sized panel of flat frontal
+    # fill: at the old strength it washed every shadow out of the room.
+    bg.inputs["Strength"].default_value = 0.063
 
-    # The window: a large area light to camera-left, which gives the long soft
-    # shadows that say "room" rather than "studio".
+    w = window_bounds()
+    # Just behind the glass, sized to the opening, aimed into the room and a
+    # little down.
+    #
+    # Two things set that position. Further out, behind the wall, every shadow
+    # ray from the room has to thread the opening and most are stopped by the
+    # wall instead, which is the slowest case Cycles has — moving the light to
+    # the aperture cut the bake from thirty-five minutes to a few. Flush with
+    # the glass, though, nothing lights the reveal, and the sill goes black:
+    # it faces up into a recess the light is pointing out of. Sitting a few
+    # centimetres behind the glass lights the recess and still costs nothing.
+    bpy.ops.object.light_add(
+        type="AREA",
+        location=(WINDOW["x"], -(w["z"] - 0.06), (w["y0"] + w["y1"]) / 2),
+    )
+    sun = bpy.context.active_object
+    sun.name = "Daylight"
+    sun.data.shape = "RECTANGLE"
+    sun.data.size = WINDOW["width"]
+    sun.data.size_y = WINDOW["height"]
+    sun.data.energy = 290
+    sun.data.color = (1.0, 0.97, 0.92)
+    direction = Vector((0, -1.0, -0.22)).normalized()
+    sun.rotation_euler = direction.to_track_quat("-Z", "Y").to_euler()
+
+    # The open side. Soft, broad and well off to camera-left, which is the
+    # direction the Shelf has been lit from since docs/adr/0003.
     bpy.ops.object.light_add(type="AREA", location=(-2.6, -2.2, 1.6))
     key = bpy.context.active_object
-    key.name = "Window"
+    key.name = "OpenSide"
     key.data.shape = "RECTANGLE"
     key.data.size = 1.9
     key.data.size_y = 1.5
-    key.data.energy = 520
+    key.data.energy = 160
     key.data.color = (1.0, 0.96, 0.9)
     direction = Vector((0.4, 1.0, -0.25)).normalized()
     key.rotation_euler = direction.to_track_quat("-Z", "Y").to_euler()
@@ -388,18 +710,39 @@ def setup_daylight():
     bounce = bpy.context.active_object
     bounce.name = "Bounce"
     bounce.data.size = 3.0
-    bounce.data.energy = 40
+    bounce.data.energy = 18
     bounce.data.color = (1.0, 0.88, 0.74)
     bounce.rotation_euler = (math.radians(-70), 0, math.radians(20))
 
 
-def setup_camera():
-    bpy.ops.object.camera_add(location=(1.15, -5.3, 0.55))
+# Blender location, aim, and either a lens in mm or a vertical field of view.
+SHELF_VIEWS = {
+    # A three-quarter view for looking at the model itself.
+    "three-quarter": ((1.15, -5.3, 0.55), (0, 0, -0.12), {"lens": 50}),
+    # What the site's own camera sees: src/components/shelf/Shelf.tsx puts it
+    # at site (0, 0, 4.4) with a 42 degree vertical field of view. Checking the
+    # room against this is the only way to know whether a wall is in frame.
+    "site": ((0.0, -4.4, 0.0), (0, 0, 0), {"fov": 42}),
+    # The same camera at the pull-back Scene.tsx uses on a phone held upright,
+    # 2.2x, which puts it outside the open fourth side looking in. This is the
+    # view ROOM["depth"] was chosen for; render it narrow, 420x900 or so.
+    "phone": ((0.0, -9.68, 0.0), (0, 0, 0), {"fov": 42}),
+}
+
+
+def setup_camera(view="three-quarter"):
+    location, target, lens = SHELF_VIEWS[view]
+    bpy.ops.object.camera_add(location=location)
     cam = bpy.context.active_object
     cam.name = "Camera"
-    cam.data.lens = 50
-    target = Vector((0, 0, -0.12))
-    cam.rotation_euler = (target - cam.location).to_track_quat("-Z", "Y").to_euler()
+    if "fov" in lens:
+        # The site states its field of view vertically; Blender measures across
+        # whichever sensor dimension is larger unless it is told otherwise.
+        cam.data.sensor_fit = "VERTICAL"
+        cam.data.angle_y = math.radians(lens["fov"])
+    else:
+        cam.data.lens = lens["lens"]
+    cam.rotation_euler = (Vector(target) - cam.location).to_track_quat("-Z", "Y").to_euler()
     bpy.context.scene.camera = cam
     return cam
 
@@ -414,6 +757,24 @@ def setup_render(width=1000, height=760, samples=160):
     scene.render.film_transparent = False
     scene.view_settings.view_transform = "AgX"
     scene.view_settings.look = "AgX - Base Contrast"
+
+
+def standard_view():
+    """
+    Turn the view transform off for a render of the baked result.
+
+    A bake writes the raw combined values and ignores the view transform, so
+    the atlas is what the browser receives: it draws those values straight,
+    with no tone mapping anywhere. Rendering the baked scene through AgX
+    therefore shows something the site will never display — and it hides the
+    one failure that matters, which is clipping, because AgX rolls values over
+    1.0 gently back into range while the atlas has already lost them.
+
+    The window was invisible in the baked room for exactly this reason: the
+    wall around it had clipped to flat white and AgX was concealing it.
+    """
+    bpy.context.scene.view_settings.view_transform = "Standard"
+    bpy.context.scene.view_settings.look = "None"
 
 
 def select(objs, active=None):
@@ -511,6 +872,8 @@ def show_baked(obj, image):
     Swap the object to an unlit material showing only the baked image, which is
     what the browser will draw. Rendering this is the honest test: if it does
     not match the lit render, the bake has not captured the look.
+
+    Only honest with the view transform set to Standard — see standard_view().
     """
     mat = bpy.data.materials.new("Baked")
     mat.use_nodes = True
@@ -1037,7 +1400,7 @@ def main():
     ap.add_argument("--render", help="write a preview PNG here")
     ap.add_argument("--bake", help="bake the carcass to this PNG")
     ap.add_argument("--bake-size", type=int, default=2048)
-    ap.add_argument("--bake-samples", type=int, default=64)
+    ap.add_argument("--bake-samples", type=int, default=96)
     ap.add_argument("--show-baked", help="render the baked texture unlit, to this PNG")
     ap.add_argument("--export", help="write the .glb here")
     ap.add_argument("--bake-room", help="bake the room to this PNG")
@@ -1047,6 +1410,9 @@ def main():
     ap.add_argument("--cloth-size", type=int, default=256)
     ap.add_argument("--cloth-threads", type=int, default=22)
     ap.add_argument("--book-export", help="write the Book .glb here")
+    ap.add_argument("--view", default="three-quarter", choices=sorted(SHELF_VIEWS))
+    ap.add_argument("--width", type=int, default=1000)
+    ap.add_argument("--height", type=int, default=760)
     ap.add_argument("--samples", type=int, default=160)
     args = ap.parse_args(argv)
 
@@ -1077,8 +1443,8 @@ def main():
     parts = build_carcass()
     room = build_room()
     setup_daylight()
-    setup_camera()
-    setup_render(samples=args.samples)
+    setup_camera(args.view)
+    setup_render(width=args.width, height=args.height, samples=args.samples)
 
     print(f"[shelf] carcass {OUTER_WIDTH:.3f} x {UNIT_HEIGHT:.3f} x {SHELF['depth']:.3f}")
 
@@ -1119,6 +1485,7 @@ def main():
             show_baked(carcass, carcass_img)
             for obj in room:
                 show_baked(obj, room_img)
+            standard_view()
             bpy.context.scene.render.filepath = args.show_baked
             bpy.ops.render.render(write_still=True)
             print(f"[shelf] wrote {args.show_baked}")
