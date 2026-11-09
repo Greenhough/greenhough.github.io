@@ -1,7 +1,7 @@
 import { useRef } from 'react';
 import * as THREE from 'three';
 import { useFrame, useThree } from '@react-three/fiber';
-import { ContactShadows } from '@react-three/drei';
+import { ContactShadows, Environment, Lightformer } from '@react-three/drei';
 import { Box, BOX } from './Box';
 import { SHELF, SectionLabel, sectionFloorY, slotX } from './ShelfUnit';
 import { ShelfModel } from './ShelfModel';
@@ -101,23 +101,39 @@ export function Scene({
   return (
     <>
       {/*
-        These light the Boxes only. The carcass is unlit, because its light is
-        baked in. They are placed to match the Blender key so a real-time Box
-        and the baked room read as being in one daylight rather than two.
-        Blender's key sits at (-2.6, 1.6, 2.2) once converted to these axes.
+        All of this lights the Boxes only. The carcass and the room draw with
+        MeshBasicMaterial and ignore light entirely, because theirs is baked.
+
+        An environment rather than bare lights: a Box sitting in a room is lit
+        from every direction, and three directional lights cannot fake that.
+        The panels mirror the Blender scene — warm key where the window is,
+        cool sky opposite, warm bounce up off the floor — so a real-time Box
+        and the baked room read as one daylight instead of two.
       */}
-      <ambientLight intensity={0.55} />
+      <Environment resolution={128}>
+        <Lightformer intensity={2.6} position={[-3, 2, 3]} scale={[5, 5, 1]} color="#fff2dd" />
+        <Lightformer intensity={0.7} position={[3, 1, 2]} scale={[4, 4, 1]} color="#aebfd8" />
+        <Lightformer
+          intensity={0.55}
+          position={[0, -2.2, 1.5]}
+          rotation={[-Math.PI / 2, 0, 0]}
+          scale={[6, 4, 1]}
+          color="#f6e2c8"
+        />
+      </Environment>
+
+      {/* Just enough direct light to throw a shadow; the environment does the
+          shading. Ambient stays low or the Boxes flatten out. */}
+      <ambientLight intensity={0.12} />
       <directionalLight
         position={[-2.6, 1.6, 2.2]}
-        intensity={1.9}
+        intensity={0.9}
         color="#fff4e2"
         castShadow
         shadow-mapSize={[1024, 1024]}
         shadow-bias={-0.0004}
         shadow-normalBias={0.02}
       />
-      {/* Sky fill from the other side, matching the world colour in the bake. */}
-      <directionalLight position={[2.4, 0.8, 1.6]} intensity={0.4} color="#94a8c4" />
 
       <ShelfModel />
 
