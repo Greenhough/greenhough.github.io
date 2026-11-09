@@ -133,6 +133,13 @@ its hour is changed. If night is wanted later, it is a re-bake and a palette, no
   it was a per-view trick waiting to happen. Closing the room retires it: the boundary is
   a wall and a skirting board, which bears being looked at from any view and needs no
   tuning when a view is added.
+- **The camera sets the room's size, not taste.** `Scene.tsx` pulls the camera back up
+  to 2.2x on a phone held upright, which puts it 9.68 units from the Shelf — outside the
+  room, looking in through the open fourth side. The room has to be deep enough that the
+  camera's cone still passes through that opening, which is what fixes it at 7.4 deep
+  rather than at whatever a room of this width would otherwise be. A phone wants a wider
+  lens, not more distance; swapping the pull-back for a wider field of view would let the
+  room shrink, and that belongs with the views.
 - **The bake gets bigger.** More surfaces, more atlas. `docs/adr/0002`'s 1.5MB budget stands
   and is not in danger yet — the page is near 600KB — but the room is the first thing that
   could threaten it, and the atlas should be measured per addition rather than at the end.
