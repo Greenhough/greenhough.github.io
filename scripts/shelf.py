@@ -335,21 +335,29 @@ def build_carcass():
 
 
 def build_room():
+    """
+    Floor and wall, sized for what the camera sees rather than stretching to
+    the horizon. A 24m plane baked into an atlas spends nearly all its texels
+    on emptiness; 8m gives the shadow somewhere to land at a density that holds
+    up. The site fades the far edges to the page colour with fog.
+    """
     floor_mat = flat_material("Floor", (0.52, 0.46, 0.38), roughness=0.75)
     wall_mat = flat_material("Wall", (0.78, 0.75, 0.70), roughness=0.95)
 
-    bpy.ops.mesh.primitive_plane_add(size=24, location=(0, 0, FLOOR_Y))
+    bpy.ops.mesh.primitive_plane_add(size=8, location=(0, 1.2, FLOOR_Y))
     floor = bpy.context.active_object
-    floor.name = "Floor"
+    floor.name = "Room.Floor"
     floor.data.materials.append(floor_mat)
 
-    bpy.ops.mesh.primitive_plane_add(size=24, location=(0, SHELF["depth"] / 2 + 0.06, 0))
+    bpy.ops.mesh.primitive_plane_add(size=8, location=(0, SHELF["depth"] / 2 + 0.06, FLOOR_Y + 3.2))
     wall = bpy.context.active_object
-    wall.name = "Wall"
+    wall.name = "Room.Wall"
     wall.rotation_euler = (math.radians(90), 0, 0)
+    wall.scale = (1.0, 0.8, 1.0)
+    bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
     wall.data.materials.append(wall_mat)
 
-    return floor, wall
+    return [floor, wall]
 
 
 def setup_daylight():
@@ -448,7 +456,7 @@ def unwrap_all(parts, margin=0.004):
     bpy.ops.object.mode_set(mode="OBJECT")
 
 
-def bake_combined(parts, path, size=2048, samples=64, margin=24):
+def bake_combined(parts, path, size=2048, samples=64, margin=24, name="ShelfBake"):
     """
     Bake the lit result into one texture.
 
@@ -457,7 +465,7 @@ def bake_combined(parts, path, size=2048, samples=64, margin=24):
     Cycles result for the cost of one texture lookup. This is the whole bet in
     ADR 0003, and the reason the Shelf can look rendered without being rendered.
     """
-    image = bpy.data.images.new("ShelfBake", width=size, height=size)
+    image = bpy.data.images.new(name, width=size, height=size)
 
     # Every material in play needs the target image as its active node, or the
     # bake has nowhere to land for the faces using it. Materials are shared
@@ -518,7 +526,7 @@ def show_baked(obj, image):
     obj.data.materials.append(mat)
 
 
-def export_glb(obj, path):
+def export_glb(objs, path):
     """
     Export geometry and UVs only. The baked atlas is loaded separately by the
     site and applied as an unlit material there, which keeps it a WebP (84KB)
@@ -532,7 +540,7 @@ def export_glb(obj, path):
     blender y = -site z, so the model arrives in the site's own coordinates
     with no correction needed at the other end.
     """
-    select([obj])
+    select(objs)
     bpy.ops.export_scene.gltf(
         filepath=path,
         export_format="GLB",
@@ -554,13 +562,14 @@ def main():
     ap.add_argument("--bake-size", type=int, default=2048)
     ap.add_argument("--bake-samples", type=int, default=64)
     ap.add_argument("--show-baked", help="render the baked texture unlit, to this PNG")
-    ap.add_argument("--export", help="write the carcass .glb here")
+    ap.add_argument("--export", help="write the .glb here")
+    ap.add_argument("--bake-room", help="bake the room to this PNG")
     ap.add_argument("--samples", type=int, default=160)
     args = ap.parse_args(argv)
 
     clear_scene()
     parts = build_carcass()
-    build_room()
+    room = build_room()
     setup_daylight()
     setup_camera()
     setup_render(samples=args.samples)
@@ -573,20 +582,37 @@ def main():
         print(f"[shelf] wrote {args.render}")
 
     if args.bake or args.show_baked or args.export:
+        # Two atlases, not one. A floor is mostly empty and a carcass is mostly
+        # edges; sharing a map means the shadow on the floor and the grain on a
+        # board edge compete for the same texels and both lose.
         unwrap_all(parts)
-        image = bake_combined(
+        carcass_img = bake_combined(
             parts,
             args.bake or "/tmp/shelf-bake.png",
             size=args.bake_size,
             samples=args.bake_samples,
+            name="CarcassBake",
         )
+
+        unwrap_all(room, margin=0.01)
+        room_img = bake_combined(
+            room,
+            args.bake_room or "/tmp/room-bake.png",
+            size=args.bake_size,
+            samples=args.bake_samples,
+            name="RoomBake",
+        )
+
         carcass = join_carcass(parts)
+        carcass.name = "Carcass"
 
         if args.export:
-            export_glb(carcass, args.export)
+            export_glb([carcass, *room], args.export)
 
         if args.show_baked:
-            show_baked(carcass, image)
+            show_baked(carcass, carcass_img)
+            for obj in room:
+                show_baked(obj, room_img)
             bpy.context.scene.render.filepath = args.show_baked
             bpy.ops.render.render(write_still=True)
             print(f"[shelf] wrote {args.show_baked}")
