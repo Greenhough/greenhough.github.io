@@ -154,6 +154,8 @@ function drawDevice(
  * `art` is a Project's device — a flat mark, blocked on the cloth. It is
  * optional: without one the Box carries the site's asterisk, which is a
  * perfectly ordinary thing for a binding to do.
+ *
+ * The Write-up keeps the full, descriptive title. Only the binding is short.
  */
 export function paintCover(
   canvas: HTMLCanvasElement,
@@ -195,10 +197,13 @@ export function paintCover(
   ctx.fillText(project.eyebrow.toUpperCase(), W / 2, 26 * u);
   ctx.letterSpacing = '0px';
 
-  // Title, blocked in the upper half.
+  // Title, blocked in the upper half. The same lettering as the Spine, because
+  // a binder letters a case and its spine once: a book whose board and back
+  // disagree about its own name is a book with a dust jacket on it.
+  const lettering = project.spine;
   ctx.fillStyle = c.stamp;
   ctx.textBaseline = 'top';
-  const { size: titleSize, lines } = fitTitle(ctx, project.title, W - 28 * u, 4, 9 * u, 4.5 * u);
+  const { size: titleSize, lines } = fitTitle(ctx, lettering, W - 28 * u, 4, 9 * u, 4.5 * u);
   let ty = 36 * u;
   for (const line of lines) {
     ctx.fillText(line, W / 2, ty);

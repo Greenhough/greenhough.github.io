@@ -181,7 +181,7 @@ rather than shipping a broken page. The schema lives in `src/content.config.ts`.
 | Field | Required | What it is |
 |---|---|---|
 | `title` | yes | Title case. Used for the `<h1>`, the `<title>`, `og:title` and every listing. |
-| `spine` | no | A shorter title for the Spine. Leave it out and the Spine carries `title`. |
+| `spine` | no | How the binding is lettered, on the Spine and the Cover. Leave it out and the binding carries `title`. |
 | `slug` | yes | The URL path without a leading slash. |
 | `eyebrow` | yes | The small label above the title. Currently `Build` or `Vibe Coding`. |
 | `tags` | yes | A list of tag labels. Each must have a colour (see below). |
@@ -207,7 +207,8 @@ is the app's own icon and is not in that script.
 Add a `spine` when the title is long. The Spine is read edge-on from across a
 room, so the painted title shrinks to fit and a descriptive title ends up too
 small to read. A binder shortens a long title on a real spine for the same
-reason; the hub card and the write-up keep the full one.
+reason, and letters the case to match, so this sets both faces of the binding.
+The hub card and the write-up keep the full one.
 
 ### Adding a new tag colour
 

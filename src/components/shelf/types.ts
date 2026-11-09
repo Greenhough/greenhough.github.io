@@ -2,7 +2,7 @@
 export interface ShelfProject {
   slug: string;
   title: string;
-  /** What the Spine is lettered with. The full title unless it is too long. */
+  /** How the binding is lettered, Spine and Cover. The full title unless it is too long. */
   spine: string;
   eyebrow: string;
   tags: string[];

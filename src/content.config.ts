@@ -24,11 +24,14 @@ const work = defineCollection({
     /** Title case. Used for the h1, the <title>, og:title and every listing. */
     title: z.string(),
     /**
-     * A shorter title for the Spine, where the full one would have to be set
-     * too small to read. Optional: without it the Spine carries `title`. This
-     * is what a binder does on a real spine, and it is why the field exists
-     * rather than the Project simply being renamed — the hub card and the
-     * write-up want the long, descriptive title.
+     * How the binding is lettered: the Spine and the Cover both carry this.
+     * Named for the Spine because that is the surface that forces it — a long
+     * title has to be set too small to read edge-on — but a binder letters a
+     * case and its back once, so the Cover follows.
+     *
+     * Optional: without it the binding carries `title`. The field exists
+     * rather than the Project simply being renamed because the hub card and
+     * the write-up want the long, descriptive title.
      */
     spine: z.string().optional(),
     /** The URL path, without a leading slash: "quibble" serves at /quibble. */
