@@ -3,28 +3,68 @@ import { palette, themeColour } from './palette';
 import type { ShelfProject } from './types';
 
 /**
- * The Cover template.
+ * The printing on a Box: the Cover, the Spine and the Section label.
  *
- * Every Box is printed from this one function, which is what makes adding a
- * sixth Project cheap: drop in a Markdown file with cover art and it gets a
- * Cover and a Spine for free. A Project can still be given hand-designed art
- * later by replacing the image in src/assets/covers/ — the frame around it,
- * the title and the tags are drawn here.
+ * Every Box is printed from these functions, which is what makes adding a
+ * sixth Project cheap: drop in a Markdown file and it gets a Cover and a Spine
+ * for free.
  *
- * The layout borrows from an actual board game box: publisher's band across the
- * top, the art in a window, the title under it, and the play information
- * printed along the bottom edge. Tags take the place of player count and
- * play time.
+ * Both faces are a clothbound case, and the two have to agree, because on a
+ * real book they are one piece of cloth folded round the boards. The colour
+ * comes from clothColour() for that reason rather than being written twice.
+ *
+ * What this replaced was a board game box: a publisher's band across the top,
+ * the art in a window, the title under it and the tags along the bottom edge
+ * standing in for player count and play time. It was the last part of the Box
+ * still drawn for the cut direction. See docs/adr/0001.
  */
 
-const COVER_ASPECT = 1.25; // height / width
+/** Height over width of the front board, from scripts/shelf.py. */
+const COVER_ASPECT = 1.0 / 0.785;
+
+/** Read #rrggbb into its three channels. */
+function channels(hex: string): [number, number, number] {
+  const n = parseInt(hex.replace('#', ''), 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
+/** Mix two colours: t = 0 is all `a`, t = 1 is all `b`. */
+function mix(a: string, b: string, t: number): string {
+  const [ar, ag, ab] = channels(a);
+  const [br, bg, bb] = channels(b);
+  const c = (x: number, y: number) => Math.round(x + (y - x) * t);
+  return `rgb(${c(ar, br)} ${c(ag, bg)} ${c(ab, bb)})`;
+}
+
+/** A small, stable number from a string, for per-Project variation. */
+function hashed(text: string): number {
+  let h = 0;
+  for (let i = 0; i < text.length; i++) h = (h * 31 + text.charCodeAt(i)) >>> 0;
+  return (h % 1000) / 1000;
+}
 
 /**
- * Load the self-hosted faces before painting; canvas text will not load them
- * itself. Only the faces actually painted are awaited. An earlier version also
- * awaited document.fonts.ready, which waits on every font the page will ever
- * load and held the Shelf blank for several seconds.
+ * The binding: the Theme's colour pulled towards the ink, varied a little per
+ * Project because dye lots are never identical and six bindings out of one tin
+ * reads as a rendering rather than a shelf.
+ *
+ * Also the two tones stamped onto it. Not gold, which would fight the page:
+ * the paper colour, at less than full strength, so it reads as pressed into
+ * the cloth rather than printed on top of it.
  */
+function clothColour(project: ShelfProject) {
+  const p = palette();
+  const cloth = mix(themeColour(project.theme), p.ink, 0.16 + hashed(project.slug) * 0.14);
+  return {
+    cloth,
+    stamp: mix(cloth, p.paper, 0.86),
+    rule: mix(cloth, p.paper, 0.45),
+    /** Blind stamping has no ink at all: it is a shadow and a lip, nothing more. */
+    blind: mix(cloth, p.ink, 0.45),
+    lip: mix(cloth, p.paper, 0.14),
+  };
+}
+
 export async function ensureFonts(): Promise<void> {
   if (typeof document === 'undefined' || !document.fonts) return;
   const faces = ['800 100px Archivo', '700 100px "JetBrains Mono"', '500 100px "JetBrains Mono"'];
@@ -64,27 +104,33 @@ function wrap(
   return lines;
 }
 
-/** Draw `img` into the rect, cropped to fill like CSS object-fit: cover. */
-function drawCover(
+/** Draw `img` centred in the box at its own aspect, like object-fit: contain. */
+function drawDevice(
   ctx: CanvasRenderingContext2D,
   img: HTMLImageElement,
-  x: number,
-  y: number,
-  w: number,
-  h: number
+  cx: number,
+  cy: number,
+  box: number
 ) {
-  const scale = Math.max(w / img.width, h / img.height);
-  const dw = img.width * scale;
-  const dh = img.height * scale;
-  ctx.save();
-  ctx.beginPath();
-  ctx.rect(x, y, w, h);
-  ctx.clip();
-  ctx.drawImage(img, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
-  ctx.restore();
+  const scale = Math.min(box / img.width, box / img.height);
+  const w = img.width * scale;
+  const h = img.height * scale;
+  ctx.drawImage(img, cx - w / 2, cy - h / 2, w, h);
 }
 
-/** The printed face of a Box. */
+/**
+ * The Cover: the front board of a Box, bound in the same cloth as the Spine.
+ *
+ * A cloth case carries almost nothing, which is the point. A blind frame
+ * pressed into the cloth, the title blocked on it, the Project's device below
+ * and the tags at the foot. There is no art window, because the thing that
+ * used to go in it was a screenshot, and a screenshot is evidence while a
+ * cover is a sign. The evidence belongs in the Write-up, where it already is.
+ *
+ * `art` is a Project's device — a flat mark, blocked on the cloth. It is
+ * optional: without one the Box carries the site's asterisk, which is a
+ * perfectly ordinary thing for a binding to do.
+ */
 export function paintCover(
   canvas: HTMLCanvasElement,
   project: ShelfProject,
@@ -97,101 +143,68 @@ export function paintCover(
   canvas.height = H;
 
   const ctx = canvas.getContext('2d')!;
-  const p = palette();
-  const accent = themeColour(project.theme);
+  const c = clothColour(project);
   const u = W / 100; // one unit = 1% of the width, so the layout scales with size
 
-  // ground
-  ctx.fillStyle = p.paper;
+  ctx.fillStyle = c.cloth;
   ctx.fillRect(0, 0, W, H);
 
-  // publisher's band
-  const bandH = 11 * u;
-  ctx.fillStyle = accent;
-  ctx.fillRect(0, 0, W, bandH);
+  // A blind frame: no ink, just a line pressed into the cloth. Two strokes a
+  // hair apart, the shadow of the channel and the lip the press raised beside
+  // it, which is the whole trick to making stamping read without colour.
+  const inset = 7 * u;
+  const frame = (offset: number, colour: string) => {
+    ctx.strokeStyle = colour;
+    ctx.lineWidth = Math.max(1, 0.4 * u);
+    ctx.strokeRect(inset + offset, inset + offset, W - inset * 2, H - inset * 2);
+  };
+  frame(0, c.blind);
+  frame(Math.max(1, 0.4 * u), c.lip);
 
-  ctx.fillStyle = p.paper;
-  ctx.font = `700 ${3.1 * u}px "JetBrains Mono", monospace`;
+  ctx.textAlign = 'center';
+
+  // Eyebrow, blocked small above the title the way a series line is.
+  ctx.fillStyle = c.rule;
+  ctx.font = `700 ${3 * u}px "JetBrains Mono", monospace`;
   ctx.textBaseline = 'middle';
-  ctx.letterSpacing = `${0.35 * u}px`;
-  ctx.fillText(project.eyebrow.toUpperCase(), 6 * u, bandH / 2);
-
-  // the asterisk, printed small at the band's right edge
-  ctx.font = `800 ${5 * u}px Archivo, sans-serif`;
-  ctx.textAlign = 'right';
-  ctx.fillText('*', W - 6 * u, bandH / 2);
-  ctx.textAlign = 'left';
+  ctx.letterSpacing = `${0.9 * u}px`;
+  ctx.fillText(project.eyebrow.toUpperCase(), W / 2, 26 * u);
   ctx.letterSpacing = '0px';
 
-  // art window
-  const winX = 6 * u;
-  const winY = bandH + 6 * u;
-  const winW = W - 12 * u;
-  const winH = 46 * u;
-  ctx.fillStyle = p.surface;
-  ctx.fillRect(winX, winY, winW, winH);
-  if (art) drawCover(ctx, art, winX, winY, winW, winH);
-  ctx.strokeStyle = p.border;
-  ctx.lineWidth = Math.max(1, 0.4 * u);
-  ctx.strokeRect(winX, winY, winW, winH);
-
-  // title
-  const titleSize = 7.4 * u;
-  ctx.fillStyle = p.ink;
+  // Title, blocked in the upper half.
+  const titleSize = 9 * u;
+  ctx.fillStyle = c.stamp;
   ctx.font = `800 ${titleSize}px Archivo, sans-serif`;
   ctx.textBaseline = 'top';
-  const lines = wrap(ctx, project.title, winW, 3);
-  let ty = winY + winH + 6 * u;
+  const lines = wrap(ctx, project.title, W - 28 * u, 3);
+  let ty = 36 * u;
   for (const line of lines) {
-    ctx.fillText(line, winX, ty);
-    ty += titleSize * 1.06;
+    ctx.fillText(line, W / 2, ty);
+    ty += titleSize * 1.08;
   }
 
-  // rule
-  const ruleY = H - 15 * u;
-  ctx.fillStyle = accent;
-  ctx.fillRect(winX, ruleY, winW, Math.max(1, 0.6 * u));
+  // A short rule under it, the full stop on the lettering.
+  ctx.fillStyle = c.rule;
+  ctx.fillRect(W / 2 - 8 * u, ty + 5 * u, 16 * u, Math.max(1, 0.45 * u));
 
-  // tags, printed the way a publisher prints player count and play time
-  ctx.fillStyle = p.muted;
-  ctx.font = `500 ${3.1 * u}px "JetBrains Mono", monospace`;
+  // The device. A Project's own mark if it has one, otherwise the site's.
+  if (art) {
+    drawDevice(ctx, art, W / 2, 86 * u, 24 * u);
+  } else {
+    ctx.fillStyle = c.rule;
+    ctx.font = `800 ${13 * u}px Archivo, sans-serif`;
+    ctx.textBaseline = 'middle';
+    ctx.fillText('*', W / 2, 88 * u);
+  }
+
+  // Tags at the foot, where a binding carries the imprint.
+  ctx.fillStyle = c.rule;
+  ctx.font = `500 ${2.8 * u}px "JetBrains Mono", monospace`;
   ctx.textBaseline = 'middle';
-  ctx.letterSpacing = `${0.2 * u}px`;
-  let tx = winX;
-  const tagY = ruleY + 8 * u;
-  project.tags.forEach((tag, i) => {
-    const label = tag.toUpperCase();
-    ctx.fillText(label, tx, tagY);
-    tx += ctx.measureText(label).width;
-    if (i < project.tags.length - 1) {
-      ctx.fillStyle = p.faint;
-      ctx.fillText('  ·  ', tx, tagY);
-      tx += ctx.measureText('  ·  ').width;
-      ctx.fillStyle = p.muted;
-    }
-  });
+  ctx.letterSpacing = `${0.6 * u}px`;
+  ctx.fillText(project.tags.map((t) => t.toUpperCase()).join('   ·   '), W / 2, H - 14 * u);
   ctx.letterSpacing = '0px';
-}
-
-/** Read #rrggbb into its three channels. */
-function channels(hex: string): [number, number, number] {
-  const n = parseInt(hex.replace('#', ''), 16);
-  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
-}
-
-/** Mix two colours: t = 0 is all `a`, t = 1 is all `b`. */
-function mix(a: string, b: string, t: number): string {
-  const [ar, ag, ab] = channels(a);
-  const [br, bg, bb] = channels(b);
-  const c = (x: number, y: number) => Math.round(x + (y - x) * t);
-  return `rgb(${c(ar, br)} ${c(ag, bg)} ${c(ab, bb)})`;
-}
-
-/** A small, stable number from a string, for per-Project variation. */
-function hashed(text: string): number {
-  let h = 0;
-  for (let i = 0; i < text.length; i++) h = (h * 31 + text.charCodeAt(i)) >>> 0;
-  return (h % 1000) / 1000;
+  ctx.textAlign = 'left';
 }
 
 /**
@@ -223,21 +236,13 @@ export function paintSpine(
   canvas.height = H;
 
   const ctx = canvas.getContext('2d')!;
-  const p = palette();
   const u = H / 100;
 
-  // Binding cloth: the Theme's colour, pulled towards the ink and varied a
-  // little per Project. Dye lots are never identical and six spines in a row
-  // out of the same tin reads as a rendering, not a shelf.
-  const jitter = hashed(project.slug);
-  const cloth = mix(themeColour(project.theme), p.ink, 0.16 + jitter * 0.14);
+  // The same binding as the Cover, from the same function: on a real book the
+  // spine and the boards are one piece of cloth.
+  const { cloth, stamp, rule } = clothColour(project);
   ctx.fillStyle = cloth;
   ctx.fillRect(0, 0, W, H);
-
-  // Stamping: not gold, which would fight the page, but the paper colour, laid
-  // on at less than full strength so it reads as pressed into the cloth.
-  const stamp = mix(cloth, p.paper, 0.86);
-  const rule = mix(cloth, p.paper, 0.45);
 
   const inset = 2.6 * u;
   const rules = (y: number) => {

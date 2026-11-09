@@ -48,11 +48,15 @@ const work = defineCollection({
     /** Which Section of the Shelf this Project belongs to. */
     theme: z.enum(THEMES),
     /**
-     * Art for this Project's Cover on the Shelf, from src/assets/covers/.
-     * Required: a Project with no Cover has no Box, so it could not be shelved.
-     * Astro resizes it at build time, so commit the full-resolution file.
+     * This Project's device: the flat mark blocked on the Cover, from
+     * src/assets/covers/. Optional — a Box without one carries the site's
+     * asterisk, which is an ordinary thing for a binding to do.
+     *
+     * A mark, not a screenshot. The Cover is seen small and a screenshot of a
+     * dashboard is grey mush at that size; the screenshots belong in the
+     * Write-up, where they already are.
      */
-    cover: image(),
+    cover: image().optional(),
   }),
 });
 

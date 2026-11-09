@@ -9,7 +9,6 @@ description: "A Pomodoro timer, built with Claude Code, that logs my deep work s
 summary: "A Pomodoro timer, built with Claude Code, that logs my deep work sessions to Notion."
 dek: "A local Pomodoro timer that writes every focus session to a Notion database."
 theme: "Built for Myself"
-cover: "../../assets/covers/pomodoro-timer.png"
 ---
 <figure class="cs-fig narrow">
   <img src="/assets/pomodoro-timer.png" alt="The Pomodoro timer running a focus session" width="1126" height="1132">

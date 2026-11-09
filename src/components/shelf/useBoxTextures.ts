@@ -39,7 +39,8 @@ export function useBoxTextures(project: ShelfProject, size: number): BoxTextures
       if (cancelled) return;
       setTextures({ spine, cover: null });
 
-      const art = await loadImage(size <= 512 ? project.art.small : project.art.large);
+      const src = project.art && (size <= 512 ? project.art.small : project.art.large);
+      const art = src ? await loadImage(src) : null;
       if (cancelled) return;
 
       const coverCanvas = document.createElement('canvas');

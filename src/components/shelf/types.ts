@@ -8,8 +8,8 @@ export interface ShelfProject {
   tags: string[];
   summary: string;
   theme: string;
-  /** Cover art, already resized by Astro. Two sizes: phones get the small one. */
-  art: { small: string; large: string };
+  /** The Project's device, already resized by Astro, or null if it has none. */
+  art: { small: string; large: string } | null;
 }
 
 /** A labelled run of the Shelf holding the Projects of one Theme. */

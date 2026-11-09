@@ -6,9 +6,9 @@ import type { ShelfSection } from '../components/shelf/types';
  * Builds the Shelf's data at build time: the Sections, in the order they are
  * stacked, each holding its Projects newest first.
  *
- * Cover art is resized here rather than in the browser, so the island only ever
- * downloads what it needs. docs/adr/0002 sets the budget: 512px on phones,
- * 1024px on desktop.
+ * A Project's device is resized here rather than in the browser, so the island
+ * only ever downloads what it needs. docs/adr/0002 sets the budget: 512px on
+ * phones, 1024px on desktop. A Project without one sends nothing.
  */
 
 /** Top to bottom. The schema in content.config.ts enforces the same set. */
@@ -27,10 +27,13 @@ export async function getShelfSections(): Promise<ShelfSection[]> {
 
     const projects = await Promise.all(
       inTheme.map(async (entry) => {
-        const [small, large] = await Promise.all([
-          getImage({ src: entry.data.cover, width: 512, format: 'webp' }),
-          getImage({ src: entry.data.cover, width: 1024, format: 'webp' }),
-        ]);
+        const device = entry.data.cover;
+        const [small, large] = device
+          ? await Promise.all([
+              getImage({ src: device, width: 512, format: 'webp' }),
+              getImage({ src: device, width: 1024, format: 'webp' }),
+            ])
+          : [null, null];
         return {
           slug: entry.data.slug,
           title: entry.data.title,
@@ -39,7 +42,7 @@ export async function getShelfSections(): Promise<ShelfSection[]> {
           tags: entry.data.tags,
           summary: entry.data.summary,
           theme: entry.data.theme,
-          art: { small: small.src, large: large.src },
+          art: small && large ? { small: small.src, large: large.src } : null,
         };
       })
     );

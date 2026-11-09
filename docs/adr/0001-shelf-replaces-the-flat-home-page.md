@@ -77,3 +77,30 @@ The Shelf itself is no longer code geometry either; see `docs/adr/0003`. The Box
 modelled does not reopen the objection above, because there is **one** scripted book that
 every Project reuses, and the Cover and Spine are still painted per Project in the browser.
 Adding a Project is still a Markdown file.
+
+## Addendum, 2026-11-09: the Cover is a cloth case, and the art is a Device
+
+"Covers become real design work. Five hand-designed Covers" is withdrawn. The
+Cover was the last part of the Box still drawn as a board game box — a publisher's
+band across the top, the art in a window, the title under it, the tags along the
+bottom edge standing in for player count and play time — and it survived the pivot
+to books only because nobody had looked at it since.
+
+It is now what the Spine is: cloth, with a blind frame pressed into it, the title
+blocked on it and the tags at the foot. There is no art window.
+
+That is not only a change of layout. Of the five images in `src/assets/covers/`,
+three were UI screenshots at wide aspect ratios — a dashboard at 2880x1400 among
+them — and no frame rescues a dashboard seen at two hundred pixels. A screenshot is
+evidence and a cover is a sign; the evidence was already in the Write-up, and every
+one of those five files was byte-identical to an image the Write-up already served.
+
+So `cover` becomes **optional**, and means a **Device**: one flat mark blocked on the
+cloth. Quibble has one. The other four are blind-stamped and carry the site's
+asterisk until a mark is drawn for them, which is a far smaller job than designing a
+cover and is a file drop when it is done.
+
+A dust jacket was considered, since a jacket is where art lives on a real hardback
+and it would have kept the screenshots. Rejected for now: a jacket covers the
+spine, so it replaces the binding rather than building on it, and there is no point
+wrapping a good binding round a screenshot.

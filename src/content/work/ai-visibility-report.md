@@ -8,7 +8,6 @@ description: "How I built an AI citation tracker on top of Peekaboo to see how W
 summary: "An off-the-shelf AI visibility report, reworked into a tool a team can review every two weeks and act on."
 dek: "An AI citation tracker I built on top of Peekaboo to see how WBM shows up in AI answers, and where we don't."
 theme: "Built for Work"
-cover: "../../assets/covers/ai-visibility-report.png"
 ---
 <figure class="cs-fig">
   <img src="/assets/ai-visibility-overview.png" alt="The dashboard's Overview tab: KPI cards for AI visibility, model runs, average score, citations, sentiment and position, above a visibility-over-time line chart and a competitor-mentions chart with anonymized competitors" width="2880" height="1400">

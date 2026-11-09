@@ -7,7 +7,6 @@ date: 2026-07-10
 description: "How I built an AI GTM system in Claude Code using context files, skills, agents, and live data, so no task starts from scratch."
 summary: "An AI GTM system in Claude Code that knows our company, customers, competitors, and business context."
 theme: "Built for Work"
-cover: "../../assets/covers/ai-marketing-system.png"
 ---
 <section class="cs-sec">
   <p><strong>Tools:</strong> Claude Code &middot; GA4 &middot; Google Search Console</p>

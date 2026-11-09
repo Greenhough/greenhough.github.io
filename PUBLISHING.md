@@ -118,7 +118,7 @@ description: "The meta description. Roughly 110-155 characters."
 summary: "The one-line card text shown on /work and on the home page."
 dek: "An optional standfirst line, shown under the title on the write-up itself."
 theme: "Built for Myself"
-cover: "../../assets/covers/the-project-name.png"
+cover: "../../assets/covers/the-project-name.png"   # optional
 ---
 <section class="cs-sec">
   <h2 class="cs-title"><span class="num">01</span>Why I built it</h2>
@@ -190,11 +190,16 @@ rather than shipping a broken page. The schema lives in `src/content.config.ts`.
 | `summary` | yes | The one-line card text on `/work` and on the home page. |
 | `dek` | no | A standfirst line under the title on the write-up itself. |
 | `theme` | yes | `Built for Myself` or `Built for Work`. The Section this Project sits in on the Shelf. |
-| `cover` | yes | Path to the Cover art in `src/assets/covers/`. Commit the full-resolution file; Astro resizes it. |
+| `cover` | no | The Project's device: a flat mark blocked on the Cover, in `src/assets/covers/`. Leave it out and the Box carries the site's asterisk. |
 
 `description` and `summary` do different jobs: `description` is written for search
 results and link previews, `summary` is written for someone scanning a list of
 projects. `dek` is the line that sets up the write-up itself.
+
+A `cover` is a **mark, not a screenshot**. The Cover is bound in cloth and the
+device is blocked on it small, so one flat shape in one or two colours works and
+a screenshot of a dashboard is grey mush. Screenshots belong in the write-up.
+A transparent PNG is ideal; without a `cover` the Box is simply blind-stamped.
 
 Add a `spine` when the title is long. The Spine is read edge-on from across a
 room, so the painted title shrinks to fit and a descriptive title ends up too

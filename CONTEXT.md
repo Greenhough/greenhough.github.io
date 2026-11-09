@@ -38,8 +38,12 @@ A Project's physical form on the Shelf — a clothbound hardback with a Cover, a
 _Avoid_: card, tile, model, item
 
 **Cover**:
-The front board of a Box. Hand-designed per Project.
+The front board of a Box, bound in the Theme's cloth with the title blocked on it. Carries a Project's Device if it has one.
 _Avoid_: art, thumbnail, hero image
+
+**Device**:
+A Project's mark, blocked on its Cover. A flat shape, not a screenshot. Optional: a Box without one carries the site's asterisk.
+_Avoid_: logo, icon, thumbnail
 
 **Spine**:
 The rounded back of a Box, and what is visible while it is shelved. Bound in the Theme's cloth and stamped with the title, generated from the Project's data.
