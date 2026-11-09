@@ -2,3 +2,6 @@ node_modules/
 dist/
 .astro/
 .DS_Store
+
+# Blender preview renders; the .glb and baked maps are committed, these are not
+build/
