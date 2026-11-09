@@ -443,12 +443,12 @@ def unwrap_all(parts, margin=0.004):
     # the same texel budget as a whole shelf face.
     bpy.ops.uv.select_all(action="SELECT")
     bpy.ops.uv.average_islands_scale()
-    bpy.ops.uv.pack_islands(margin=0.012, rotate=True)
+    bpy.ops.uv.pack_islands(margin=0.02, rotate=True)
 
     bpy.ops.object.mode_set(mode="OBJECT")
 
 
-def bake_combined(parts, path, size=2048, samples=64, margin=16):
+def bake_combined(parts, path, size=2048, samples=64, margin=24):
     """
     Bake the lit result into one texture.
 
