@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted
 date: 2026-11-09
 ---
 
@@ -24,17 +24,25 @@ room.
 Agreed before building, because guessing at it is what cost the two attempts recorded
 in `docs/adr/0003`:
 
-- **One room, seen from a doorway.** Four surfaces that actually end: a floor with an
-  edge, two walls, a doorway. Not a large space — a room you could photograph from one
-  corner.
+- **One room, closed.** Three walls that meet the floor at a skirting board, and a
+  doorway. The floor stops because the room stops, which is the only answer to its edge
+  that does not need maintaining once views are added. Not a large space — a room you
+  could photograph from one corner.
 - **A window**, on the wall the daylight already claims to come from. The light in the
   scene is currently unexplained; a window explains it and is the single object that
   does most for the room.
-- **A desk with work on it.** Papers, a mug, the things that accumulate. This is where
-  **Posts** live, and Posts have never had a physical home: they are the one kind of
-  content the Shelf cannot hold.
-- **A pinboard or posters** on the wall. Cheap to model, carries personality, and can
-  hold real artwork later.
+- **A desk with work on it.** A mug, the things that accumulate, and **the latest Post**
+  as a single sheet, painted per Post the way a Box is painted per Project. Clicking it
+  opens that Post; everything older is a link. Posts have never had a physical home —
+  they are the one kind of content the Shelf cannot hold — and this gives them one
+  without the desk having to hold an unbounded and growing number of them.
+- **A stack of books on the desk**, lying flat: *Atomic Habits*, *The Sales Enablement
+  Framework*, *Good to Great*, *Gap Selling*. Real books, read ones, not Projects. See
+  below, because a book in this scene already means something specific.
+- **A pinboard** on the wall, with real pictures pinned to it. Dressing, deliberately:
+  it is not navigation and nothing on it is clickable. The site has no About page for a
+  fourth view to point at, and a board that is only looked at can be given a job later
+  without undoing anything.
 - **Plants and clutter.** Objects with no navigational job at all. This is the part that
   makes it a room rather than a diagram, and it is the part most likely to be cut for
   being "not load-bearing". It is load-bearing.
@@ -45,6 +53,27 @@ not screenshots — keeping it means the Shelf and room already baked do not hav
 baked again. The reference is a night scene and its mood is largely the night. We are
 taking its *density*, not its hour.
 
+## The desk's books are not Projects
+
+A book in this scene means a Project. That is the site's one load-bearing metaphor and it
+was arrived at expensively, so putting four books on the desk that are *not* Projects is
+worth being deliberate about rather than letting it happen as dressing.
+
+It holds, for three reasons that all have to be true at once:
+
+- **They lie flat in a stack.** A Project stands on the Shelf, spine out, in a row of its
+  own kind. A pile on a desk is not that shape and does not read as that row.
+- **They are not on the Shelf.** The Shelf is the thing `Work` goes to. Nothing on the
+  desk is in it.
+- **Their titles are other people's.** *Good to Great* is visibly not something built here,
+  which is the whole point of them being there.
+
+They are also nearly free: the same `book.glb` the Boxes use, turned on its side, lettered
+by the same `paintSpine` that letters a Project — which is what a stack shows you anyway.
+
+If they ever do read as Projects, the fix is to stop lettering them rather than to remove
+them. A visitor clicking one and getting nothing is the failure to watch for.
+
 ## How the camera behaves
 
 It does not roam. There is no walking, no orbit, no free look. The camera moves between
@@ -54,11 +83,12 @@ a small number of fixed, composed views, each one a place in the room:
 |---|---|
 | Doorway | The whole room, on arrival |
 | Shelf | The Shelf, as the current rig frames it |
-| Desk | Posts |
-| Board | The pinboard |
+| Desk | The latest Post, and the books |
 
 The navigation drives it. `Work` goes to the Shelf, `Writing` goes to the Desk. A view
 is a camera position and a target, authored by hand, and adding one is adding a row.
+There is no view for the pinboard: it has no nav item to be reached by, so it is seen
+in frame from the Doorway rather than visited.
 
 This is also what the entrance becomes. **The door is already open and the first frame is
 the doorway.** The camera's first move, doorway to Shelf, is the entrance — there is no
@@ -99,11 +129,10 @@ its hour is changed. If night is wanted later, it is a re-bake and a palette, no
 
 ## Consequences
 
-- **The backdrop becomes a room, so its edges become real.** The far-edge fade to page
-  colour works because the camera only ever looks one way. Once the camera visits a desk
-  and a board, it will see where the floor stops. Either the room gets a boundary that
-  bears looking at, or the fade is tuned per view — and the second is a trick that will
-  need maintaining every time a view is added.
+- **The far-edge fade goes.** It worked because the camera only ever looked one way, and
+  it was a per-view trick waiting to happen. Closing the room retires it: the boundary is
+  a wall and a skirting board, which bears being looked at from any view and needs no
+  tuning when a view is added.
 - **The bake gets bigger.** More surfaces, more atlas. `docs/adr/0002`'s 1.5MB budget stands
   and is not in danger yet — the page is near 600KB — but the room is the first thing that
   could threaten it, and the atlas should be measured per addition rather than at the end.
@@ -116,11 +145,3 @@ its hour is changed. If night is wanted later, it is a re-bake and a palette, no
   camera unchanged; then the dressing; then the views and the navigation; then the doorway
   move. Nothing here needs to land at once, and the history of this scene says that things
   which land at once do not get looked at properly.
-
-## Open
-
-- **The floor's edge** has no answer yet. A rug and a chair were offered and not taken, so
-  the room needs some other reason for the floor to stop.
-- **The board's job.** It is dressing in this ADR. It could be navigation — About, or
-  whatever a fourth view would be — and the site has no About page today.
-- **Whether the desk is where Posts are read** or only where the link to them lives.
