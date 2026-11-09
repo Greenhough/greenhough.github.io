@@ -106,29 +106,44 @@ export function Scene({
 
         An environment rather than bare lights: a Box sitting in a room is lit
         from every direction, and three directional lights cannot fake that.
-        The panels mirror the Blender scene — warm key where the window is,
-        cool sky opposite, warm bounce up off the floor — so a real-time Box
-        and the baked room read as one daylight instead of two.
+        The panels mirror the Blender scene, so a real-time Box and the baked
+        room read as one evening rather than two.
+
+        They moved when the room did. docs/adr/0004 took the room to evening,
+        and this is the half of that which is not baked: the key is now the
+        lamp on the right, the fill is the dusk window behind on the left, and
+        both are much weaker than daylight was. Left as they were, these put a
+        daylit Box in a night room, which is the "second sun" fault from
+        docs/adr/0003 wearing a different hat.
       */}
       <Environment resolution={128}>
-        <Lightformer intensity={2.6} position={[-3, 2, 3]} scale={[5, 5, 1]} color="#fff2dd" />
-        <Lightformer intensity={0.7} position={[3, 1, 2]} scale={[4, 4, 1]} color="#aebfd8" />
+        {/* The lamp, camera-right and a little forward of the Shelf, where
+            scripts/shelf.py stands it. Warm, and by far the strongest: at this
+            hour it is doing the work the window used to do. */}
+        <Lightformer intensity={3.1} position={[2.6, 0.5, 1.5]} scale={[4, 4, 1]} color="#ffd9a2" />
+        {/* The window, back-left and behind the Shelf. Cool, dim, and opposite
+            the lamp — that opposition is what models a Box at night. */}
+        <Lightformer intensity={0.85} position={[-2.4, 0.5, -1.8]} scale={[4, 4, 1]} color="#5d7fc4" />
+        {/* What comes back off the floor. Very little; a dark floor at night
+            returns almost nothing. */}
         <Lightformer
-          intensity={0.55}
-          position={[0, -2.2, 1.5]}
+          intensity={0.22}
+          position={[0.4, -2.2, 1.2]}
           rotation={[-Math.PI / 2, 0, 0]}
           scale={[6, 4, 1]}
-          color="#f6e2c8"
+          color="#e9c398"
         />
       </Environment>
 
       {/* Just enough direct light to throw a shadow; the environment does the
-          shading. Ambient stays low or the Boxes flatten out. */}
-      <ambientLight intensity={0.12} />
+          shading. It comes from the lamp's side now, so a Box's shadow falls
+          the same way as the carcass's does in the bake. Ambient is lower than
+          daylight wanted and faintly blue, standing for the window. */}
+      <ambientLight intensity={0.06} color="#9fb2d8" />
       <directionalLight
-        position={[-2.6, 1.6, 2.2]}
-        intensity={0.9}
-        color="#fff4e2"
+        position={[2.6, 1.0, 1.6]}
+        intensity={0.75}
+        color="#ffd9a6"
         castShadow
         shadow-mapSize={[1024, 1024]}
         shadow-bias={-0.0004}
@@ -166,7 +181,7 @@ export function Scene({
 
       <ContactShadows
         position={[0, -(sections.length * (SHELF.openingHeight + SHELF.plank)) / 2 - 0.02, 0]}
-        opacity={0.4}
+        opacity={0.28}
         scale={6}
         blur={2.4}
         far={2}

@@ -86,6 +86,20 @@ ROOM = {
 # the floor stops, which is what docs/adr/0004 closed the room for.
 SKIRTING = {"height": 0.105, "depth": 0.020}
 
+# A floor lamp, camera-right of the carcass. Daylight did not need one; an
+# evening does, and not as dressing: with only a dusk window the room goes
+# nearly black and the Shelf disappears. It stands opposite the window so the
+# warm lamp and the cool sky bracket the carcass from either side, which is
+# most of why an evening interior reads as one.
+LAMP = {
+    "x": 1.62,
+    "z": 0.72,  # a little in front of the carcass, so it rakes the Covers
+    "height": 1.30,  # floor to the underside of the shade
+    "shade_r": 0.17,
+    "shade_h": 0.24,
+    "base_r": 0.15,
+}
+
 # In the back wall, left of the carcass, because that is the only wall the
 # default camera sees all of: at 4.4 units back the left wall is in frame for
 # a 0.8 unit strip and no window would fit in it. Sized and placed so its
@@ -187,6 +201,58 @@ def quad(name, corners, material, facing):
     mesh.update()
     obj = bpy.data.objects.new(name, mesh)
     bpy.context.collection.objects.link(obj)
+    obj.data.materials.append(material)
+    return obj
+
+
+def quad_fan(name, faces, material, facing):
+    """
+    Several coplanar quads as ONE mesh, welded wherever they share a corner.
+
+    This exists for the back wall. Four separate quads around a window opening
+    bake as four islands with four margins and three joins that do not line up
+    to the texel; welded into one mesh they unwrap as one connected island and
+    the joins stop existing. Vertices are merged by position, so the caller
+    only has to list each face's corners and get the shared ones exactly equal.
+    """
+    index = {}
+    verts = []
+    polys = []
+    for corners in faces:
+        pts = [Vector(c) for c in corners]
+        normal = (pts[1] - pts[0]).cross(pts[2] - pts[0])
+        if normal.dot(Vector(facing)) < 0:
+            pts.reverse()
+        poly = []
+        for pt in pts:
+            key = (round(pt.x, 6), round(pt.y, 6), round(pt.z, 6))
+            if key not in index:
+                index[key] = len(verts)
+                verts.append((pt.x, -pt.z, pt.y))  # site -> blender
+            poly.append(index[key])
+        polys.append(tuple(poly))
+
+    mesh = bpy.data.meshes.new(name)
+    mesh.from_pydata(verts, [], polys)
+    mesh.update()
+    obj = bpy.data.objects.new(name, mesh)
+    bpy.context.collection.objects.link(obj)
+    obj.data.materials.append(material)
+    return obj
+
+
+def cylinder(name, radius, height, centre, material, caps=True, segments=40):
+    """A vertical cylinder. Blender is Z-up, so upright needs no rotation."""
+    bpy.ops.mesh.primitive_cylinder_add(
+        radius=radius,
+        depth=height,
+        vertices=segments,
+        location=(centre[0], -centre[2], centre[1]),
+        end_fill_type="NGON" if caps else "NOTHING",
+    )
+    obj = bpy.context.active_object
+    obj.name = name
+    bpy.ops.object.shade_smooth_by_angle(angle=math.radians(35))
     obj.data.materials.append(material)
     return obj
 
@@ -428,6 +494,48 @@ def emission_material(name, colour, strength):
     return mat
 
 
+def sky_material(name, low, high, strength):
+    """
+    Emission with a vertical gradient, for what is behind the glass.
+
+    The daylit window failed mostly because it was one flat value: a surface
+    with no variation across it reads as a lit panel, not as a distance. A
+    gradient is the cheapest thing that says there is a sky out there, and at
+    dusk it is also the true shape of one — deeper overhead, warmer down
+    towards where the sun went.
+    """
+    mat = bpy.data.materials.new(name)
+    mat.use_nodes = True
+    nt = mat.node_tree
+    nt.nodes.clear()
+    out = nt.nodes.new("ShaderNodeOutputMaterial")
+    emit = nt.nodes.new("ShaderNodeEmission")
+    emit.inputs["Strength"].default_value = strength
+
+    # Object coordinates rather than UVs: the glass is unwrapped with
+    # everything else into a shared atlas, so its UVs are wherever the packer
+    # put them. Its own Z is the one axis that still means "up".
+    coord = nt.nodes.new("ShaderNodeTexCoord")
+    sep = nt.nodes.new("ShaderNodeSeparateXYZ")
+    ramp = nt.nodes.new("ShaderNodeValToRGB")
+    # The glass spans the window's height about its own origin; map that to 0-1.
+    scale = nt.nodes.new("ShaderNodeMapRange")
+    scale.inputs["From Min"].default_value = FLOOR_Y + WINDOW["sill"]
+    scale.inputs["From Max"].default_value = FLOOR_Y + WINDOW["sill"] + WINDOW["height"]
+
+    ramp.color_ramp.elements[0].position = 0.0
+    ramp.color_ramp.elements[0].color = (*low, 1)
+    ramp.color_ramp.elements[1].position = 1.0
+    ramp.color_ramp.elements[1].color = (*high, 1)
+
+    nt.links.new(coord.outputs["Object"], sep.inputs["Vector"])
+    nt.links.new(sep.outputs["Z"], scale.inputs["Value"])
+    nt.links.new(scale.outputs["Result"], ramp.inputs["Fac"])
+    nt.links.new(ramp.outputs["Color"], emit.inputs["Color"])
+    nt.links.new(emit.outputs["Emission"], out.inputs["Surface"])
+    return mat
+
+
 def room_bounds():
     """The six numbers everything in the room is placed against."""
     return {
@@ -466,23 +574,37 @@ def build_window(wall_mat, trim_mat):
     back, reveal = ROOM["back"], WINDOW["reveal"]
     parts = []
 
-    # The back wall, as four panels around the opening rather than one with a
-    # hole in it. A quad cannot have a hole and a wall does not need to be one
-    # mesh.
-    for name, x0, x1, y0, y1 in (
-        ("Pier.L", r["x0"], w["x0"], r["y0"], r["y1"]),
-        ("Pier.R", w["x1"], r["x1"], r["y0"], r["y1"]),
-        ("Apron", w["x0"], w["x1"], r["y0"], w["y0"]),
-        ("Lintel", w["x0"], w["x1"], w["y1"], r["y1"]),
-    ):
-        parts.append(
-            quad(
-                f"Room.Wall.{name}",
-                [(x0, y0, back), (x1, y0, back), (x1, y1, back), (x0, y1, back)],
-                wall_mat,
-                (0, 0, 1),
-            )
+    # The back wall: one mesh, four faces, welded at the edges around the
+    # opening.
+    #
+    # It was four separate objects, which is simpler and was wrong. Separate
+    # objects get separate UV islands, each with its own bake margin, and the
+    # three joins between them never line up to the texel — so the wall
+    # carried faint vertical seams. Daylight blew that wall out and hid them;
+    # evening lights it with a soft gradient and shows every one. Welded, the
+    # four faces unwrap as a single connected island and there is nothing to
+    # misalign.
+    parts.append(
+        quad_fan(
+            "Room.Wall.Back",
+            [
+                # bottom strip, full width, below the opening
+                [(r["x0"], r["y0"], back), (r["x1"], r["y0"], back),
+                 (r["x1"], w["y0"], back), (r["x0"], w["y0"], back)],
+                # left pier, between sill and head
+                [(r["x0"], w["y0"], back), (w["x0"], w["y0"], back),
+                 (w["x0"], w["y1"], back), (r["x0"], w["y1"], back)],
+                # right pier
+                [(w["x1"], w["y0"], back), (r["x1"], w["y0"], back),
+                 (r["x1"], w["y1"], back), (w["x1"], w["y1"], back)],
+                # top strip, full width, above the opening
+                [(r["x0"], w["y1"], back), (r["x1"], w["y1"], back),
+                 (r["x1"], r["y1"], back), (r["x0"], r["y1"], back)],
+            ],
+            wall_mat,
+            (0, 0, 1),
         )
+    )
 
     # The reveal: the four faces of the wall's own thickness, seen because the
     # glass is set back from the room side of the wall.
@@ -501,7 +623,7 @@ def build_window(wall_mat, trim_mat):
     for name, pts, facing in jambs:
         parts.append(quad(f"Room.Reveal.{name}", pts, trim_mat, facing))
 
-    # The glass. Emissive, and set not to cast shadow, so the daylight coming
+    # The glass. Emissive, and set not to cast shadow, so the light coming
     # through is an area light outside while this is only what the eye sees.
     # One surface doing both jobs means choosing between a window that looks
     # right and a window that lights right.
@@ -514,10 +636,11 @@ def build_window(wall_mat, trim_mat):
             (w["x1"] + pad, w["y1"] + pad, w["z"]),
             (w["x0"] - pad, w["y1"] + pad, w["z"]),
         ],
-        # Just reaching white. The glass has to be the brightest thing in the
-        # atlas, and the atlas clips at 1.0 with nothing to roll it back, so
-        # anything higher only spreads flat white across the frame.
-        emission_material("Daylight", (0.86, 0.91, 1.0), 1.0),
+        # Dusk: deep blue overhead falling to a warm band at the bottom, where
+        # the sun has just gone. Bright enough to be the brightest thing in
+        # frame and no brighter — the atlas clips at 1.0 with nothing to roll
+        # it back, and a clipped window is the flat panel this replaced.
+        sky_material("Dusk", low=(0.52, 0.34, 0.26), high=(0.055, 0.085, 0.18), strength=1.0),
         (0, 0, 1),
     )
     # Seen by the camera and by nothing else. Without this the glass is a
@@ -556,9 +679,40 @@ def build_window(wall_mat, trim_mat):
     return parts
 
 
+def build_lamp():
+    """
+    The floor lamp. A visible one, because an unexplained pool of light is the
+    exact fault the window was put in to fix, and at this hour the lamp is
+    doing most of the lighting.
+
+    The shade is emissive and otherwise ordinary: it is opaque, so it blocks
+    the bulb sideways and throws the cone up and down that says "shade", and
+    it glows on camera because a linen shade with a bulb in it does. This is
+    the opposite arrangement to the glass, which is emissive but invisible to
+    every ray except the camera's — there the light comes from a lamp behind
+    it, here the light comes from inside.
+    """
+    metal = flat_material("LampMetal", (0.052, 0.047, 0.043), roughness=0.38)
+    shade = emission_material("LampShade", (1.0, 0.78, 0.52), 1.4)
+    x, z, h = LAMP["x"], LAMP["z"], LAMP["height"]
+    return [
+        cylinder("Room.Lamp.Base", LAMP["base_r"], 0.022, (x, FLOOR_Y + 0.011, z), metal),
+        cylinder("Room.Lamp.Stem", 0.011, h, (x, FLOOR_Y + h / 2, z), metal),
+        cylinder(
+            "Room.Lamp.Shade",
+            LAMP["shade_r"],
+            LAMP["shade_h"],
+            (x, FLOOR_Y + h + LAMP["shade_h"] / 2, z),
+            shade,
+            caps=False,  # open top and bottom, so the light goes both ways
+        ),
+    ]
+
+
 def build_room():
     """
-    A closed room: floor, ceiling, three walls, a skirting board and a window.
+    A closed room: floor, ceiling, three walls, a skirting board, a window and
+    a lamp.
 
     docs/adr/0004 replaced the old floor-and-wall backdrop, whose far edges
     faded to the page colour. The fade worked only because the camera looked
@@ -614,6 +768,7 @@ def build_room():
     ]
 
     parts += build_window(wall_mat, trim_mat)
+    parts += build_lamp()
 
     # Skirting. Chamfered by board()'s bevel, which is the whole reason it is a
     # board rather than another quad: the chamfer catches a line of light along
@@ -636,82 +791,67 @@ def build_room():
     return parts
 
 
-def setup_daylight():
+def setup_evening():
     """
-    Sky fill, the window, and a bounce off the floor.
+    Dusk through the window, a bulb in the lamp, and almost nothing else.
 
-    The window is now a real opening, so the light that was a free-floating
-    area light standing in for one is placed in it and shaped like it. What
-    comes through lands where the hole is, which is the whole point of
-    docs/adr/0004 putting a window in: the daylight stops being unexplained.
+    Three sources where daylight had three, but the balance is inverted. The
+    window was the key and is now the cool fill, dim and blue; the lamp is the
+    key and is warm; the world barely registers, because at this hour the only
+    thing outside the open fourth side is more evening.
 
-    A second, softer key keeps the carcass's front faces modelled. It stands
-    for light from the open fourth side, which is where the camera is and
-    where a room of this shape would have its other window. Without it the
-    Covers are lit edge-on, and they were approved lit from the front.
+    That inversion is the whole point of going to evening. Daylight lit every
+    surface at once and flattened the room; two small sources of opposite
+    colour, well apart, leave most of it in shadow and model what is left.
     """
     world = bpy.data.worlds.new("World")
     bpy.context.scene.world = world
     world.use_nodes = True
     bg = world.node_tree.nodes["Background"]
-    bg.inputs["Color"].default_value = (0.58, 0.66, 0.78, 1)
-    # Far weaker than the open backdrop wanted, for two reasons. The fourth
-    # side is a hole the full width of the room, so the world is a sky-sized
-    # panel of flat frontal fill that washes every shadow out of it. And a
-    # closed room bounces: the same energies that were right in the open light
-    # this about a stop hotter, which the atlas cannot absorb — see the note on
-    # clipping in standard_view(). Every level below was set together with this
-    # one against a baked render, not a lit one.
-    # Much weaker than the open backdrop wanted. The fourth side is a hole the
-    # full width of the room, so the world is a sky-sized panel of flat frontal
-    # fill: at the old strength it washed every shadow out of the room.
-    bg.inputs["Strength"].default_value = 0.063
+    bg.inputs["Color"].default_value = (0.07, 0.11, 0.24, 1)
+    # Nearly nothing. The fourth side is a hole the full width of the room, so
+    # anything here is flat frontal fill — and that is what washed the daylit
+    # room out. At this hour it has no excuse at all.
+    bg.inputs["Strength"].default_value = 0.035
 
     w = window_bounds()
-    # Just behind the glass, sized to the opening, aimed into the room and a
-    # little down.
-    #
-    # Two things set that position. Further out, behind the wall, every shadow
-    # ray from the room has to thread the opening and most are stopped by the
-    # wall instead, which is the slowest case Cycles has — moving the light to
-    # the aperture cut the bake from thirty-five minutes to a few. Flush with
-    # the glass, though, nothing lights the reveal, and the sill goes black:
-    # it faces up into a recess the light is pointing out of. Sitting a few
-    # centimetres behind the glass lights the recess and still costs nothing.
+    # A few centimetres behind the glass, for the same two reasons as before:
+    # further out and every shadow ray has to thread the opening, flush with
+    # the glass and nothing lights the reveal.
     bpy.ops.object.light_add(
         type="AREA",
         location=(WINDOW["x"], -(w["z"] - 0.06), (w["y0"] + w["y1"]) / 2),
     )
-    sun = bpy.context.active_object
-    sun.name = "Daylight"
-    sun.data.shape = "RECTANGLE"
-    sun.data.size = WINDOW["width"]
-    sun.data.size_y = WINDOW["height"]
-    sun.data.energy = 290
-    sun.data.color = (1.0, 0.97, 0.92)
+    sky = bpy.context.active_object
+    sky.name = "Dusk"
+    sky.data.shape = "RECTANGLE"
+    sky.data.size = WINDOW["width"]
+    sky.data.size_y = WINDOW["height"]
+    sky.data.energy = 42
+    sky.data.color = (0.34, 0.50, 1.0)
     direction = Vector((0, -1.0, -0.22)).normalized()
-    sun.rotation_euler = direction.to_track_quat("-Z", "Y").to_euler()
+    sky.rotation_euler = direction.to_track_quat("-Z", "Y").to_euler()
 
-    # The open side. Soft, broad and well off to camera-left, which is the
-    # direction the Shelf has been lit from since docs/adr/0003.
-    bpy.ops.object.light_add(type="AREA", location=(-2.6, -2.2, 1.6))
-    key = bpy.context.active_object
-    key.name = "OpenSide"
-    key.data.shape = "RECTANGLE"
-    key.data.size = 1.9
-    key.data.size_y = 1.5
-    key.data.energy = 160
-    key.data.color = (1.0, 0.96, 0.9)
-    direction = Vector((0.4, 1.0, -0.25)).normalized()
-    key.rotation_euler = direction.to_track_quat("-Z", "Y").to_euler()
+    # The bulb, inside the shade. A point light rather than an area one: the
+    # shade is what shapes this, and it already does, being opaque.
+    bpy.ops.object.light_add(
+        type="POINT",
+        location=(LAMP["x"], -LAMP["z"], FLOOR_Y + LAMP["height"] + LAMP["shade_h"] / 2),
+    )
+    bulb = bpy.context.active_object
+    bulb.name = "Bulb"
+    bulb.data.energy = 72
+    bulb.data.color = (1.0, 0.76, 0.50)
+    bulb.data.shadow_soft_size = 0.05
 
-    # A low warm bounce off the floor, so the undersides are not dead.
-    bpy.ops.object.light_add(type="AREA", location=(1.4, -1.6, FLOOR_Y + 0.35))
+    # A very low, very warm lift off the floor, so the undersides of the
+    # shelves are dark rather than dead. Smaller than daylight's by a long way.
+    bpy.ops.object.light_add(type="AREA", location=(0.9, -1.1, FLOOR_Y + 0.3))
     bounce = bpy.context.active_object
     bounce.name = "Bounce"
-    bounce.data.size = 3.0
-    bounce.data.energy = 18
-    bounce.data.color = (1.0, 0.88, 0.74)
+    bounce.data.size = 2.4
+    bounce.data.energy = 5
+    bounce.data.color = (1.0, 0.82, 0.62)
     bounce.rotation_euler = (math.radians(-70), 0, math.radians(20))
 
 
@@ -798,27 +938,194 @@ def join_carcass(parts):
     return joined
 
 
-def unwrap_all(parts, margin=0.004):
-    """Unwrap every board in one multi-object edit, so the islands of all of
-    them are packed into a single shared UV space ready for one atlas."""
-    select(parts)
-    bpy.ops.object.mode_set(mode="EDIT")
-    bpy.ops.mesh.select_all(action="SELECT")
-    bpy.ops.uv.smart_project(angle_limit=math.radians(66), island_margin=margin)
-
-    # smart_project packs each object into 0-1 on its own, so across several
-    # objects the islands land on top of each other and bake over one another.
-    # Repacking everything together is what makes a shared atlas actually
-    # shared. average_islands_scale first, so a 45mm board edge does not get
-    # the same texel budget as a whole shelf face.
-    bpy.ops.uv.select_all(action="SELECT")
-    bpy.ops.uv.average_islands_scale()
-    bpy.ops.uv.pack_islands(margin=0.02, rotate=True)
-
-    bpy.ops.object.mode_set(mode="OBJECT")
+def flat_normal(obj):
+    """The shared normal of a flat object, or None if its faces disagree."""
+    polys = obj.data.polygons
+    if not polys:
+        return None
+    n = polys[0].normal.copy()
+    if any(p.normal.dot(n) < 0.999 for p in polys):
+        return None
+    return n
 
 
-def bake_combined(parts, path, size=2048, samples=64, margin=24, name="ShelfBake"):
+def planar_uv(obj, normal):
+    """
+    Map a flat object straight onto the plane it faces, in world units.
+
+    World units rather than 0-1 so every island in the room shares one scale:
+    a 7.4 unit wall gets 7.4 units of UV and a 0.14 unit reveal gets 0.14, so
+    texel density comes out even without anything having to rescale them
+    afterwards.
+
+    This exists because the packer kept cutting the back wall. Its four faces
+    are welded at twelve shared vertices, and smart_project, cube_project and a
+    hand-written contiguous map all ended up as four islands once
+    pack_islands had run — so the shared edges landed on four different texel
+    grids, and every join baked as a thin dark line across the wall. Daylight
+    blew that wall out and hid it; evening lights it with a soft gradient and
+    shows it. It measured 23 levels deep at 2048 and did not shrink with
+    resolution, because it is a mismatch, not a sampling rate.
+    """
+    axes = sorted(range(3), key=lambda i: abs(normal[i]))[:2]
+    uv = obj.data.uv_layers.active or obj.data.uv_layers.new(name="UVMap")
+    for loop in obj.data.loops:
+        co = obj.data.vertices[loop.vertex_index].co
+        uv.data[loop.index].uv = (co[axes[0]], co[axes[1]])
+
+
+def uv_area(obj):
+    """The area an object's islands cover in UV space, by the shoelace rule."""
+    uv = obj.data.uv_layers.active
+    total = 0.0
+    for poly in obj.data.polygons:
+        pts = [uv.data[li].uv for li in poly.loop_indices]
+        acc = 0.0
+        for i, (x1, y1) in enumerate(pts):
+            x2, y2 = pts[(i + 1) % len(pts)]
+            acc += x1 * y2 - x2 * y1
+        total += abs(acc) / 2
+    return total
+
+
+def to_world_scale(obj):
+    """
+    Rescale an object's UVs so one UV unit is one world unit, matching what
+    planar_uv() writes for the flat panels.
+
+    Needed because smart_project normalises whatever it is given into 0-1, and
+    with several objects in one edit it normalises them *together* — so an
+    object's island size says nothing about its real size. Multiplying by the
+    object's own largest dimension looked like it would fix that and does not:
+    it left the lamp's shade at a tenth of its proper size, a dozen texels
+    across, and the shade baked as a grey smudge. The ratio of real area to UV
+    area is the only thing that actually knows the scale.
+    """
+    area = sum(poly.area for poly in obj.data.polygons)
+    mapped = uv_area(obj)
+    if mapped <= 0 or area <= 0:
+        return
+    scale = math.sqrt(area / mapped)
+    uv = obj.data.uv_layers.active
+    for d in uv.data:
+        d.uv = (d.uv[0] * scale, d.uv[1] * scale)
+
+
+def island_bounds(obj):
+    uv = obj.data.uv_layers.active
+    us = [d.uv[0] for d in uv.data]
+    vs = [d.uv[1] for d in uv.data]
+    return min(us), min(vs), max(us) - min(us), max(vs) - min(vs)
+
+
+def shelf_pack_uvs(parts, gap=0.03):
+    """
+    Lay every part's island out by hand, in place of bpy.ops.uv.pack_islands.
+
+    The operator is the reason the back wall seamed: it took a mesh whose UVs
+    were contiguous across its internal edges and handed back four islands on
+    four texel grids. Nothing here splits anything — each object's island is
+    translated as one piece into a cell, so whatever was contiguous stays
+    contiguous.
+
+    A shelf packer: tallest first, filling rows left to right, growing the
+    square until everything fits. Not the tightest packing there is, but the
+    room is two dozen rectangles and the atlas is not the constraint.
+    `gap` is a fraction of the finished atlas, not a distance, because the
+    thing it has to clear is the bake margin — and that is a fraction of the
+    atlas too (bake_combined uses 1.2%). At 3% the islands sit about 61 texels
+    apart at 2048 against a 24 texel margin, so nothing bleeds. Spending a
+    fifth of the atlas on gaps is the cheap side of that trade: the bands it
+    prevents are not subtle.
+    """
+    items = [[obj, *island_bounds(obj)] for obj in parts]
+    items.sort(key=lambda i: -i[4])  # tallest first
+
+    area = sum(w * h for _, _, _, w, h in items)
+    side = math.sqrt(area) * 1.2
+    while True:
+        padding = gap * side
+        placed = []
+        x = y = row_h = 0.0
+        for obj, u0, v0, w, h in items:
+            if x + w + padding > side and x > 0:
+                x = 0.0
+                y += row_h + padding
+                row_h = 0.0
+            if y + h + padding > side:
+                placed = None
+                break
+            placed.append((obj, u0, v0, x + padding / 2, y + padding / 2))
+            x += w + padding
+            row_h = max(row_h, h)
+        if placed is not None:
+            break
+        side *= 1.1
+
+    for obj, u0, v0, px, py in placed:
+        uv = obj.data.uv_layers.active
+        for d in uv.data:
+            d.uv = ((d.uv[0] - u0 + px) / side, (d.uv[1] - v0 + py) / side)
+    print(f"[shelf] packed {len(placed)} islands into {side:.2f} units of atlas")
+
+
+def unwrap_all(parts, margin=0.004, planar=False):
+    """
+    Unwrap every part into one shared UV space, ready for a single atlas.
+
+    `planar` is for the room, and does the whole job by hand: a planar map per
+    flat panel, then shelf_pack_uvs. Its surfaces are flat axis-aligned
+    panels, which map perfectly and pack simply, and the operators were
+    splitting them — see planar_uv(). Anything in the room that is not flat,
+    which is only the lamp's cylinders, still gets smart_project first; the
+    shade is one flat emissive colour and the stem is 11mm of dark metal, so
+    neither minds a crude projection.
+
+    The carcass is boards at many orientations and wants the operators for all
+    of it.
+    """
+    if not planar:
+        select(parts)
+        bpy.ops.object.mode_set(mode="EDIT")
+        bpy.ops.mesh.select_all(action="SELECT")
+        bpy.ops.uv.smart_project(angle_limit=math.radians(66), island_margin=margin)
+        # smart_project packs each object into 0-1 on its own, so across
+        # several objects the islands land on top of each other and bake over
+        # one another. Repacking everything together is what makes a shared
+        # atlas actually shared. average_islands_scale first, so a 45mm board
+        # edge does not get the same texel budget as a whole shelf face.
+        bpy.ops.uv.select_all(action="SELECT")
+        bpy.ops.uv.average_islands_scale()
+        bpy.ops.uv.pack_islands(margin=0.02, rotate=True)
+        bpy.ops.object.mode_set(mode="OBJECT")
+        return
+
+    curved = []
+    for obj in parts:
+        normal = flat_normal(obj)
+        if normal is None:
+            curved.append(obj)
+        else:
+            if not obj.data.uv_layers:
+                obj.data.uv_layers.new(name="UVMap")
+            planar_uv(obj, normal)
+
+    if curved:
+        select(curved)
+        bpy.ops.object.mode_set(mode="EDIT")
+        bpy.ops.mesh.select_all(action="SELECT")
+        bpy.ops.uv.smart_project(angle_limit=math.radians(66), island_margin=margin)
+        bpy.ops.object.mode_set(mode="OBJECT")
+        # smart_project leaves them in a shared 0-1; put them on the same
+        # world-unit scale as the flat panels so the packer treats everything
+        # alike and the texel density comes out even.
+        for obj in curved:
+            to_world_scale(obj)
+
+    shelf_pack_uvs(parts)
+
+
+def bake_combined(parts, path, size=2048, samples=64, margin=None, name="ShelfBake"):
     """
     Bake the lit result into one texture.
 
@@ -827,6 +1134,15 @@ def bake_combined(parts, path, size=2048, samples=64, margin=24, name="ShelfBake
     Cycles result for the cost of one texture lookup. This is the whole bet in
     ADR 0003, and the reason the Shelf can look rendered without being rendered.
     """
+    # The margin has to stay inside the gap pack_islands left, or each island
+    # bleeds into its neighbours and the atlas grows hard rectangular bands.
+    # A fixed pixel count cannot do that at two different atlas sizes: 24px is
+    # 1.2% of 2048 and a safe fit under the 2% packing margin, but 3.1% of 768
+    # and well over it. Previews baked small were showing seams the real bake
+    # does not have, which makes the fast loop worse than useless.
+    if margin is None:
+        margin = max(4, round(size * 0.012))
+
     image = bpy.data.images.new(name, width=size, height=size)
 
     # Every material in play needs the target image as its active node, or the
@@ -1432,7 +1748,7 @@ def main():
         for obj in bk:
             obj.location.z += drop
         build_room()
-        setup_daylight()
+        setup_evening()
         setup_box_camera(centre_z=drop, view=args.book_view)
         setup_render(samples=args.samples)
         bpy.context.scene.render.filepath = args.book_render
@@ -1442,7 +1758,7 @@ def main():
 
     parts = build_carcass()
     room = build_room()
-    setup_daylight()
+    setup_evening()
     setup_camera(args.view)
     setup_render(width=args.width, height=args.height, samples=args.samples)
 
@@ -1466,7 +1782,7 @@ def main():
             name="CarcassBake",
         )
 
-        unwrap_all(room, margin=0.01)
+        unwrap_all(room, margin=0.01, planar=True)
         room_img = bake_combined(
             room,
             args.bake_room or "/tmp/room-bake.png",

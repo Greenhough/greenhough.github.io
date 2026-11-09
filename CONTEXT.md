@@ -30,8 +30,12 @@ The room the Shelf stands in. Floor, ceiling, three walls, a skirting board and 
 _Avoid_: backdrop, environment, set, background, scene
 
 **Window**:
-The opening in the Room's back wall, left of the Shelf. The scene's daylight comes from it, which is the reason it exists.
+The opening in the Room's back wall, left of the Shelf. Shows a dusk sky and gives the Room its cool light, opposite the Lamp.
 _Avoid_: light, lightbox, panel
+
+**Lamp**:
+The floor lamp to the right of the Shelf. The Room's warm light and most of what makes it visible, since the Window alone leaves it nearly black.
+_Avoid_: light, lighting, practical
 
 **Section**:
 A labelled run of the Shelf holding the Projects of one Theme.
