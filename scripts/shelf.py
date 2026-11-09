@@ -98,7 +98,36 @@ LAMP = {
     "shade_r": 0.17,
     "shade_h": 0.24,
     "base_r": 0.15,
+    "stem_r": 0.011,
 }
+
+# The desk, under the window. Its top lands 80mm below the window sill.
+DESK = {
+    "x0": -2.72,
+    "x1": -0.95,
+    "z0": -0.49,  # clear of the skirting
+    "z1": 0.13,
+    "height": 0.74,
+    "top": 0.04,
+    "leg": 0.05,
+}
+
+# A second, smaller lamp standing on the desk. A desk away from the floor
+# lamp sits dark, and a second pool of warm light is most of what makes an
+# evening room read as somewhere someone works.
+DESK_LAMP = {
+    "x": -2.46,
+    "z": -0.31,
+    "height": 0.30,
+    "shade_r": 0.095,
+    "shade_h": 0.125,
+    "base_r": 0.072,
+    "stem_r": 0.008,
+}
+
+# On the back wall, right of the carcass and above the floor lamp's shade,
+# so the lamp lights it.
+PINBOARD = {"x0": 1.08, "x1": 2.36, "y0": 0.36, "y1": 1.12}
 
 # In the back wall, left of the carcass, because that is the only wall the
 # default camera sees all of: at 4.4 units back the left wall is in frame for
@@ -110,7 +139,6 @@ WINDOW = {
     "sill": 0.82,
     "height": 1.58,
     "reveal": 0.14,  # how far the opening is recessed, so it has jambs
-    "bars": 2,  # glazing bars, giving three tall panes
 }
 
 
@@ -652,18 +680,9 @@ def build_window(wall_mat, trim_mat):
     glass.visible_transmission = False
     parts.append(glass)
 
-    # Glazing bars, standing in the opening. Three tall panes rather than one
-    # sheet: the bars are what give the bright rectangle a scale.
-    for i in range(1, WINDOW["bars"] + 1):
-        x = w["x0"] + (w["x1"] - w["x0"]) * i / (WINDOW["bars"] + 1)
-        parts.append(
-            board(
-                f"Room.Bar.{i}",
-                (0.026, w["y1"] - w["y0"], 0.028),
-                (x, (w["y0"] + w["y1"]) / 2, w["z"] + 0.02),
-                trim_mat,
-            )
-        )
+    # No glazing bars. Three tall panes divided by white uprights read as a
+    # cell window, which is not the association wanted. One sheet of glass,
+    # and the dusk gradient does the work the bars were supposed to do.
 
     # A sill proud of the wall, which is the detail that stops the opening
     # reading as a cut-out.
@@ -679,11 +698,9 @@ def build_window(wall_mat, trim_mat):
     return parts
 
 
-def build_lamp():
+def build_lamp(name, spec, stand_on, metal, shade_mat):
     """
-    The floor lamp. A visible one, because an unexplained pool of light is the
-    exact fault the window was put in to fix, and at this hour the lamp is
-    doing most of the lighting.
+    A lamp: a base, a stem and a drum shade.
 
     The shade is emissive and otherwise ordinary: it is opaque, so it blocks
     the bulb sideways and throws the cone up and down that says "shade", and
@@ -691,22 +708,169 @@ def build_lamp():
     the opposite arrangement to the glass, which is emissive but invisible to
     every ray except the camera's — there the light comes from a lamp behind
     it, here the light comes from inside.
+
+    `stand_on` is the height of whatever it stands on: the floor for the
+    floor lamp, the desk top for the desk lamp.
     """
-    metal = flat_material("LampMetal", (0.052, 0.047, 0.043), roughness=0.38)
-    shade = emission_material("LampShade", (1.0, 0.78, 0.52), 1.4)
-    x, z, h = LAMP["x"], LAMP["z"], LAMP["height"]
+    x, z, h = spec["x"], spec["z"], spec["height"]
     return [
-        cylinder("Room.Lamp.Base", LAMP["base_r"], 0.022, (x, FLOOR_Y + 0.011, z), metal),
-        cylinder("Room.Lamp.Stem", 0.011, h, (x, FLOOR_Y + h / 2, z), metal),
+        cylinder(f"Room.{name}.Base", spec["base_r"], 0.022, (x, stand_on + 0.011, z), metal),
+        cylinder(f"Room.{name}.Stem", spec["stem_r"], h, (x, stand_on + h / 2, z), metal),
         cylinder(
-            "Room.Lamp.Shade",
-            LAMP["shade_r"],
-            LAMP["shade_h"],
-            (x, FLOOR_Y + h + LAMP["shade_h"] / 2, z),
-            shade,
+            f"Room.{name}.Shade",
+            spec["shade_r"],
+            spec["shade_h"],
+            (x, stand_on + h + spec["shade_h"] / 2, z),
+            shade_mat,
             caps=False,  # open top and bottom, so the light goes both ways
         ),
     ]
+
+
+def lamp_bulb_y(spec, stand_on):
+    """Where the bulb sits: the middle of that lamp's shade."""
+    return stand_on + spec["height"] + spec["shade_h"] / 2
+
+
+def build_desk(oak):
+    """
+    The desk, under the window and left of the carcass.
+
+    Under the window because that is where a desk goes, because it is the one
+    stretch of wall the default camera already sees all of, and because it
+    balances the floor lamp on the other side of the Shelf. Its top sits 80mm
+    below the window sill, which is what makes the two read as belonging to
+    the same wall rather than as two objects that happen to be near each other.
+    """
+    d = DESK
+    top_y = FLOOR_Y + d["height"]
+    width = d["x1"] - d["x0"]
+    depth = d["z1"] - d["z0"]
+    parts = [
+        board(
+            "Room.Desk.Top",
+            (width, d["top"], depth),
+            ((d["x0"] + d["x1"]) / 2, top_y - d["top"] / 2, (d["z0"] + d["z1"]) / 2),
+            oak,
+        )
+    ]
+    leg_h = d["height"] - d["top"]
+    inset = d["leg"] / 2 + 0.055
+    for i, x in enumerate((d["x0"] + inset, d["x1"] - inset)):
+        for j, z in enumerate((d["z0"] + inset, d["z1"] - inset)):
+            parts.append(
+                board(
+                    f"Room.Desk.Leg.{i}{j}",
+                    (d["leg"], leg_h, d["leg"]),
+                    (x, FLOOR_Y + leg_h / 2, z),
+                    oak,
+                )
+            )
+    return parts
+
+
+def build_desk_things(metal, pot_mat, leaf_mat):
+    """
+    What is on the desk: a closed laptop and a plant.
+
+    Deliberately spare. A mug, loose papers and a pen pot were all offered and
+    not taken, so this is a tidy desk rather than a busy one, and filling it
+    anyway would be overruling that.
+
+    The stack of read books is not here. Those are lettered at runtime from
+    book.glb, the same geometry and the same painter the Boxes use, because a
+    title baked into the room atlas at this density would be about seventeen
+    texels tall and unreadable.
+    """
+    top_y = FLOOR_Y + DESK["height"]
+    parts = []
+
+    # A closed laptop. Closed rather than open: an open one needs a screen,
+    # and a dark rectangle standing up reads worse than a slab lying down.
+    parts.append(
+        board(
+            "Room.Laptop",
+            (0.33, 0.018, 0.235),
+            (-1.60, top_y + 0.009, -0.17),
+            metal,
+        )
+    )
+
+    # The plant: a pot and six leaves radiating out of it. Three rounded
+    # masses were tried first and read as a mushroom — a plant is given away
+    # by leaves going outwards and upwards, not by a blob on a stalk, so each
+    # one is a stretched sphere tipped away from the centre.
+    px, pz = -1.12, -0.33
+    parts.append(cylinder("Room.Plant.Pot", 0.072, 0.135, (px, top_y + 0.0675, pz), pot_mat))
+    rim = top_y + 0.125
+    for i in range(6):
+        angle = math.tau * i / 6 + 0.4
+        lean = math.radians(34 + 9 * (i % 3))
+        reach = 0.052
+        bpy.ops.mesh.primitive_ico_sphere_add(
+            radius=1.0,
+            subdivisions=2,
+            location=(
+                px + math.cos(angle) * reach,
+                -(pz + math.sin(angle) * reach),
+                rim + 0.055 + 0.012 * (i % 3),
+            ),
+        )
+        leaf = bpy.context.active_object
+        leaf.name = f"Room.Plant.Leaf.{i}"
+        leaf.scale = (0.021, 0.034, 0.075)  # long, and flattened across
+        bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+        leaf.rotation_euler = (math.sin(angle) * lean, -math.cos(angle) * lean, 0)
+        bpy.ops.object.shade_smooth_by_angle(angle=math.radians(40))
+        leaf.data.materials.append(leaf_mat)
+        parts.append(leaf)
+
+    return parts
+
+
+def build_pinboard(cork_mat, paper_mat):
+    """
+    The pinboard, on the back wall right of the carcass.
+
+    docs/adr/0004 settled that it is dressing and not navigation: nothing on
+    it is clickable and the site has no About page for a fourth view to point
+    at. It sits above the floor lamp's shade, so the lamp lights it, and it
+    balances the window and desk on the other side of the Shelf.
+
+    The pinned papers are blank. Real artwork can go on later without moving
+    anything; blank paper at this distance reads as paper, and inventing
+    pictures to fill it would be inventing content.
+    """
+    b = PINBOARD
+    z = ROOM["back"] + 0.012
+    parts = [
+        board(
+            "Room.Pinboard",
+            (b["x1"] - b["x0"], b["y1"] - b["y0"], 0.024),
+            ((b["x0"] + b["x1"]) / 2, (b["y0"] + b["y1"]) / 2, z),
+            cork_mat,
+        )
+    ]
+    pinned = (
+        (-0.36, 0.16, 0.34, 0.26, 3.5),
+        (0.10, 0.19, 0.28, 0.32, -3.0),
+        (-0.24, -0.19, 0.30, 0.22, -4.5),
+        (0.28, -0.17, 0.34, 0.26, 2.5),
+    )
+    cx = (b["x0"] + b["x1"]) / 2
+    cy = (b["y0"] + b["y1"]) / 2
+    for i, (dx, dy, w, h, tilt) in enumerate(pinned):
+        sheet = board(
+            f"Room.Pinned.{i}",
+            (w, h, 0.004),
+            (cx + dx, cy + dy, z + 0.014),
+            paper_mat,
+            bevel=False,
+        )
+        # A slight tilt, because nothing pinned to a board is ever square.
+        sheet.rotation_euler = (0, math.radians(tilt), 0)
+        parts.append(sheet)
+    return parts
 
 
 def build_room():
@@ -768,7 +932,32 @@ def build_room():
     ]
 
     parts += build_window(wall_mat, trim_mat)
-    parts += build_lamp()
+
+    # The dressing, per docs/adr/0004. The desk goes under the window and the
+    # pinboard on the other side of the carcass, so the back wall reads as one
+    # arrangement rather than as a shelf with things scattered round it.
+    lamp_metal = flat_material("LampMetal", (0.052, 0.047, 0.043), roughness=0.38)
+    desk_oak = oak_material("DeskOak", scale=1.4)
+    parts += build_lamp(
+        "Lamp", LAMP, FLOOR_Y, lamp_metal, emission_material("LampShade", (1.0, 0.78, 0.52), 1.4)
+    )
+    parts += build_desk(desk_oak)
+    parts += build_lamp(
+        "DeskLamp",
+        DESK_LAMP,
+        FLOOR_Y + DESK["height"],
+        lamp_metal,
+        emission_material("DeskShade", (1.0, 0.80, 0.56), 1.3),
+    )
+    parts += build_desk_things(
+        flat_material("Laptop", (0.034, 0.036, 0.039), roughness=0.34),
+        flat_material("Pot", (0.155, 0.085, 0.055), roughness=0.78),
+        flat_material("Leaf", (0.042, 0.098, 0.048), roughness=0.68),
+    )
+    parts += build_pinboard(
+        flat_material("Cork", (0.20, 0.125, 0.065), roughness=0.90),
+        flat_material("Pinned", (0.74, 0.72, 0.68), roughness=0.92),
+    )
 
     # Skirting. Chamfered by board()'s bevel, which is the whole reason it is a
     # board rather than another quad: the chamfer catches a line of light along
@@ -836,13 +1025,26 @@ def setup_evening():
     # shade is what shapes this, and it already does, being opaque.
     bpy.ops.object.light_add(
         type="POINT",
-        location=(LAMP["x"], -LAMP["z"], FLOOR_Y + LAMP["height"] + LAMP["shade_h"] / 2),
+        location=(LAMP["x"], -LAMP["z"], lamp_bulb_y(LAMP, FLOOR_Y)),
     )
     bulb = bpy.context.active_object
     bulb.name = "Bulb"
     bulb.data.energy = 72
     bulb.data.color = (1.0, 0.76, 0.50)
     bulb.data.shadow_soft_size = 0.05
+
+    # The desk lamp. Much smaller than the floor lamp and much closer to what
+    # it lights, so it needs a fraction of the energy to make a pool of the
+    # same strength.
+    bpy.ops.object.light_add(
+        type="POINT",
+        location=(DESK_LAMP["x"], -DESK_LAMP["z"], lamp_bulb_y(DESK_LAMP, FLOOR_Y + DESK["height"])),
+    )
+    desk_bulb = bpy.context.active_object
+    desk_bulb.name = "DeskBulb"
+    desk_bulb.data.energy = 20
+    desk_bulb.data.color = (1.0, 0.78, 0.54)
+    desk_bulb.data.shadow_soft_size = 0.035
 
     # A very low, very warm lift off the floor, so the undersides of the
     # shelves are dark rather than dead. Smaller than daylight's by a long way.
@@ -1018,7 +1220,7 @@ def island_bounds(obj):
     return min(us), min(vs), max(us) - min(us), max(vs) - min(vs)
 
 
-def shelf_pack_uvs(parts, gap=0.03):
+def shelf_pack_uvs(parts, gap=0.015):
     """
     Lay every part's island out by hand, in place of bpy.ops.uv.pack_islands.
 
@@ -1033,17 +1235,19 @@ def shelf_pack_uvs(parts, gap=0.03):
     room is two dozen rectangles and the atlas is not the constraint.
     `gap` is a fraction of the finished atlas, not a distance, because the
     thing it has to clear is the bake margin — and that is a fraction of the
-    atlas too (bake_combined uses 1.2%). At 3% the islands sit about 61 texels
-    apart at 2048 against a 24 texel margin, so nothing bleeds. Spending a
-    fifth of the atlas on gaps is the cheap side of that trade: the bands it
-    prevents are not subtle.
+    atlas too (bake_combined uses 0.5%). At 1.5% the islands sit about 31
+    texels apart at 2048 against a 10 texel margin, so nothing bleeds.
+
+    Both numbers came down when the dressing landed: 35 islands at the old 3%
+    gap spread the room over 25 units of atlas, about 82 texels to the unit,
+    and a sheet of paper pinned to the board was nine texels across and read
+    as a pebble. A 10 texel margin is still three mip levels deep, which is
+    all it has to be for a texture drawn at roughly its own size.
     """
     items = [[obj, *island_bounds(obj)] for obj in parts]
     items.sort(key=lambda i: -i[4])  # tallest first
 
-    area = sum(w * h for _, _, _, w, h in items)
-    side = math.sqrt(area) * 1.2
-    while True:
+    def attempt(side):
         padding = gap * side
         placed = []
         x = y = row_h = 0.0
@@ -1053,14 +1257,28 @@ def shelf_pack_uvs(parts, gap=0.03):
                 y += row_h + padding
                 row_h = 0.0
             if y + h + padding > side:
-                placed = None
-                break
+                return None
             placed.append((obj, u0, v0, x + padding / 2, y + padding / 2))
             x += w + padding
             row_h = max(row_h, h)
-        if placed is not None:
-            break
-        side *= 1.1
+        return placed
+
+    # Grow until it fits, then narrow back down. Growing alone overshoots by
+    # up to the growth step, and every wasted percent of the side is texel
+    # density the room does not get: the atlas is one fixed image however
+    # little of it the islands use.
+    side = math.sqrt(sum(w * h for _, _, _, w, h in items)) * 1.1
+    while attempt(side) is None:
+        side *= 1.15
+    lo, hi = side / 1.15, side
+    for _ in range(14):
+        mid = (lo + hi) / 2
+        if attempt(mid) is None:
+            lo = mid
+        else:
+            hi = mid
+    side = hi
+    placed = attempt(side)
 
     for obj, u0, v0, px, py in placed:
         uv = obj.data.uv_layers.active
@@ -1141,7 +1359,7 @@ def bake_combined(parts, path, size=2048, samples=64, margin=None, name="ShelfBa
     # and well over it. Previews baked small were showing seams the real bake
     # does not have, which makes the fast loop worse than useless.
     if margin is None:
-        margin = max(4, round(size * 0.012))
+        margin = max(4, round(size * 0.005))
 
     image = bpy.data.images.new(name, width=size, height=size)
 
