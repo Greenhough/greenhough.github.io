@@ -200,6 +200,9 @@ A `cover` is a **mark, not a screenshot**. The Cover is bound in cloth and the
 device is blocked on it small, so one flat shape in one or two colours works and
 a screenshot of a dashboard is grey mush. Screenshots belong in the write-up.
 A transparent PNG is ideal; without a `cover` the Box is simply blind-stamped.
+Four of the current marks are drawn by `scripts/devices.mjs` — edit the geometry
+there and run `node scripts/devices.mjs` rather than editing the PNGs. Quibble's
+is the app's own icon and is not in that script.
 
 Add a `spine` when the title is long. The Spine is read edge-on from across a
 room, so the painted title shrinks to fit and a descriptive title ends up too

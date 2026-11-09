@@ -8,6 +8,7 @@ description: "How I built this site with Claude Design and Claude Code, and lear
 summary: "The site you're reading. Created with Claude Design/Claude Code and shipped on GitHub Pages to learn git."
 dek: "I mocked up this website with Claude Design, built it with Claude Code, and shipped it on GitHub Pages."
 theme: "Built for Myself"
+cover: "../../assets/covers/this-website.png"
 ---
 <figure class="cs-fig">
   <img src="/assets/coming-soon.png" alt="The original placeholder page: plain black text reading 'Coming soon. Design in progress.' on a white background" width="1800" height="570">
