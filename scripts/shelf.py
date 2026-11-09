@@ -554,6 +554,85 @@ def export_glb(objs, path):
     print(f"[shelf] wrote {path}")
 
 
+
+# --------------------------------------------------------------------------
+# the Box
+# --------------------------------------------------------------------------
+
+# A board game box is a tray with a lid over it. The lid is a little larger all
+# round, which is what gives the seam you can see across every real box, and
+# what stops it reading as a solid brick.
+LID_FRACTION = 0.34
+LID_OVERSIZE = 0.006
+BOX_BEVEL = 0.009
+
+
+def card_material(name, colour=(0.62, 0.58, 0.52)):
+    """Printed board, slightly soft. Not paper, not plastic."""
+    mat = bpy.data.materials.new(name)
+    mat.use_nodes = True
+    bsdf = mat.node_tree.nodes["Principled BSDF"]
+    bsdf.inputs["Base Color"].default_value = (*colour, 1)
+    bsdf.inputs["Roughness"].default_value = 0.68
+    return mat
+
+
+def build_box():
+    """
+    One Box, which every Project reuses. ADR 0001 ruled out modelled Boxes
+    because a hand-authored one means opening Blender to add a Project. One
+    scripted box that every Project is printed onto does not have that problem:
+    the Cover and Spine are still painted per-Project in the browser.
+
+    Modelled standing as it sits on the Shelf, lid upward, so the lift in
+    Box.tsx still reads as taking the lid off.
+    """
+    card = card_material("BoxCard")
+
+    lid_h = BOX["height"] * LID_FRACTION
+    base_h = BOX["height"] - lid_h
+
+    base = board(
+        "Box.Base",
+        (BOX["thickness"], base_h, BOX["width"]),
+        (0, -BOX["height"] / 2 + base_h / 2, 0),
+        card,
+    )
+
+    lid = board(
+        "Box.Lid",
+        (
+            BOX["thickness"] + LID_OVERSIZE,
+            lid_h,
+            BOX["width"] + LID_OVERSIZE,
+        ),
+        (0, BOX["height"] / 2 - lid_h / 2, 0),
+        card,
+    )
+
+    for obj in (base, lid):
+        for mod in obj.modifiers:
+            if mod.type == "BEVEL":
+                # Softer than the carcass: printed board rolls over at an edge
+                # rather than taking a planed arris.
+                mod.width = BOX_BEVEL
+                mod.segments = 3
+
+    return [base, lid]
+
+
+def setup_box_camera(centre_z=0.0):
+    """Three-quarter view, far enough back to see the whole box."""
+    bpy.ops.object.camera_add(location=(1.05, -2.9, centre_z + 0.32))
+    cam = bpy.context.active_object
+    cam.name = "BoxCamera"
+    cam.data.lens = 55
+    target = Vector((0, 0, centre_z))
+    cam.rotation_euler = (target - cam.location).to_track_quat("-Z", "Y").to_euler()
+    bpy.context.scene.camera = cam
+    return cam
+
+
 def main():
     argv = sys.argv[sys.argv.index("--") + 1 :] if "--" in sys.argv else []
     ap = argparse.ArgumentParser()
@@ -564,10 +643,28 @@ def main():
     ap.add_argument("--show-baked", help="render the baked texture unlit, to this PNG")
     ap.add_argument("--export", help="write the .glb here")
     ap.add_argument("--bake-room", help="bake the room to this PNG")
+    ap.add_argument("--box-render", help="render one Box on its own, to this PNG")
     ap.add_argument("--samples", type=int, default=160)
     args = ap.parse_args(argv)
 
     clear_scene()
+
+    if args.box_render:
+        box = build_box()
+        # Stand it on the floor rather than leaving it in mid-air, so it has a
+        # contact shadow to be judged by.
+        drop = FLOOR_Y + BOX["height"] / 2
+        for obj in box:
+            obj.location.z += drop
+        build_room()
+        setup_daylight()
+        setup_box_camera(centre_z=drop)
+        setup_render(samples=args.samples)
+        bpy.context.scene.render.filepath = args.box_render
+        bpy.ops.render.render(write_still=True)
+        print(f"[box] wrote {args.box_render}")
+        return
+
     parts = build_carcass()
     room = build_room()
     setup_daylight()
