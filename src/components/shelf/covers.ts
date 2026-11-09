@@ -104,6 +104,30 @@ function wrap(
   return lines;
 }
 
+/**
+ * Fit a title into at most `maxLines` by shrinking it rather than cutting it.
+ * An ellipsis on a cover looks like a bug, because it is one: wrap() truncates
+ * when it runs out of lines, and a long title needs a smaller size, not fewer
+ * words. The Spine does the same thing for the same reason.
+ */
+function fitTitle(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  maxWidth: number,
+  maxLines: number,
+  start: number,
+  min: number
+) {
+  const font = (size: number) => `800 ${size}px Archivo, sans-serif`;
+  let size = start;
+  for (;;) {
+    ctx.font = font(size);
+    const lines = wrap(ctx, text, maxWidth, maxLines);
+    if (size <= min || !lines[lines.length - 1].endsWith('…')) return { size, lines };
+    size -= start * 0.05;
+  }
+}
+
 /** Draw `img` centred in the box at its own aspect, like object-fit: contain. */
 function drawDevice(
   ctx: CanvasRenderingContext2D,
@@ -172,11 +196,9 @@ export function paintCover(
   ctx.letterSpacing = '0px';
 
   // Title, blocked in the upper half.
-  const titleSize = 9 * u;
   ctx.fillStyle = c.stamp;
-  ctx.font = `800 ${titleSize}px Archivo, sans-serif`;
   ctx.textBaseline = 'top';
-  const lines = wrap(ctx, project.title, W - 28 * u, 3);
+  const { size: titleSize, lines } = fitTitle(ctx, project.title, W - 28 * u, 4, 9 * u, 4.5 * u);
   let ty = 36 * u;
   for (const line of lines) {
     ctx.fillText(line, W / 2, ty);
@@ -184,17 +206,23 @@ export function paintCover(
   }
 
   // A short rule under it, the full stop on the lettering.
+  const ruleY = ty + 5 * u;
   ctx.fillStyle = c.rule;
-  ctx.fillRect(W / 2 - 8 * u, ty + 5 * u, 16 * u, Math.max(1, 0.45 * u));
+  ctx.fillRect(W / 2 - 8 * u, ruleY, 16 * u, Math.max(1, 0.45 * u));
 
-  // The device. A Project's own mark if it has one, otherwise the site's.
+  // The device sits in whatever the title left, between the rule and the tags,
+  // rather than at a fixed height a four-line title would collide with.
+  const top = ruleY + 9 * u;
+  const bottom = H - 22 * u;
+  const box = Math.min(24 * u, bottom - top);
+
   if (art) {
-    drawDevice(ctx, art, W / 2, 86 * u, 24 * u);
+    drawDevice(ctx, art, W / 2, (top + bottom) / 2, box);
   } else {
     ctx.fillStyle = c.rule;
-    ctx.font = `800 ${13 * u}px Archivo, sans-serif`;
+    ctx.font = `800 ${box * 0.55}px Archivo, sans-serif`;
     ctx.textBaseline = 'middle';
-    ctx.fillText('*', W / 2, 88 * u);
+    ctx.fillText('*', W / 2, (top + bottom) / 2);
   }
 
   // Tags at the foot, where a binding carries the imprint.
