@@ -62,10 +62,13 @@ moving object is wrong light.
 - **The lighting is fixed.** The camera may still travel the Shelf, because baked lighting
   is a property of the surfaces rather than the view. But the time of day cannot change,
   and anything added to the scene later has to be lit to match or baked in its turn.
-- **The payload budget in `docs/adr/0002` no longer holds.** A Draco-compressed carcass is
-  trivial, perhaps 30KB, but a baked texture set is not. The budget is revised to **2.5MB
-  initial payload**, from 1.5MB. Texture resolution is chosen to fit that, and the Flat
-  Site still costs nothing, so nobody without WebGL pays for any of it.
+- **The payload budget in `docs/adr/0002` stands at 1.5MB after all.** This ADR originally
+  revised it to 2.5MB on the assumption that a baked texture set would be heavy. Measured,
+  it is not: the 2048 atlas is 2.1MB as a PNG but **84KB as WebP**, because baked wood is
+  mostly smooth gradient and WebP compresses that almost away. With 306KB of JavaScript,
+  ~70KB of Cover art and a Draco carcass of perhaps 30KB, the whole page lands near 500KB.
+  The revision is withdrawn rather than left as unused headroom; a budget nobody is pushing
+  against is not a budget.
 - **`scripts/shelf.py` is the source of truth for the model**, and the exported `.glb` and
   baked textures are build artifacts committed alongside it. They are committed rather
   than generated in CI, because the GitHub Action should not need Blender installed.
