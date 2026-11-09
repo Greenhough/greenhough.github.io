@@ -6,7 +6,8 @@ import { getCollection } from 'astro:content';
 // URL submitted, so the filename and format stay exactly as they were.
 //
 // Deliberately absent: the 404, /archive/v1/* (noindexed), and the two
-// urea-volatilization pages, which have always been excluded.
+// urea-volatilization pages, which have always been excluded and now live
+// under /archive/ with the rest of what is kept but not current.
 
 const STATIC_PATHS = ['/', '/work', '/writing'];
 

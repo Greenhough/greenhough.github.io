@@ -16,6 +16,16 @@ export default defineConfig({
   build: { format: 'file' },
   trailingSlash: 'never',
 
+  // The urea volatilization pages moved under /archive/. They were never linked
+  // from the site and never in the sitemap, but they were shared with people
+  // who may still have the URL, so the old paths redirect rather than 404.
+  // Static output turns these into meta-refresh pages, which is all GitHub
+  // Pages can do.
+  redirects: {
+    '/urea-volatilization': '/archive/urea-volatilization',
+    '/urea-volatilization-methodology': '/archive/urea-volatilization-methodology',
+  },
+
   markdown: {
     processor: satteri({
       features: {

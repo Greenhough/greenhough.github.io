@@ -74,5 +74,5 @@ The non-3D rendering of the same content — every Project and Post as ordinary 
 _Avoid_: fallback, no-JS version, lite mode
 
 **Archive**:
-A frozen, noindexed copy of the pre-rebuild flat site, kept at a live URL.
+What is kept but no longer current, frozen and noindexed at a live URL: the pre-rebuild flat site, and the urea volatilization pages.
 _Avoid_: old site, v1, legacy
