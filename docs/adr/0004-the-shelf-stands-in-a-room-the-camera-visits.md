@@ -185,3 +185,37 @@ The environment moves with the bake or neither is right.
 The order follows from this. Evening is built before the dressing rather than after it,
 because the desk, the books and the clutter all have to be lit by the light they will
 ship under — otherwise they get made twice.
+
+## Addendum, 2026-11-09: what the dressing actually is
+
+The dressing landed as a desk under the window, left of the carcass, with a lamp of its
+own, a closed laptop, a plant and the stack of read books; and a pinboard on the back wall
+to the right of the carcass, above the floor lamp's shade so the lamp lights it. The back
+wall now reads as one arrangement rather than as a shelf with things scattered round it.
+
+**Under the window because of the camera, not only because that is where desks go.** At
+4.4 units back with a 42 degree lens the side walls are in frame for about a 0.8 unit
+strip, so anything against one is invisible until its own view exists. The back wall is
+the only wall this camera sees all of, and the window already occupies its left half, so
+the desk went under the window and the pinboard opposite. The same constraint put the
+window in the back wall in the first place.
+
+**The desk is spare on purpose.** A mug, loose papers and a pen pot were each offered and
+each turned down; the laptop and the plant were chosen. Filling it anyway would be
+overruling that, so the desk is tidy, and tidy is a thing it says.
+
+**The glazing bars are gone.** Three tall panes divided by white uprights read as a cell
+window. One sheet of glass, and the dusk gradient does the work the bars were meant to do.
+
+**The book stack is lettered at runtime, not baked.** The room atlas gives about a hundred
+texels to the unit, which makes a title on a book spine roughly twenty texels tall and
+unreadable. The books reuse `book.glb` and a painter beside the Boxes' own, lying down and
+scaled to a large hardback rather than the metre-tall Box a Project gets. They are lettered
+the other way up from a Project's Spine — a spine lettered bottom-to-top reads right to
+left once the book is laid flat, which is as true of a real book as of this one — and they
+carry no asterisk, because that mark is the site's own device.
+
+**Posts are still not here.** The latest Post as a clickable sheet on the desk was deferred
+to the views, on the grounds that it has to be real-time and painted per Post, and that
+there is no sense clicking something the camera never looks at. So the desk is, for now,
+furniture that is waiting for its job.

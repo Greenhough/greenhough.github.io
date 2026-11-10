@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { palette, themeColour } from './palette';
 import type { ShelfProject } from './types';
+import type { ReadBook } from './readBooks';
 
 /**
  * The printing on a Box: the Cover, the Spine and the Section label.
@@ -319,6 +320,61 @@ export function paintSpine(
   ctx.textBaseline = 'middle';
   ctx.fillText('*', W / 2, H - 4.6 * u);
   ctx.textAlign = 'left';
+}
+
+/**
+ * A read book's Spine: the ones lying on the desk, not the ones on the Shelf.
+ *
+ * Close to paintSpine and deliberately not the same function. Two differences
+ * carry meaning rather than style. The binding colour comes from the book
+ * itself instead of from a Theme, because these are nobody's Projects and have
+ * no Theme to belong to. And there is no asterisk at the foot: that is the
+ * site's own device, and stamping it on someone else's book would be claiming
+ * it. See src/components/shelf/readBooks.ts.
+ */
+export function paintReadSpine(canvas: HTMLCanvasElement, book: ReadBook, height: number) {
+  const H = height;
+  const W = Math.round(height * 0.21);
+  canvas.width = W;
+  canvas.height = H;
+
+  const ctx = canvas.getContext('2d')!;
+  const u = H / 100;
+  const p = palette();
+  const stamp = mix(book.cloth, p.paper, 0.80);
+  const rule = mix(book.cloth, p.paper, 0.38);
+
+  ctx.fillStyle = book.cloth;
+  ctx.fillRect(0, 0, W, H);
+
+  const inset = 2.6 * u;
+  const bands = (y: number) => {
+    ctx.fillStyle = rule;
+    const t = Math.max(1, 0.4 * u);
+    ctx.fillRect(inset, y, W - inset * 2, t);
+    ctx.fillRect(inset, y + 1.9 * u, W - inset * 2, t);
+  };
+  bands(7 * u);
+  bands(H - 9 * u);
+
+  ctx.save();
+  ctx.translate(W / 2, H - 12 * u);
+  ctx.rotate(-Math.PI / 2);
+  ctx.fillStyle = stamp;
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'left';
+  ctx.letterSpacing = `${0.2 * u}px`;
+
+  let size = 9 * u;
+  const run = H - 24 * u;
+  ctx.font = `800 ${size}px Archivo, sans-serif`;
+  while (ctx.measureText(book.title).width > run && size > 3 * u) {
+    size -= 0.25 * u;
+    ctx.font = `800 ${size}px Archivo, sans-serif`;
+  }
+  ctx.fillText(book.title, 0, 0);
+  ctx.letterSpacing = '0px';
+  ctx.restore();
 }
 
 /**

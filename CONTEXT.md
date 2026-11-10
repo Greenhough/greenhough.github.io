@@ -34,8 +34,20 @@ The opening in the Room's back wall, left of the Shelf. Shows a dusk sky and giv
 _Avoid_: light, lightbox, panel
 
 **Lamp**:
-The floor lamp to the right of the Shelf. The Room's warm light and most of what makes it visible, since the Window alone leaves it nearly black.
+The floor lamp to the right of the Shelf. The Room's warm light and most of what makes it visible, since the Window alone leaves it nearly black. The Desk has a smaller one of its own.
 _Avoid_: light, lighting, practical
+
+**Desk**:
+The desk under the Window, left of the Shelf. Where Posts will live once the camera visits it. Carries a lamp, a closed laptop, a plant and the Book stack.
+_Avoid_: table, workstation
+
+**Book stack**:
+The four read books lying flat on the Desk. Real books by other people, not Projects — they lie down, they are not on the Shelf, and the titles are someone else's. Lettered at runtime, never baked.
+_Avoid_: books (unqualified, which means Boxes), library
+
+**Pinboard**:
+The cork board on the back wall right of the Shelf, with blank paper pinned to it. Dressing: nothing on it is clickable.
+_Avoid_: board, moodboard, gallery
 
 **Section**:
 A labelled run of the Shelf holding the Projects of one Theme.

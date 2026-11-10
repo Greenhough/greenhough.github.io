@@ -5,6 +5,7 @@ import { ContactShadows, Environment, Lightformer } from '@react-three/drei';
 import { Box, BOX } from './Box';
 import { SHELF, SectionLabel, sectionFloorY, slotX } from './ShelfUnit';
 import { ShelfModel } from './ShelfModel';
+import { BookStack } from './BookStack';
 import { palette } from './palette';
 import type { ShelfSection, ShelfState } from './types';
 
@@ -151,6 +152,10 @@ export function Scene({
       />
 
       <ShelfModel />
+
+      {/* Lettered at runtime rather than baked into the room, because a title
+          baked into the room atlas is about twenty texels tall. */}
+      <BookStack />
 
       {sections.map((section, si) => {
         const floorY = sectionFloorY(si, sections.length);
