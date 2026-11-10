@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { palette, themeColour } from './palette';
 import type { ShelfProject } from './types';
 import type { ReadBook } from './readBooks';
+import type { ShelfPost } from './types';
 
 /**
  * The printing on a Box: the Cover, the Spine and the Section label.
@@ -375,6 +376,68 @@ export function paintReadSpine(canvas: HTMLCanvasElement, book: ReadBook, height
   ctx.fillText(book.title, 0, 0);
   ctx.letterSpacing = '0px';
   ctx.restore();
+}
+
+/**
+ * The sheet of paper on the Desk: the latest Post, as something lying there.
+ *
+ * Printed rather than typeset on screen. docs/adr/0005 draws the line between
+ * showing and reading — the sheet shows you what the Post is and reading the
+ * whole of it goes to the page, because a long article on a plane in 3D is
+ * worse than a page and calling that interactive would be using the word to
+ * mean harder.
+ */
+export function paintSheet(canvas: HTMLCanvasElement, post: ShelfPost, width: number) {
+  // A4 proportions, near enough. Paper people recognise is paper people believe.
+  const W = width;
+  const H = Math.round(width * 1.414);
+  canvas.width = W;
+  canvas.height = H;
+
+  const ctx = canvas.getContext('2d')!;
+  const u = W / 100;
+  const p = palette();
+
+  ctx.fillStyle = mix(p.paper, '#ffffff', 0.5);
+  ctx.fillRect(0, 0, W, H);
+
+  const margin = 11 * u;
+  let y = 20 * u;
+
+  ctx.fillStyle = mix(p.ink, p.paper, 0.55);
+  ctx.font = `500 ${4.4 * u}px "JetBrains Mono", monospace`;
+  ctx.letterSpacing = `${0.6 * u}px`;
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillText(post.date.toUpperCase(), margin, y);
+  ctx.letterSpacing = '0px';
+
+  y += 11 * u;
+  ctx.fillStyle = p.ink;
+  const title = fitTitle(ctx, post.title, W - margin * 2, 4, 10 * u, 5.5 * u);
+  ctx.font = `800 ${title.size}px Archivo, sans-serif`;
+  for (const line of title.lines) {
+    ctx.fillText(line, margin, y);
+    y += title.size * 1.14;
+  }
+
+  y += 4 * u;
+  ctx.fillStyle = mix(p.ink, p.paper, 0.3);
+  ctx.fillRect(margin, y, 16 * u, Math.max(1, 0.5 * u));
+
+  y += 9 * u;
+  ctx.fillStyle = mix(p.ink, p.paper, 0.32);
+  ctx.font = `400 ${4.8 * u}px Archivo, sans-serif`;
+  for (const line of wrap(ctx, post.excerpt, W - margin * 2, 6)) {
+    ctx.fillText(line, margin, y);
+    y += 7 * u;
+  }
+
+  // The foot, where a printed page puts its running information.
+  ctx.fillStyle = mix(p.ink, p.paper, 0.6);
+  ctx.font = `500 ${3.8 * u}px "JetBrains Mono", monospace`;
+  ctx.letterSpacing = `${0.4 * u}px`;
+  ctx.fillText(`${post.readTime} MIN READ`, margin, H - 12 * u);
+  ctx.letterSpacing = '0px';
 }
 
 /**

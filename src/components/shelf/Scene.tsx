@@ -7,15 +7,19 @@ import { SHELF, SectionLabel, sectionFloorY, slotX } from './ShelfUnit';
 import { ShelfModel } from './ShelfModel';
 import { BookStack } from './BookStack';
 import { palette } from './palette';
-import type { ShelfSection, ShelfState } from './types';
+import { Paper } from './Paper';
+import type { ShelfPlace, ShelfPost, ShelfSection, ShelfState } from './types';
 
 interface Props {
   sections: ShelfSection[];
   focusedSlug: string | null;
   state: ShelfState;
+  place: ShelfPlace;
+  post: ShelfPost | null;
   textureSize: number;
   onFocus: (slug: string) => void;
   onInspect: (slug: string) => void;
+  onOpenPost: (slug: string) => void;
   onHover: (hovering: boolean) => void;
 }
 
@@ -28,10 +32,36 @@ interface Focus {
 }
 
 /**
- * Where the camera wants to be. Browsing travels the Shelf with the focused
- * Box; Inspecting comes in close on the Box held out in front of it.
+ * The Desk, seen from its left-front corner.
+ *
+ * Composed by hand, which is what docs/adr/0004 means by a view: a position
+ * and a target, authored and committed like any other content. From this
+ * corner the lamp and the book stack fall to the left, the sheet of paper sits
+ * near the middle, and the plant closes the right — and the desk lands
+ * right-of-centre in frame, clear of the HUD text that runs down the left.
  */
-function cameraTargets(state: ShelfState, focus: Focus | null, pullBack: number) {
+const DESK_VIEW = {
+  position: new THREE.Vector3(-2.55, 0.32, 1.5),
+  lookAt: new THREE.Vector3(-1.8, -0.42, -0.12),
+};
+
+/**
+ * Where the camera wants to be. Browsing travels the Shelf with the focused
+ * Box; Inspecting comes in close on the Box held out in front of it; the Desk
+ * is a fixed frame that does not move with anything.
+ */
+function cameraTargets(
+  state: ShelfState,
+  place: ShelfPlace,
+  focus: Focus | null,
+  pullBack: number
+) {
+  if (place === 'desk') {
+    // Pulled back on a narrow viewport the same way the Shelf is, so the desk
+    // stays in frame on a phone.
+    const back = DESK_VIEW.position.clone().sub(DESK_VIEW.lookAt).multiplyScalar(pullBack);
+    return { position: DESK_VIEW.lookAt.clone().add(back), lookAt: DESK_VIEW.lookAt.clone() };
+  }
   if (!focus) {
     return {
       position: new THREE.Vector3(0, 0, 4.4 * pullBack),
@@ -62,9 +92,12 @@ export function Scene({
   sections,
   focusedSlug,
   state,
+  place,
+  post,
   textureSize,
   onFocus,
   onInspect,
+  onOpenPost,
   onHover,
 }: Props) {
   const p = palette();
@@ -93,7 +126,7 @@ export function Scene({
 
   useFrame((_, delta) => {
     const ease = 1 - Math.pow(0.0025, delta);
-    const { position, lookAt: target } = cameraTargets(state, focus, pullBack);
+    const { position, lookAt: target } = cameraTargets(state, place, focus, pullBack);
     camera.position.lerp(position, ease);
     lookAt.current.lerp(target, ease);
     camera.lookAt(lookAt.current);
@@ -156,6 +189,17 @@ export function Scene({
       {/* Lettered at runtime rather than baked into the room, because a title
           baked into the room atlas is about twenty texels tall. */}
       <BookStack />
+
+      {/* The latest Post, lying on the Desk. The one kind of content the Shelf
+          cannot hold, finally somewhere. */}
+      {post && (
+        <Paper
+          post={post}
+          active={place === 'desk'}
+          onOpen={onOpenPost}
+          onHover={onHover}
+        />
+      )}
 
       {sections.map((section, si) => {
         const floorY = sectionFloorY(si, sections.length);

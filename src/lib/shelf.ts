@@ -1,6 +1,7 @@
 import { getCollection } from 'astro:content';
 import { getImage } from 'astro:assets';
-import type { ShelfSection } from '../components/shelf/types';
+import type { ShelfPost, ShelfSection } from '../components/shelf/types';
+import { monthYear } from './format';
 
 /**
  * Builds the Shelf's data at build time: the Sections, in the order they are
@@ -51,4 +52,31 @@ export async function getShelfSections(): Promise<ShelfSection[]> {
   }
 
   return sections;
+}
+
+
+/**
+ * The latest Post, shaped for the room.
+ *
+ * The sheet of paper on the Desk shows this one; everything older is the list
+ * on /writing. The room renders content it does not own, so the date is
+ * formatted here rather than in the scene — one date format for the site, not
+ * one for the page and another for the canvas.
+ */
+export async function getLatestPost(): Promise<ShelfPost | null> {
+  const posts = await getCollection('posts');
+  if (posts.length === 0) return null;
+
+  const latest = posts.reduce((a, b) =>
+    b.data.date.valueOf() > a.data.date.valueOf() ? b : a
+  );
+
+  return {
+    slug: latest.data.slug,
+    title: latest.data.title,
+    date: monthYear(latest.data.date),
+    // The excerpt may carry inline HTML, which a canvas cannot draw.
+    excerpt: latest.data.excerpt.replace(/<[^>]*>/g, ''),
+    readTime: latest.data.readTime,
+  };
 }
