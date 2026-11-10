@@ -28,3 +28,25 @@ export interface ShelfSection {
  * was removed. See docs/adr/0001.
  */
 export type ShelfState = 'browsing' | 'inspecting' | 'opened';
+
+/**
+ * The Shelf's view of a Post. The sheet of paper on the Desk shows the latest
+ * one. Serialised by the page, the same way a Project is, so the room renders
+ * content it does not own — see docs/adr/0005.
+ */
+export interface ShelfPost {
+  slug: string;
+  title: string;
+  /** Already formatted by the page, so the room is not a second date format. */
+  date: string;
+  /** Plain text: the collection allows inline HTML and a canvas cannot draw it. */
+  excerpt: string;
+  readTime: number;
+}
+
+/**
+ * Where in the room the camera is standing. The navigation moves between
+ * these; within the Shelf, the Browsing and Inspecting states still apply.
+ * See docs/adr/0004 for the views and docs/adr/0005 for the navigation.
+ */
+export type ShelfPlace = 'shelf' | 'desk';

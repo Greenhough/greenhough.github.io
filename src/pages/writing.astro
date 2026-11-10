@@ -2,12 +2,21 @@
 import { getCollection } from 'astro:content';
 import Base from '../layouts/Base.astro';
 import { monthYear } from '../lib/format';
+import { getLatestPost, getShelfSections } from '../lib/shelf';
+import ShelfBoot from '../components/shelf/ShelfBoot.astro';
+import Shelf from '../components/shelf/Shelf';
 
 const INTRO = 'Ideas, notes, and essays on my experiments building with AI.';
 
 const posts = (await getCollection('posts')).sort(
   (a, b) => b.data.date.valueOf() - a.data.date.valueOf()
 );
+
+// This page carries the room as an overlay, opened at the Desk — which is
+// where Posts live, per docs/adr/0004. Everything below is the Flat Site: the
+// same Posts as ordinary HTML, which is what this page has always been.
+const sections = await getShelfSections();
+const latestPost = await getLatestPost();
 ---
 
 <Base
@@ -17,6 +26,15 @@ const posts = (await getCollection('posts')).sort(
   path="/writing"
   active="writing"
 >
+  <ShelfBoot slot="head" />
+  <Shelf
+    slot="overlay"
+    client:only="react"
+    sections={sections}
+    post={latestPost}
+    initialPlace="desk"
+  />
+
   <header class="page-head">
     <h1 class="page-title">Writing</h1>
     <p class="page-intro">{INTRO}</p>

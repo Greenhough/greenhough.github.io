@@ -2,12 +2,22 @@
 import { getCollection } from 'astro:content';
 import Base from '../layouts/Base.astro';
 import Tags from '../components/Tags.astro';
+import { getLatestPost, getShelfSections } from '../lib/shelf';
+import ShelfBoot from '../components/shelf/ShelfBoot.astro';
+import Shelf from '../components/shelf/Shelf';
 
 const INTRO = "Sales enablement case studies and the projects I'm building with AI.";
 
 const work = (await getCollection('work')).sort(
   (a, b) => b.data.date.valueOf() - a.data.date.valueOf()
 );
+
+// This page carries the room as an overlay, opened at the Shelf, the same way
+// /box/{slug} carries it opened on a Box. That is what lets the navigation
+// move the camera and still leave every view a real URL that survives a
+// reload. Everything below is the Flat Site, unchanged. See docs/adr/0005.
+const sections = await getShelfSections();
+const latestPost = await getLatestPost();
 ---
 
 <Base
@@ -17,6 +27,15 @@ const work = (await getCollection('work')).sort(
   path="/work"
   active="work"
 >
+  <ShelfBoot slot="head" />
+  <Shelf
+    slot="overlay"
+    client:only="react"
+    sections={sections}
+    post={latestPost}
+    initialPlace="shelf"
+  />
+
   <header class="page-head">
     <h1 class="page-title">Work</h1>
     <p class="page-intro">{INTRO}</p>

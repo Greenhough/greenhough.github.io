@@ -45,6 +45,14 @@ _Avoid_: table, workstation
 The four read books lying flat on the Desk. Real books by other people, not Projects — they lie down, they are not on the Shelf, and the titles are someone else's. Lettered at runtime, never baked.
 _Avoid_: books (unqualified, which means Boxes), library
 
+**View**:
+A composed camera position in the Room, authored by hand and named — Shelf, Desk. The navigation moves between them. A Project never needs one; an object does.
+_Avoid_: angle, shot, scene, page
+
+**Sheet**:
+The piece of paper on the Desk carrying the latest Post. Lies flat until the camera comes to the Desk, then stands up to be read. Painted at runtime, never baked.
+_Avoid_: card, note, panel
+
 **Pinboard**:
 The cork board on the back wall right of the Shelf, with blank paper pinned to it. Dressing: nothing on it is clickable.
 _Avoid_: board, moodboard, gallery

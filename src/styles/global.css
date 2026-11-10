@@ -723,6 +723,13 @@ html.shelf-capable .wrap { display: none; }
   transition: color .15s ease;
 }
 .shelf-nav-links a:hover { color: var(--green); }
+/* The room has bright places in it now. At the Desk the navigation sits over
+   a dusk window and a muted grey vanished into it, so the text carries its own
+   backing rather than relying on whatever happens to be behind it. */
+.shelf-nav-links a,
+.shelf-brand-name { text-shadow: 0 1px 10px rgb(28 26 22 / .55); }
+.shelf-live .shelf-nav-links a { color: #d9d4c7; }
+.shelf-live .shelf-nav-links a[aria-current='page'] { color: #fff; }
 .shelf-nav a:focus-visible { outline: 3px solid var(--green); outline-offset: 4px; }
 
 @media (max-width: 760px) {
