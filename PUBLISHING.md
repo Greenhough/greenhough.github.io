@@ -220,8 +220,8 @@ already on the Shelf are lit by light baked in Blender for the slot each stands
 in; a Box the last bake did not know about is lit live instead. A new Project
 also goes to the front of its Section and moves the others along one, so they
 fall back to live light too until the next bake. It looks fine. It looks best
-after re-running the bake, which takes the best part of an hour and can wait
-for a quiet evening. The command is at the top of `scripts/shelf.py`, and
+after re-running the bake, which takes about two hours and can wait for a
+quiet evening. The command is at the top of `scripts/shelf.py`, and
 `docs/adr/0006` has the reasoning.
 
 ### Adding a new tag colour
