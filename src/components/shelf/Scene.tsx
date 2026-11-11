@@ -57,8 +57,8 @@ interface Focus {
  *
  * Composed by hand, which is what docs/adr/0004 means by a view: a position
  * and a target, authored and committed like any other content. From this
- * corner the lamp and the book stack fall to the left, the sheet of paper sits
- * near the middle, and the plant closes the right — and the desk lands
+ * corner the lamp and the book stack fall to the left, the laptop sits near
+ * the middle and the sheet of paper closes the right — and the desk lands
  * right-of-centre in frame, clear of the HUD text that runs down the left.
  *
  * Stood further back and looking less steeply down than it first did. From

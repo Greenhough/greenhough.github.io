@@ -43,10 +43,9 @@ const WIDTH = 0.22;
 const HEIGHT = WIDTH * 1.414;
 
 /**
- * To the right of the laptop and in front of the plant, where it fits the desk
- * with a margin on every side. The desk is a crowded 1.77 units once a lamp, a
- * book stack, a laptop and a plant are on it, and this is the one stretch of it
- * still free.
+ * To the right of the laptop, where it fits the desk with a margin on every
+ * side. The desk is 1.77 units with a lamp, a book stack and a laptop on it,
+ * and this is the open stretch beside the laptop.
  */
 const AT = { x: -1.13, z: -0.06 };
 

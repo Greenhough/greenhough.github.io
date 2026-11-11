@@ -886,8 +886,12 @@ def build_laptop(metal, key_mat, screen_mat):
     cy = top_y + 0.011 + up[0] * lid_h / 2
     cz = hinge_z + up[1] * lid_h / 2
 
+    # Negative about Blender's X: board() maps the site's +Z (towards the
+    # camera) to Blender's -Y, so a positive turn tipped the top of the lid
+    # forward, over the keyboard, while its centre sat behind the hinge. The
+    # live screen in Atmosphere.tsx leans back, and the two came apart.
     lid = board("Room.Laptop.Lid", (w, lid_h, 0.006), (lx, cy, cz), metal)
-    lid.rotation_euler = (lean, 0, 0)
+    lid.rotation_euler = (-lean, 0, 0)
     parts.append(lid)
 
     # The display, a hair proud of the lid so it never fights it for the same
@@ -901,7 +905,7 @@ def build_laptop(metal, key_mat, screen_mat):
         screen_mat,
         bevel=False,
     )
-    screen.rotation_euler = (lean, 0, 0)
+    screen.rotation_euler = (-lean, 0, 0)
     parts.append(screen)
 
     return parts
@@ -909,7 +913,8 @@ def build_laptop(metal, key_mat, screen_mat):
 
 def build_desk_things(metal, key_mat, screen_mat, pot_mat, leaf_mat):
     """
-    What is on the desk: an open laptop and a plant.
+    What is on the desk: an open laptop. There was a plant beside it too, and
+    it came off: it crowded the laptop and read as clutter from the Desk view.
 
     Deliberately spare. A mug, loose papers and a pen pot were all offered and
     not taken, so this is a tidy desk rather than a busy one, and filling it
@@ -919,39 +924,7 @@ def build_desk_things(metal, key_mat, screen_mat, pot_mat, leaf_mat):
     are lettered at runtime, because a title baked into the room atlas at this
     density would be about twenty texels tall and unreadable.
     """
-    top_y = FLOOR_Y + DESK["height"]
-    parts = build_laptop(metal, key_mat, screen_mat)
-
-    # The plant: a pot and six leaves radiating out of it. Three rounded
-    # masses were tried first and read as a mushroom — a plant is given away
-    # by leaves going outwards and upwards, not by a blob on a stalk, so each
-    # one is a stretched sphere tipped away from the centre.
-    px, pz = -1.12, -0.33
-    parts.append(cylinder("Room.Plant.Pot", 0.072, 0.135, (px, top_y + 0.0675, pz), pot_mat))
-    rim = top_y + 0.125
-    for i in range(6):
-        angle = math.tau * i / 6 + 0.4
-        lean = math.radians(34 + 9 * (i % 3))
-        reach = 0.052
-        bpy.ops.mesh.primitive_ico_sphere_add(
-            radius=1.0,
-            subdivisions=2,
-            location=(
-                px + math.cos(angle) * reach,
-                -(pz + math.sin(angle) * reach),
-                rim + 0.055 + 0.012 * (i % 3),
-            ),
-        )
-        leaf = bpy.context.active_object
-        leaf.name = f"Room.Plant.Leaf.{i}"
-        leaf.scale = (0.021, 0.034, 0.075)  # long, and flattened across
-        bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
-        leaf.rotation_euler = (math.sin(angle) * lean, -math.cos(angle) * lean, 0)
-        bpy.ops.object.shade_smooth_by_angle(angle=math.radians(40))
-        leaf.data.materials.append(leaf_mat)
-        parts.append(leaf)
-
-    return parts
+    return build_laptop(metal, key_mat, screen_mat)
 
 
 def build_pinboard(cork_mat, paper_mat):
@@ -1456,23 +1429,19 @@ def build_chair(wood):
 
 def build_top_dressing(frame_mat, mount_mat, pot_mat, leaf_mat):
     """
-    What stands on top of the carcass: a print leaning on the wall and a small
-    plant. The top of a bookcase is the one shelf in a room that is never
-    empty, and an empty one was reading as a render.
+    What stands on top of the carcass: a small plant. The top of a bookcase is
+    the one shelf in a room that is never empty, and an empty one was reading
+    as a render.
+
+    A framed print leaned against the wall here too. The camera looks up at
+    the top of the carcass from below, so its front edge cut off the bottom of
+    the print and what showed was a frame with a red dot floating over the
+    Shelf. It came out rather than being made taller.
     """
     top = UNIT_HEIGHT / 2
-    wall = ROOM["back"]
-    lean = math.radians(7)
-    # As tall as the gap under the ceiling allows. The camera looks up at the
-    # top of the carcass from below, so the front edge hides the bottom third
-    # of anything standing at the back: a print sized to look right from
-    # level showed as a strip of frame.
-    h = 0.43
-    # Its foot far enough out that the head comes to rest against the wall.
-    foot = wall + math.sin(lean) * h + 0.024
-    parts = build_print("TopPrint", -0.34, top, foot, 0.56, h, "fields", frame_mat, mount_mat, lean=lean)
+    parts = []
 
-    # The plant, near the front edge for the same reason.
+    # The plant, near the front edge, so the carcass does not hide its pot.
     px, pz = 0.47, 0.16
     parts.append(cylinder("Room.TopPlant.Pot", 0.07, 0.12, (px, top + 0.06, pz), pot_mat))
     for i in range(9):
