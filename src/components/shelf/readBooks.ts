@@ -11,8 +11,8 @@
  * foot of a Project's Spine where a binder puts the publisher's; putting it on
  * Good to Great would be claiming it.
  *
- * No authors either. Three of the four I could name and the fourth I could
- * not, and a guessed author on a real book is worse than no author at all.
+ * No authors either. The titles are enough to say what was read, and an
+ * author's name at this size would be too small to read anyway.
  */
 export interface ReadBook {
   title: string;
@@ -22,7 +22,7 @@ export interface ReadBook {
 
 export const READ_BOOKS: ReadBook[] = [
   { title: 'Good to Great', cloth: '#4a4230' },
-  { title: 'The Sales Enablement Framework', cloth: '#53382c' },
+  { title: 'Deep Work', cloth: '#53382c' },
   { title: 'Gap Selling', cloth: '#3d3043' },
   { title: 'Atomic Habits', cloth: '#2e3d52' },
 ];
