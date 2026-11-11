@@ -8,18 +8,33 @@ are build artifacts. See docs/adr/0003.
     /Applications/Blender.app/Contents/MacOS/Blender --background \
         --python scripts/shelf.py -- --view site --render build/preview.png
 
-    # the full rebuild: both atlases, the .glb, and the unlit check
-    /Applications/Blender.app/Contents/MacOS/Blender --background \
+    # the full rebuild: three atlases, both .glb files, and the unlit check
+    caffeinate -i /Applications/Blender.app/Contents/MacOS/Blender --background \
         --python scripts/shelf.py -- --view site --width 1280 --height 720 \
-        --bake build/shelf-bake.png --bake-room build/room-bake.png \
+        --bake build/shelf-bake.png \
+        --bake-room build/room-bake.png --room-size 4096 \
+        --bake-boxes build/box-bake.png \
+        --boxes-manifest src/components/shelf/box-bake.json \
+        --book-export public/models/book.glb \
         --export public/models/shelf.glb --show-baked build/baked-check.png
     node scripts/bake-to-webp.mjs
+    node scripts/prairie.mjs        # only if the view outside has changed
 
-Judge the look from the --show-baked render, never from --render: see the
+The third atlas is the light on the Books at rest, and the bake reads
+src/content/work/ to know which Project stands in which slot: see
+docs/adr/0006. Run it again when Projects are added or reordered.
+
+Judge the model from the --show-baked render, never from --render: see the
 addendum to docs/adr/0003. A lit render goes through AgX and the atlas does
 not, so a lit render will happily show you detail the atlas has already
-clipped away. Iterate at --bake-size 768 --bake-samples 24, which takes about
-a minute; the full 2048 bake takes about half an hour.
+clipped away. (--render --standard is the quick way to see a lighting change
+without baking: the lit scene through the view the atlas is seen through.)
+Then judge the page itself, in a browser: docs/adr/0006.
+
+Iterate at --bake-size 768 --bake-samples 16, which takes a few minutes. The
+full bake is the best part of an hour on an M1, most of it the room at 4096,
+and caffeinate is there because a Mac that sleeps part way takes all night.
+If one atlas is cut short, --reuse keeps the ones already written.
 
 Dimensions come from the site: a Box is 0.2 x 1.0 x 0.82 scene units, and the
 carcass is sized around six of them. Those numbers are repeated in
@@ -28,7 +43,11 @@ named here rather than left as literals.
 """
 
 import argparse
+import glob
+import json
 import math
+import os
+import re
 import sys
 
 import bmesh
@@ -142,6 +161,39 @@ WINDOW = {
 }
 
 
+# The dressing added once the room was compared against a denser one. Each is
+# an object the camera can see from the Shelf view, which at 16:9 means the
+# back wall and about a metre and a half of floor in front of it: the side
+# walls are out of frame, so nothing is hung on them.
+
+# A flatweave under the Shelf and the desk chair. A dark floor at dusk is a
+# large empty rectangle; a rug is the cheapest thing that gives it an edge.
+RUG = {"x0": -2.30, "x1": 1.30, "z0": 0.42, "z1": 2.45, "thick": 0.012}
+
+# A low console right of the carcass, with a turntable on it and sleeves in it.
+# The player is the object docs/adr/0005 plans as a way in to a song; for now
+# it is dressing, but it stands where that view would look.
+CONSOLE = {"x0": 1.02, "x1": 1.94, "depth": 0.40, "height": 0.52, "leg": 0.11}
+
+# Two prints over the console, under the pinboard.
+PRINTS = (
+    {"x": 1.25, "y": -0.235, "w": 0.30, "h": 0.40, "art": "sun"},
+    {"x": 1.69, "y": -0.235, "w": 0.30, "h": 0.40, "art": "bands"},
+)
+
+# A tall plant in the back right corner, past the console.
+FLOOR_PLANT = {"x": 2.42, "z": -0.10, "pot_r": 0.155, "pot_h": 0.30, "height": 1.42}
+
+# The chair, pushed most of the way in and left a little out of square.
+CHAIR = {"x": -1.92, "z": 0.36, "yaw": math.radians(14), "seat": 0.45, "back": 0.86}
+
+# How the floor, ceiling and side walls spend their atlas. The camera lives
+# near the back wall and only a phone held upright ever sees the front half of
+# the room, from a long way off. So past this depth the UVs are squeezed: one
+# welded island, texel density falling to a third where nothing looks closely.
+SQUEEZE = {"from_z": 2.7, "by": 0.3}
+
+
 # --------------------------------------------------------------------------
 # scene helpers
 # --------------------------------------------------------------------------
@@ -202,6 +254,23 @@ def board(name, size, location, material, bevel=True, vertical=False):
     obj.data.materials.append(material)
     return obj
 
+
+
+def drop_faces(obj, away):
+    """
+    Delete the faces of a board that look along local `away`.
+
+    For the side of a thing that lies against something: the underside of the
+    rug, the back of the pinboard. Nothing ever sees it, and left in it takes
+    as much of the atlas as the side that is seen.
+    """
+    bm = bmesh.new()
+    bm.from_mesh(obj.data)
+    aim = Vector(away)
+    doomed = [f for f in bm.faces if f.normal.dot(aim) > 0.9]
+    bmesh.ops.delete(bm, geom=doomed, context="FACES")
+    bm.to_mesh(obj.data)
+    bm.free()
 
 def quad(name, corners, material, facing):
     """
@@ -648,8 +717,12 @@ def build_window(wall_mat, trim_mat):
         ("Jamb.R", [(w["x1"], w["y0"], back), (w["x1"], w["y1"], back),
                     (w["x1"], w["y1"], w["z"]), (w["x1"], w["y0"], w["z"])], (-1, 0, 0)),
     )
+    # Painted the wall's colour and a good deal darker than trim. The window's
+    # light sits six centimetres from these faces, and in gloss white they
+    # baked as three strips of pure white round the glass: a lightbox frame.
+    reveal_mat = flat_material("Reveal", (0.36, 0.345, 0.32), roughness=0.9)
     for name, pts, facing in jambs:
-        parts.append(quad(f"Room.Reveal.{name}", pts, trim_mat, facing))
+        parts.append(quad(f"Room.Reveal.{name}", pts, reveal_mat, facing))
 
     # The glass. Emissive, and set not to cast shadow, so the light coming
     # through is an area light outside while this is only what the eye sees.
@@ -691,7 +764,8 @@ def build_window(wall_mat, trim_mat):
             "Room.Sill",
             (w["x1"] - w["x0"] + 0.10, 0.028, reveal + 0.035),
             (WINDOW["x"], w["y0"] - 0.014, back - reveal / 2 + 0.018),
-            trim_mat,
+            # Wood, not white paint, for the same reason as the reveal.
+            oak_material("SillOak", base=(0.105, 0.062, 0.032), light=(0.26, 0.165, 0.085), scale=1.4),
         )
     )
 
@@ -769,32 +843,84 @@ def build_desk(oak):
     return parts
 
 
-def build_desk_things(metal, pot_mat, leaf_mat):
+def build_laptop(metal, key_mat, screen_mat):
     """
-    What is on the desk: a closed laptop and a plant.
+    The laptop, open. A 13 inch Air, at the room's own scale of a unit to a
+    metre: 304mm by 215mm, which is the actual machine rather than a guess.
+
+    It was a closed slab first, on the reasoning that an open one needs a
+    screen and a dark rectangle standing up reads worse than a slab lying
+    down. That was wrong in an evening room. A closed laptop is a dead object;
+    an open one with a lit screen is the thing in the room that says somebody
+    was here a minute ago — and the screen is a surface that can be given a job
+    later, which a closed lid can never be.
+
+    The display is emissive, so it both reads as on and throws a little cold
+    light up onto the keyboard. That is the detail that sells it: at this hour
+    a screen is a light source, not a picture.
+    """
+    top_y = FLOOR_Y + DESK["height"]
+    lx, lz = -1.60, -0.17
+    w, d = 0.304, 0.212
+    parts = []
+
+    deck = board("Room.Laptop.Deck", (w, 0.011, d), (lx, top_y + 0.0055, lz), metal)
+    parts.append(deck)
+    # The keyboard, as one darker rectangle. At about a hundred texels to the
+    # unit a key is a third of a texel, so this is a tone, not a keyboard.
+    parts.append(
+        board(
+            "Room.Laptop.Keys",
+            (w - 0.052, 0.002, d * 0.56),
+            (lx, top_y + 0.0115, lz - 0.022),
+            key_mat,
+            bevel=False,
+        )
+    )
+
+    # The lid, hinged at the deck's back edge and leaning back off vertical.
+    lean = math.radians(20)
+    hinge_z = lz - d / 2
+    lid_h = 0.206
+    up = (math.cos(lean), -math.sin(lean))  # (y, z) of the lid's own up axis
+    cy = top_y + 0.011 + up[0] * lid_h / 2
+    cz = hinge_z + up[1] * lid_h / 2
+
+    lid = board("Room.Laptop.Lid", (w, lid_h, 0.006), (lx, cy, cz), metal)
+    lid.rotation_euler = (lean, 0, 0)
+    parts.append(lid)
+
+    # The display, a hair proud of the lid so it never fights it for the same
+    # texels. Offset along the lid's own normal rather than straight forward,
+    # or it would sink into the lid at the top and lift off it at the bottom.
+    face = (math.sin(lean), math.cos(lean))
+    screen = board(
+        "Room.Laptop.Screen",
+        (w - 0.016, lid_h - 0.018, 0.002),
+        (lx, cy + face[0] * 0.005, cz + face[1] * 0.005),
+        screen_mat,
+        bevel=False,
+    )
+    screen.rotation_euler = (lean, 0, 0)
+    parts.append(screen)
+
+    return parts
+
+
+def build_desk_things(metal, key_mat, screen_mat, pot_mat, leaf_mat):
+    """
+    What is on the desk: an open laptop and a plant.
 
     Deliberately spare. A mug, loose papers and a pen pot were all offered and
     not taken, so this is a tidy desk rather than a busy one, and filling it
     anyway would be overruling that.
 
-    The stack of read books is not here. Those are lettered at runtime from
-    book.glb, the same geometry and the same painter the Boxes use, because a
-    title baked into the room atlas at this density would be about seventeen
-    texels tall and unreadable.
+    The stack of read books is not here, and nor is the sheet of paper. Both
+    are lettered at runtime, because a title baked into the room atlas at this
+    density would be about twenty texels tall and unreadable.
     """
     top_y = FLOOR_Y + DESK["height"]
-    parts = []
-
-    # A closed laptop. Closed rather than open: an open one needs a screen,
-    # and a dark rectangle standing up reads worse than a slab lying down.
-    parts.append(
-        board(
-            "Room.Laptop",
-            (0.33, 0.018, 0.235),
-            (-1.60, top_y + 0.009, -0.17),
-            metal,
-        )
-    )
+    parts = build_laptop(metal, key_mat, screen_mat)
 
     # The plant: a pot and six leaves radiating out of it. Three rounded
     # masses were tried first and read as a mushroom — a plant is given away
@@ -851,6 +977,7 @@ def build_pinboard(cork_mat, paper_mat):
             cork_mat,
         )
     ]
+    drop_faces(parts[0], (0, 1, 0))  # the face against the wall
     pinned = (
         (-0.36, 0.16, 0.34, 0.26, 3.5),
         (0.10, 0.19, 0.28, 0.32, -3.0),
@@ -873,6 +1000,491 @@ def build_pinboard(cork_mat, paper_mat):
     return parts
 
 
+def srgb(hex_colour):
+    """A CSS hex colour as the linear RGB Blender wants."""
+    h = hex_colour.lstrip("#")
+    out = []
+    for i in (0, 2, 4):
+        c = int(h[i : i + 2], 16) / 255
+        out.append(c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4)
+    return tuple(out)
+
+
+def _math(nt, op, a=None, b=None):
+    """A maths node with either sockets or constants on its two inputs."""
+    node = nt.nodes.new("ShaderNodeMath")
+    node.operation = op
+    for i, v in enumerate((a, b)):
+        if v is None:
+            continue
+        if isinstance(v, (int, float)):
+            node.inputs[i].default_value = v
+        else:
+            nt.links.new(v, node.inputs[i])
+    return node.outputs["Value"]
+
+
+def floor_material(name="FloorBoards"):
+    """
+    A boarded floor, running away from the camera.
+
+    The floor was one flat brown, and flat is what a baked room cannot afford:
+    with no variation across it there is nothing for the lamp's pool to fall
+    on, so the pool reads as a gradient painted on a card. Boards give it
+    lines that converge on the back wall, which is most of what says "floor",
+    and a tone per board, which is what says "wood".
+
+    Run front to back rather than across, so the joints are perspective lines
+    in every view the camera has.
+    """
+    mat = bpy.data.materials.new(name)
+    mat.use_nodes = True
+    nt = mat.node_tree
+    bsdf = nt.nodes["Principled BSDF"]
+    coord = nt.nodes.new("ShaderNodeTexCoord")
+
+    # Brick rows run along X; turned a quarter so a board's length lies along
+    # Blender Y, which is the room's depth.
+    turn = nt.nodes.new("ShaderNodeMapping")
+    turn.inputs["Rotation"].default_value = (0, 0, math.pi / 2)
+    nt.links.new(coord.outputs["Object"], turn.inputs["Vector"])
+
+    boards = nt.nodes.new("ShaderNodeTexBrick")
+    boards.offset = 0.37
+    boards.offset_frequency = 2
+    boards.inputs["Color1"].default_value = (0, 0, 0, 1)
+    boards.inputs["Color2"].default_value = (1, 1, 1, 1)
+    boards.inputs["Mortar"].default_value = (0.5, 0.5, 0.5, 1)
+    boards.inputs["Scale"].default_value = 1.0
+    boards.inputs["Mortar Size"].default_value = 0.0035
+    boards.inputs["Mortar Smooth"].default_value = 0.6
+    boards.inputs["Bias"].default_value = 0.0
+    boards.inputs["Brick Width"].default_value = 1.9
+    boards.inputs["Row Height"].default_value = 0.145
+    nt.links.new(turn.outputs["Vector"], boards.inputs["Vector"])
+
+    # Grain, stretched hard along the board.
+    stretch = nt.nodes.new("ShaderNodeMapping")
+    stretch.inputs["Scale"].default_value = (9.0, 0.35, 1.0)
+    nt.links.new(coord.outputs["Object"], stretch.inputs["Vector"])
+    grain = nt.nodes.new("ShaderNodeTexNoise")
+    grain.inputs["Scale"].default_value = 3.2
+    grain.inputs["Detail"].default_value = 7.0
+    grain.inputs["Roughness"].default_value = 0.6
+    nt.links.new(stretch.outputs["Vector"], grain.inputs["Vector"])
+
+    tone = nt.nodes.new("ShaderNodeSeparateColor")
+    nt.links.new(boards.outputs["Color"], tone.inputs["Color"])
+    figure = _math(nt, "ADD", _math(nt, "MULTIPLY", grain.outputs["Fac"], 0.55),
+                   _math(nt, "MULTIPLY", tone.outputs["Red"], 0.45))
+
+    ramp = nt.nodes.new("ShaderNodeValToRGB")
+    ramp.color_ramp.interpolation = "B_SPLINE"
+    ramp.color_ramp.elements[0].position = 0.22
+    ramp.color_ramp.elements[0].color = (0.090, 0.058, 0.036, 1)
+    ramp.color_ramp.elements[1].position = 0.80
+    ramp.color_ramp.elements[1].color = (0.250, 0.170, 0.105, 1)
+    nt.links.new(figure, ramp.inputs["Fac"])
+
+    # The joints: a dark line, and a dip for the light to catch.
+    joint = nt.nodes.new("ShaderNodeMix")
+    joint.data_type = "RGBA"
+    joint.inputs["B"].default_value = (0.022, 0.015, 0.010, 1)
+    nt.links.new(boards.outputs["Fac"], joint.inputs["Factor"])
+    nt.links.new(ramp.outputs["Color"], joint.inputs["A"])
+    nt.links.new(joint.outputs["Result"], bsdf.inputs["Base Color"])
+
+    rough = _math(nt, "ADD", _math(nt, "MULTIPLY", grain.outputs["Fac"], 0.22), 0.36)
+    nt.links.new(rough, bsdf.inputs["Roughness"])
+
+    bump = nt.nodes.new("ShaderNodeBump")
+    bump.invert = True
+    bump.inputs["Strength"].default_value = 0.5
+    bump.inputs["Distance"].default_value = 0.002
+    nt.links.new(boards.outputs["Fac"], bump.inputs["Height"])
+    nt.links.new(bump.outputs["Normal"], bsdf.inputs["Normal"])
+    return mat
+
+
+def rug_material(name, half_x, half_z):
+    """
+    A flatweave: an oat field, a dark band near the edge and a rust line
+    inside it. Drawn from the rug's own coordinates, so the border follows the
+    edge whatever size the rug is.
+    """
+    mat = bpy.data.materials.new(name)
+    mat.use_nodes = True
+    nt = mat.node_tree
+    bsdf = nt.nodes["Principled BSDF"]
+    bsdf.inputs["Roughness"].default_value = 0.96
+    coord = nt.nodes.new("ShaderNodeTexCoord")
+    sep = nt.nodes.new("ShaderNodeSeparateXYZ")
+    nt.links.new(coord.outputs["Object"], sep.inputs["Vector"])
+
+    # Distance in from the nearest edge. board() puts depth on local Y.
+    dx = _math(nt, "SUBTRACT", half_x, _math(nt, "ABSOLUTE", sep.outputs["X"]))
+    dz = _math(nt, "SUBTRACT", half_z, _math(nt, "ABSOLUTE", sep.outputs["Y"]))
+    edge = _math(nt, "MINIMUM", dx, dz)
+
+    def band(lo, hi):
+        return _math(nt, "MULTIPLY", _math(nt, "GREATER_THAN", edge, lo), _math(nt, "LESS_THAN", edge, hi))
+
+    # The weave, as fine stripes across the short way.
+    weft = nt.nodes.new("ShaderNodeTexWave")
+    weft.bands_direction = "X"
+    weft.inputs["Scale"].default_value = 60.0
+    weft.inputs["Distortion"].default_value = 0.6
+    nt.links.new(coord.outputs["Object"], weft.inputs["Vector"])
+    fleck = nt.nodes.new("ShaderNodeTexNoise")
+    fleck.inputs["Scale"].default_value = 26.0
+    fleck.inputs["Detail"].default_value = 3.0
+    nt.links.new(coord.outputs["Object"], fleck.inputs["Vector"])
+    weave = _math(nt, "ADD", _math(nt, "MULTIPLY", weft.outputs["Fac"], 0.10),
+                  _math(nt, "MULTIPLY", fleck.outputs["Fac"], 0.22))
+
+    field = nt.nodes.new("ShaderNodeMix")
+    field.data_type = "RGBA"
+    field.inputs["A"].default_value = (0.300, 0.250, 0.185, 1)
+    field.inputs["B"].default_value = (0.440, 0.380, 0.290, 1)
+    nt.links.new(_math(nt, "MULTIPLY", weave, 3.0), field.inputs["Factor"])
+
+    dark = nt.nodes.new("ShaderNodeMix")
+    dark.data_type = "RGBA"
+    dark.inputs["B"].default_value = (0.055, 0.060, 0.052, 1)
+    nt.links.new(band(0.11, 0.20), dark.inputs["Factor"])
+    nt.links.new(field.outputs["Result"], dark.inputs["A"])
+
+    rust = nt.nodes.new("ShaderNodeMix")
+    rust.data_type = "RGBA"
+    rust.inputs["B"].default_value = (0.300, 0.095, 0.045, 1)
+    nt.links.new(band(0.255, 0.285), rust.inputs["Factor"])
+    nt.links.new(dark.outputs["Result"], rust.inputs["A"])
+    nt.links.new(rust.outputs["Result"], bsdf.inputs["Base Color"])
+
+    bump = nt.nodes.new("ShaderNodeBump")
+    bump.inputs["Strength"].default_value = 0.35
+    bump.inputs["Distance"].default_value = 0.003
+    nt.links.new(weave, bump.inputs["Height"])
+    nt.links.new(bump.outputs["Normal"], bsdf.inputs["Normal"])
+    return mat
+
+
+def print_material(name, art, half_w, half_h):
+    """
+    What is in a frame: flat shapes and nothing else.
+
+    Abstract on purpose. A print of something is a claim about what Evan has
+    on his wall, and inventing that would be inventing content, the same rule
+    that keeps the pinboard blank. Shapes in the room's own colours are only
+    ever shapes.
+    """
+    mat = bpy.data.materials.new(name)
+    mat.use_nodes = True
+    nt = mat.node_tree
+    bsdf = nt.nodes["Principled BSDF"]
+    bsdf.inputs["Roughness"].default_value = 0.9
+    coord = nt.nodes.new("ShaderNodeTexCoord")
+    sep = nt.nodes.new("ShaderNodeSeparateXYZ")
+    nt.links.new(coord.outputs["Object"], sep.inputs["Vector"])
+    # -1..1 across and up the sheet. board() puts height on local Z.
+    u = _math(nt, "DIVIDE", sep.outputs["X"], half_w)
+    v = _math(nt, "DIVIDE", sep.outputs["Z"], half_h)
+
+    paper = (0.62, 0.57, 0.47, 1)
+    rust = (0.36, 0.105, 0.045, 1)
+    green = (0.030, 0.105, 0.055, 1)
+    ink = (0.016, 0.014, 0.012, 1)
+    ochre = (0.48, 0.30, 0.075, 1)
+
+    def over(base, colour, mask):
+        mix = nt.nodes.new("ShaderNodeMix")
+        mix.data_type = "RGBA"
+        mix.inputs["B"].default_value = colour
+        nt.links.new(mask, mix.inputs["Factor"])
+        if isinstance(base, tuple):
+            mix.inputs["A"].default_value = base
+        else:
+            nt.links.new(base, mix.inputs["A"])
+        return mix.outputs["Result"]
+
+    if art == "sun":
+        # A disc over two bands of ground.
+        du = _math(nt, "MULTIPLY", _math(nt, "SUBTRACT", u, 0.08), half_w / half_h)
+        dv = _math(nt, "SUBTRACT", v, 0.22)
+        r2 = _math(nt, "ADD", _math(nt, "MULTIPLY", du, du), _math(nt, "MULTIPLY", dv, dv))
+        colour = over(paper, rust, _math(nt, "LESS_THAN", r2, 0.34**2))
+        colour = over(colour, green, _math(nt, "LESS_THAN", v, -0.30))
+        colour = over(colour, ink, _math(nt, "LESS_THAN", v, -0.62))
+    elif art == "bands":
+        # Upright bars of unequal height, standing on a line.
+        colour = paper
+        bars = ((-0.62, 0.22, 0.55, green), (-0.20, 0.22, 0.15, ochre),
+                (0.22, 0.22, 0.70, ink), (0.62, 0.20, -0.10, rust))
+        for cx, wd, top, tint in bars:
+            inside = _math(nt, "MULTIPLY",
+                           _math(nt, "LESS_THAN", _math(nt, "ABSOLUTE", _math(nt, "SUBTRACT", u, cx)), wd / 2 + 0.07),
+                           _math(nt, "MULTIPLY", _math(nt, "LESS_THAN", v, top), _math(nt, "GREATER_THAN", v, -0.66)))
+            colour = over(colour, tint, inside)
+    else:
+        # "fields": a horizon, wide, for the print leaning on top of the Shelf.
+        colour = over(paper, ochre, _math(nt, "LESS_THAN", v, 0.10))
+        colour = over(colour, green, _math(nt, "LESS_THAN", v, -0.22))
+        colour = over(colour, ink, _math(nt, "LESS_THAN", v, -0.58))
+        du = _math(nt, "MULTIPLY", _math(nt, "ADD", u, 0.42), half_w / half_h)
+        dv = _math(nt, "SUBTRACT", v, 0.46)
+        r2 = _math(nt, "ADD", _math(nt, "MULTIPLY", du, du), _math(nt, "MULTIPLY", dv, dv))
+        colour = over(colour, rust, _math(nt, "LESS_THAN", r2, 0.20**2))
+
+    nt.links.new(colour, bsdf.inputs["Base Color"])
+    return mat
+
+
+def build_print(name, x, y, z, w, h, art, frame_mat, mount_mat, lean=0.0):
+    """
+    A framed print: a moulding, a mount, and the sheet. `lean` tips it back
+    about its bottom edge, for one standing on a shelf rather than hung.
+    """
+    depth = 0.022
+    border = 0.016
+    mount = 0.045
+    parts = []
+
+    def piece(tag, size, forward, mat, bevel=True):
+        # Tipped about the frame's bottom edge: a point `forward` of the back
+        # and at the frame's mid-height moves up and back together.
+        cy = y + math.cos(lean) * h / 2 + math.sin(lean) * forward
+        cz = z - math.sin(lean) * h / 2 + math.cos(lean) * forward
+        obj = board(f"Room.{name}.{tag}", size, (x, cy, cz), mat, bevel=bevel)
+        obj.rotation_euler = (-lean, 0, 0)
+        return obj
+
+    parts.append(piece("Frame", (w, h, depth), depth / 2, frame_mat))
+    iw, ih = w - border * 2, h - border * 2
+    parts.append(piece("Mount", (iw, ih, 0.003), depth + 0.0015, mount_mat, bevel=False))
+    aw, ah = iw - mount * 2, ih - mount * 2
+    parts.append(
+        piece("Art", (aw, ah, 0.002), depth + 0.004,
+              print_material(f"Print.{name}", art, aw / 2, ah / 2), bevel=False)
+    )
+    return parts
+
+
+def build_leaf(name, base, length, width, lean, turn, material):
+    """
+    One leaf, with its origin at the point it grows from.
+
+    The origin matters: the site sways the big plant's leaves a degree or two,
+    and a leaf has to turn about its stalk, not its middle.
+    """
+    bpy.ops.mesh.primitive_ico_sphere_add(radius=1.0, subdivisions=2, location=(0, 0, 0))
+    leaf = bpy.context.active_object
+    leaf.name = name
+    leaf.scale = (width / 2, width * 0.07, length / 2)
+    bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+    leaf.data.transform(Matrix.Translation((0, 0, length / 2)))
+    leaf.location = (base[0], -base[2], base[1])
+    leaf.rotation_euler = (lean, 0, turn)
+    bpy.ops.object.shade_smooth_by_angle(angle=math.radians(50))
+    leaf.data.materials.append(material)
+    return leaf
+
+
+def build_floor_plant(pot_mat, soil_mat, stem_mat, leaf_mat):
+    """
+    A tall plant in the corner past the console: a rubber plant, more or less,
+    because broad leaves read at this distance and fine ones turn to noise.
+    """
+    p = FLOOR_PLANT
+    x, z = p["x"], p["z"]
+    parts = [
+        cylinder("Room.FloorPlant.Pot", p["pot_r"], p["pot_h"], (x, FLOOR_Y + p["pot_h"] / 2, z), pot_mat),
+        cylinder("Room.FloorPlant.Soil", p["pot_r"] - 0.014, 0.01, (x, FLOOR_Y + p["pot_h"] + 0.001, z), soil_mat),
+    ]
+    stem_h = p["height"] - p["pot_h"] - 0.12
+    parts.append(
+        cylinder("Room.FloorPlant.Stem", 0.011, stem_h, (x, FLOOR_Y + p["pot_h"] + stem_h / 2, z), stem_mat, segments=10)
+    )
+    count = 13
+    for i in range(count):
+        t = i / (count - 1)
+        turn = i * math.radians(137.5)  # the golden angle, as a real stem does
+        base_y = FLOOR_Y + p["pot_h"] + 0.16 + t * (stem_h - 0.14)
+        # Lower leaves hang out wide, the top ones stand nearly upright.
+        lean = math.radians(72 - 50 * t)
+        length = 0.30 - 0.09 * t
+        parts.append(
+            build_leaf(f"Room.FloorPlant.Leaf.{i}", (x, base_y, z), length, length * 0.52, lean, turn, leaf_mat)
+        )
+    return parts
+
+
+def build_rug():
+    r = RUG
+    w, d = r["x1"] - r["x0"], r["z1"] - r["z0"]
+    rug = board(
+        "Room.Rug",
+        (w, r["thick"], d),
+        ((r["x0"] + r["x1"]) / 2, FLOOR_Y + r["thick"] / 2, (r["z0"] + r["z1"]) / 2),
+        rug_material("Rug", w / 2, d / 2),
+        bevel=False,
+    )
+    drop_faces(rug, (0, 0, -1))
+    return [rug]
+
+
+def build_console(oak, metal, vinyl, label_mat, plinth_mat, sleeve_mats):
+    """
+    The console and the turntable on it.
+
+    The record is its own object with its origin on the spindle, because the
+    site turns it. Everything else here stays where it is baked.
+    """
+    c = CONSOLE
+    w = c["x1"] - c["x0"]
+    cx = (c["x0"] + c["x1"]) / 2
+    z0 = ROOM["back"] + SKIRTING["depth"] + 0.01
+    cz = z0 + c["depth"] / 2
+    t = 0.024
+    top_y = FLOOR_Y + c["height"]
+    body_h = c["height"] - c["leg"]
+    parts = [
+        board("Room.Console.Top", (w, t, c["depth"]), (cx, top_y - t / 2, cz), oak),
+        board("Room.Console.Bottom", (w - t * 2, t, c["depth"] - 0.01), (cx, FLOOR_Y + c["leg"] + t / 2, cz), oak),
+        board("Room.Console.Back", (w - t * 2, body_h - t * 2, 0.008), (cx, FLOOR_Y + c["leg"] + body_h / 2, z0 + 0.008), oak, bevel=False),
+    ]
+    for tag, x in (("L", c["x0"] + t / 2), ("R", c["x1"] - t / 2), ("M", cx + 0.02)):
+        parts.append(
+            board(f"Room.Console.Side.{tag}", (t, body_h - (0 if tag != "M" else t * 2), c["depth"] - (0 if tag != "M" else 0.02)),
+                  (x, FLOOR_Y + c["leg"] + body_h / 2, cz), oak, vertical=True)
+        )
+    for i, x in enumerate((c["x0"] + 0.06, c["x1"] - 0.06)):
+        for j, z in enumerate((z0 + 0.05, z0 + c["depth"] - 0.05)):
+            parts.append(cylinder(f"Room.Console.Leg.{i}{j}", 0.016, c["leg"], (x, FLOOR_Y + c["leg"] / 2, z), metal, segments=12))
+
+    # Sleeves, standing in the left bay. Uneven on purpose: a row of records
+    # is never the same height twice and never quite upright.
+    inner_floor = FLOOR_Y + c["leg"] + t
+    x = c["x0"] + t + 0.012
+    i = 0
+    sleeves = []
+    while x < cx - 0.03:
+        thick = 0.0045 + 0.002 * ((i * 7) % 3)
+        h = 0.300 + 0.012 * ((i * 5) % 4)
+        sleeve = board(
+            f"Room.Sleeve.{i}",
+            (thick, h, 0.31),
+            (x + thick / 2, inner_floor + h / 2, cz + 0.02),
+            sleeve_mats[(i * 3) % len(sleeve_mats)],
+            bevel=False,
+        )
+        sleeve.rotation_euler = (0, math.radians(((i * 13) % 7) - 3) * 0.6, 0)
+        sleeves.append(sleeve)
+        x += thick + 0.0035 + 0.004 * ((i * 11) % 3)
+        i += 1
+    # One object: twenty flat-coloured cards bake as fast as one, and each
+    # object baked separately costs seconds the cards are not worth.
+    select(sleeves)
+    bpy.ops.object.join()
+    row = bpy.context.active_object
+    row.name = "Room.Sleeves"
+    parts.append(row)
+
+    # The turntable.
+    px, pz = cx - 0.16, cz - 0.01
+    plinth_h = 0.045
+    parts.append(board("Room.Player.Plinth", (0.44, plinth_h, 0.345), (px, top_y + plinth_h / 2, pz), plinth_mat))
+    sx, sz = px - 0.045, pz
+    deck = top_y + plinth_h
+    parts.append(cylinder("Room.Player.Platter", 0.152, 0.012, (sx, deck + 0.006, sz), metal, segments=48))
+
+    record = cylinder("Room.Record", 0.150, 0.003, (sx, deck + 0.0135, sz), vinyl, segments=48)
+    label = cylinder("Room.Record.Label", 0.052, 0.0034, (sx, deck + 0.0135, sz), label_mat, segments=32)
+    # Something off-centre on the label, or a turning record looks the same
+    # as a still one.
+    mark = board("Room.Record.Mark", (0.05, 0.0036, 0.011), (sx + 0.012, deck + 0.0135, sz + 0.02), vinyl, bevel=False)
+    select([label, mark, record], active=record)
+    bpy.ops.object.join()
+    record = bpy.context.active_object
+    record.name = "Room.Record"
+    parts.append(record)
+    parts.append(cylinder("Room.Player.Spindle", 0.004, 0.012, (sx, deck + 0.018, sz), metal, segments=10))
+
+    # The arm: a pivot at the back right and a tube reaching in over the disc.
+    ax, az = px + 0.165, pz - 0.115
+    parts.append(cylinder("Room.Player.Pivot", 0.016, 0.04, (ax, deck + 0.02, az), metal, segments=16))
+    tip = (sx + 0.105, sz + 0.04)
+    length = math.hypot(tip[0] - ax, tip[1] - az)
+    arm = board("Room.Player.Arm", (length, 0.006, 0.006), ((ax + tip[0]) / 2, deck + 0.036, (az + tip[1]) / 2), metal, bevel=False)
+    arm.rotation_euler = (0, 0, math.atan2(-(tip[1] - az), tip[0] - ax))
+    parts.append(arm)
+    parts.append(board("Room.Player.Head", (0.016, 0.01, 0.024), (tip[0], deck + 0.03, tip[1]), plinth_mat, bevel=False))
+    return parts
+
+
+def build_chair(wood):
+    """
+    A plain wooden chair at the desk. Four legs, a seat, two posts and a rail:
+    the least that reads as a chair, because at this size anything finer is
+    lost and anything upholstered needs light the room does not have.
+    """
+    c = CHAIR
+    yaw = c["yaw"]
+    cos, sin = math.cos(yaw), math.sin(yaw)
+    half = 0.20
+
+    def at(dx, dz):
+        # Local offsets turned about the vertical. Local -Z faces the desk.
+        return c["x"] + dx * cos + dz * sin, c["z"] - dx * sin + dz * cos
+
+    def piece(name, size, dx, y, dz, vertical=False):
+        px, pz = at(dx, dz)
+        obj = board(f"Room.Chair.{name}", size, (px, y, pz), wood, vertical=vertical)
+        e = obj.rotation_euler
+        obj.rotation_euler = (e[0], e[1], yaw)
+        return obj
+
+    seat_y = FLOOR_Y + c["seat"]
+    parts = [piece("Seat", (half * 2 + 0.03, 0.028, half * 2 + 0.03), 0, seat_y - 0.014, 0)]
+    for i, dx in enumerate((-half + 0.01, half - 0.01)):
+        # Front legs stop under the seat; back legs carry on up as the posts.
+        parts.append(piece(f"Leg.F{i}", (0.034, c["seat"] - 0.028, 0.034), dx, FLOOR_Y + (c["seat"] - 0.028) / 2, -half + 0.01, vertical=True))
+        parts.append(piece(f"Leg.B{i}", (0.034, c["back"], 0.034), dx, FLOOR_Y + c["back"] / 2, half - 0.01, vertical=True))
+    parts.append(piece("Rail", (half * 2 - 0.02, 0.15, 0.018), 0, FLOOR_Y + c["back"] - 0.085, half - 0.01))
+    parts.append(piece("Stretcher", (half * 2 - 0.02, 0.022, 0.018), 0, FLOOR_Y + 0.20, half - 0.01))
+    return parts
+
+
+def build_top_dressing(frame_mat, mount_mat, pot_mat, leaf_mat):
+    """
+    What stands on top of the carcass: a print leaning on the wall and a small
+    plant. The top of a bookcase is the one shelf in a room that is never
+    empty, and an empty one was reading as a render.
+    """
+    top = UNIT_HEIGHT / 2
+    wall = ROOM["back"]
+    lean = math.radians(7)
+    # As tall as the gap under the ceiling allows. The camera looks up at the
+    # top of the carcass from below, so the front edge hides the bottom third
+    # of anything standing at the back: a print sized to look right from
+    # level showed as a strip of frame.
+    h = 0.43
+    # Its foot far enough out that the head comes to rest against the wall.
+    foot = wall + math.sin(lean) * h + 0.024
+    parts = build_print("TopPrint", -0.34, top, foot, 0.56, h, "fields", frame_mat, mount_mat, lean=lean)
+
+    # The plant, near the front edge for the same reason.
+    px, pz = 0.47, 0.16
+    parts.append(cylinder("Room.TopPlant.Pot", 0.07, 0.12, (px, top + 0.06, pz), pot_mat))
+    for i in range(9):
+        turn = i * math.radians(137.5) + 0.6
+        lean_l = math.radians(34 + 18 * (i % 3))
+        parts.append(
+            build_leaf(f"Room.TopPlant.Leaf.{i}", (px + math.cos(turn) * 0.022, top + 0.11, pz + math.sin(turn) * 0.022),
+                       0.19 + 0.03 * (i % 2), 0.07, lean_l, turn, leaf_mat)
+        )
+    return parts
+
+
 def build_room():
     """
     A closed room: floor, ceiling, three walls, a skirting board, a window and
@@ -890,16 +1502,34 @@ def build_room():
     # Darker than the open backdrop was. A closed room bounces: four more
     # surfaces throw light back at each other, and an albedo that read as warm
     # oak floor in the open goes to paper white in here.
-    floor_mat = flat_material("Floor", (0.17, 0.12, 0.08), roughness=0.70)
+    floor_mat = floor_material()
     wall_mat = flat_material("Wall", (0.70, 0.67, 0.62), roughness=0.95)
     ceil_mat = flat_material("Ceiling", (0.80, 0.79, 0.76), roughness=0.95)
     trim_mat = flat_material("Trim", (0.86, 0.85, 0.81), roughness=0.55)
 
     r = room_bounds()
+    zs = SQUEEZE["from_z"]
+
+    def deep(name, near, far, material, facing):
+        """
+        A surface running the depth of the room, as two welded faces that
+        meet at SQUEEZE["from_z"]. One island, so there is no seam, but the
+        far face can be given a third of the texels: see planar_uv().
+        """
+        obj = quad_fan(name, [near, far], material, facing)
+        obj["squeeze"] = True
+        # A ceiling is one soft gradient end to end and can live on half the
+        # texels; everything else here is looked at.
+        if name == "Room.Ceiling":
+            obj["uv_scale"] = 0.5
+        return obj
+
     parts = [
-        quad(
+        deep(
             "Room.Floor",
             [(r["x0"], r["y0"], r["z0"]), (r["x1"], r["y0"], r["z0"]),
+             (r["x1"], r["y0"], zs), (r["x0"], r["y0"], zs)],
+            [(r["x0"], r["y0"], zs), (r["x1"], r["y0"], zs),
              (r["x1"], r["y0"], r["z1"]), (r["x0"], r["y0"], r["z1"])],
             floor_mat,
             (0, 1, 0),
@@ -908,24 +1538,30 @@ def build_room():
         # camera needs it: on a phone it pulls back far enough to see 3.7 units
         # above itself, which is over the top of any wall a room would have.
         # It also catches the window's light, which is the best of it.
-        quad(
+        deep(
             "Room.Ceiling",
             [(r["x0"], r["y1"], r["z0"]), (r["x1"], r["y1"], r["z0"]),
+             (r["x1"], r["y1"], zs), (r["x0"], r["y1"], zs)],
+            [(r["x0"], r["y1"], zs), (r["x1"], r["y1"], zs),
              (r["x1"], r["y1"], r["z1"]), (r["x0"], r["y1"], r["z1"])],
             ceil_mat,
             (0, -1, 0),
         ),
-        quad(
+        deep(
             "Room.Wall.L",
-            [(r["x0"], r["y0"], r["z0"]), (r["x0"], r["y0"], r["z1"]),
-             (r["x0"], r["y1"], r["z1"]), (r["x0"], r["y1"], r["z0"])],
+            [(r["x0"], r["y0"], r["z0"]), (r["x0"], r["y0"], zs),
+             (r["x0"], r["y1"], zs), (r["x0"], r["y1"], r["z0"])],
+            [(r["x0"], r["y0"], zs), (r["x0"], r["y0"], r["z1"]),
+             (r["x0"], r["y1"], r["z1"]), (r["x0"], r["y1"], zs)],
             wall_mat,
             (1, 0, 0),
         ),
-        quad(
+        deep(
             "Room.Wall.R",
-            [(r["x1"], r["y0"], r["z0"]), (r["x1"], r["y0"], r["z1"]),
-             (r["x1"], r["y1"], r["z1"]), (r["x1"], r["y1"], r["z0"])],
+            [(r["x1"], r["y0"], r["z0"]), (r["x1"], r["y0"], zs),
+             (r["x1"], r["y1"], zs), (r["x1"], r["y1"], r["z0"])],
+            [(r["x1"], r["y0"], zs), (r["x1"], r["y0"], r["z1"]),
+             (r["x1"], r["y1"], r["z1"]), (r["x1"], r["y1"], zs)],
             wall_mat,
             (-1, 0, 0),
         ),
@@ -947,17 +1583,56 @@ def build_room():
         DESK_LAMP,
         FLOOR_Y + DESK["height"],
         lamp_metal,
-        emission_material("DeskShade", (1.0, 0.80, 0.56), 1.3),
+        emission_material("DeskShade", (1.0, 0.80, 0.56), 1.1),
     )
     parts += build_desk_things(
-        flat_material("Laptop", (0.034, 0.036, 0.039), roughness=0.34),
+        # Aluminium, not the near-black slab the closed one was. An Air is a
+        # light machine and at this hour it is the one thing on the desk that
+        # catches the lamp.
+        flat_material("Laptop", (0.225, 0.230, 0.240), roughness=0.30),
+        flat_material("LaptopKeys", (0.055, 0.057, 0.060), roughness=0.55),
+        emission_material("LaptopScreen", (0.62, 0.72, 0.92), 0.55),
         flat_material("Pot", (0.155, 0.085, 0.055), roughness=0.78),
         flat_material("Leaf", (0.042, 0.098, 0.048), roughness=0.68),
     )
     parts += build_pinboard(
         flat_material("Cork", (0.20, 0.125, 0.065), roughness=0.90),
-        flat_material("Pinned", (0.74, 0.72, 0.68), roughness=0.92),
+        flat_material("Pinned", (0.60, 0.58, 0.54), roughness=0.92),
     )
+
+    # The second round of dressing: see the constants at the top of the file.
+    frame_mat = flat_material("Frame", (0.030, 0.026, 0.022), roughness=0.45)
+    mount_mat = flat_material("Mount", (0.78, 0.76, 0.71), roughness=0.92)
+    leaf_mat = flat_material("BroadLeaf", (0.028, 0.085, 0.036), roughness=0.42)
+    planter = flat_material("Planter", (0.56, 0.53, 0.48), roughness=0.62)
+    parts += build_rug()
+    parts += build_console(
+        oak_material("ConsoleOak", scale=1.3),
+        flat_material("Steel", (0.42, 0.42, 0.43), roughness=0.34),
+        flat_material("Vinyl", (0.012, 0.012, 0.013), roughness=0.24),
+        flat_material("RecordLabel", (0.42, 0.115, 0.05), roughness=0.7),
+        flat_material("Plinth", (0.035, 0.028, 0.022), roughness=0.36),
+        [
+            flat_material(f"Sleeve.{i}", c, roughness=0.8)
+            for i, c in enumerate(
+                ((0.50, 0.44, 0.34), (0.30, 0.09, 0.05), (0.04, 0.10, 0.07), (0.08, 0.10, 0.16),
+                 (0.52, 0.36, 0.10), (0.03, 0.03, 0.03), (0.40, 0.38, 0.36))
+            )
+        ],
+    )
+    for spec in PRINTS:
+        parts += build_print(
+            f"Print.{spec['art']}", spec["x"], spec["y"] - spec["h"] / 2, ROOM["back"],
+            spec["w"], spec["h"], spec["art"], frame_mat, mount_mat,
+        )
+    parts += build_floor_plant(
+        planter,
+        flat_material("Soil", (0.030, 0.022, 0.016), roughness=0.95),
+        flat_material("Stalk", (0.060, 0.050, 0.030), roughness=0.7),
+        leaf_mat,
+    )
+    parts += build_chair(oak_material("ChairOak", base=(0.070, 0.042, 0.024), light=(0.20, 0.125, 0.07), scale=1.6))
+    parts += build_top_dressing(frame_mat, mount_mat, planter, leaf_mat)
 
     # Skirting. Chamfered by board()'s bevel, which is the whole reason it is a
     # board rather than another quad: the chamfer catches a line of light along
@@ -978,6 +1653,33 @@ def build_room():
         )
 
     return parts
+
+
+def shade_glow(name, spec, stand_on, energy, colour, shade):
+    """
+    The light a lamp's shade lets through sideways: a soft point light at the
+    bulb that the shade casts no shadow for. Everything else still does.
+    """
+    bpy.ops.object.light_add(
+        type="POINT", location=(spec["x"], -spec["z"], lamp_bulb_y(spec, stand_on))
+    )
+    glow = bpy.context.active_object
+    glow.name = name
+    glow.data.energy = energy
+    glow.data.color = colour
+    # As wide as the shade, so what it throws is as soft as a glowing drum's.
+    glow.data.shadow_soft_size = spec["shade_r"]
+
+    blocker = bpy.data.objects.get(shade)
+    if blocker is not None:
+        # A blocker collection holding only excluded objects means "everything
+        # casts shadow for this light except these".
+        group = bpy.data.collections.new(f"{name}.Unblocked")
+        group.objects.link(blocker)
+        glow.light_linking.blocker_collection = group
+        for item in group.collection_objects:
+            item.light_linking.link_state = "EXCLUDE"
+    return glow
 
 
 def setup_evening():
@@ -1033,6 +1735,18 @@ def setup_evening():
     bulb.data.color = (1.0, 0.76, 0.50)
     bulb.data.shadow_soft_size = 0.05
 
+    # What comes through the shade. A linen drum is not opaque: it passes a
+    # soft warm light sideways, and that sideways light is what falls on the
+    # Spines. Without it the Books at rest are lit by bounce alone and the
+    # Shelf, which is the point of the room, is the darkest thing in it. That
+    # did not show while the Books were lit live, because the site gave them a
+    # key light of their own from this side; baked, they get what the room
+    # actually has, so the room has to actually have it.
+    #
+    # A second light at the bulb, which the shade does not block. The bulb
+    # itself still is blocked, so the cones up and down that say "shade" stay.
+    shade_glow("ShadeGlow", LAMP, FLOOR_Y, energy=28, colour=(1.0, 0.80, 0.56), shade="Room.Lamp.Shade")
+
     # The desk lamp. Much smaller than the floor lamp and much closer to what
     # it lights, so it needs a fraction of the energy to make a pool of the
     # same strength.
@@ -1042,9 +1756,17 @@ def setup_evening():
     )
     desk_bulb = bpy.context.active_object
     desk_bulb.name = "DeskBulb"
-    desk_bulb.data.energy = 20
+    # Down from 20. The lamp stands a third of a metre from the left wall and
+    # at 20, and then at 12, it burned a white hole in it, which the atlas
+    # cannot roll off. Judged from the Desk view in the browser, where the
+    # wall beside it is a quarter of the frame.
+    desk_bulb.data.energy = 8
     desk_bulb.data.color = (1.0, 0.78, 0.54)
     desk_bulb.data.shadow_soft_size = 0.035
+    shade_glow(
+        "DeskShadeGlow", DESK_LAMP, FLOOR_Y + DESK["height"], energy=2.4, colour=(1.0, 0.82, 0.60),
+        shade="Room.DeskLamp.Shade",
+    )
 
     # A very low, very warm lift off the floor, so the undersides of the
     # shelves are dark rather than dead. Smaller than daylight's by a long way.
@@ -1099,6 +1821,36 @@ def setup_render(width=1000, height=760, samples=160):
     scene.render.film_transparent = False
     scene.view_settings.view_transform = "AgX"
     scene.view_settings.look = "AgX - Base Contrast"
+
+
+def use_gpu():
+    """
+    Render and bake on the graphics card where there is one.
+
+    Opt in, with --gpu. Cycles defaults to the CPU, and the room atlas at 4096
+    is most of an hour there, so this was written expecting Metal to be the
+    answer. On the M1 it was written on it is not: seven GPU cores rendered a
+    preview four times slower than eight CPU ones. A machine with a real
+    graphics card will see it the other way round, which is why it stays.
+    """
+    try:
+        prefs = bpy.context.preferences.addons["cycles"].preferences
+        for kind in ("METAL", "OPTIX", "CUDA", "HIP", "ONEAPI"):
+            try:
+                prefs.compute_device_type = kind
+            except TypeError:
+                continue
+            prefs.get_devices()
+            found = [d for d in prefs.devices if d.type == kind]
+            if found:
+                for d in prefs.devices:
+                    d.use = d.type == kind
+                bpy.context.scene.cycles.device = "GPU"
+                print(f"[shelf] Cycles on {kind}: {', '.join(d.name for d in found)}")
+                return True
+    except Exception as err:  # no Cycles add-on, or a build without GPU support
+        print(f"[shelf] no GPU for Cycles ({err}); using the CPU")
+    return False
 
 
 def standard_view():
@@ -1171,9 +1923,24 @@ def planar_uv(obj, normal):
     """
     axes = sorted(range(3), key=lambda i: abs(normal[i]))[:2]
     uv = obj.data.uv_layers.active or obj.data.uv_layers.new(name="UVMap")
+
+    # Surfaces that run the depth of the room spend fewer texels past
+    # SQUEEZE["from_z"], where only a phone pulled right back ever looks. The
+    # mesh has an edge exactly there, so the map is linear on each face and
+    # still continuous across the join: one island, two densities, no seam.
+    squeeze = bool(obj.get("squeeze"))
+    edge = -SQUEEZE["from_z"]  # Blender Y is the site's -Z
+
+    def place(co, axis):
+        value = co[axis]
+        if squeeze and axis == 1 and value < edge:
+            value = edge + (value - edge) * SQUEEZE["by"]
+        return value
+
+    scale = obj.get("uv_scale", 1.0)
     for loop in obj.data.loops:
         co = obj.data.vertices[loop.vertex_index].co
-        uv.data[loop.index].uv = (co[axes[0]], co[axes[1]])
+        uv.data[loop.index].uv = (place(co, axes[0]) * scale, place(co, axes[1]) * scale)
 
 
 def uv_area(obj):
@@ -1287,7 +2054,7 @@ def shelf_pack_uvs(parts, gap=0.015):
     print(f"[shelf] packed {len(placed)} islands into {side:.2f} units of atlas")
 
 
-def unwrap_all(parts, margin=0.004, planar=False):
+def unwrap_all(parts, margin=0.004, planar=False, gap=0.015):
     """
     Unwrap every part into one shared UV space, ready for a single atlas.
 
@@ -1328,22 +2095,27 @@ def unwrap_all(parts, margin=0.004, planar=False):
                 obj.data.uv_layers.new(name="UVMap")
             planar_uv(obj, normal)
 
-    if curved:
-        select(curved)
+    # One object at a time. Unwrapped together, smart_project scatters each
+    # object's islands across the 0-1 square all of them share, so an object's
+    # bounding box is the whole square however small the object is. That was
+    # harmless with three lamp cylinders and ruinous with a hundred leaves,
+    # sleeves and chair legs: every one of them claimed a twelve-unit cell and
+    # the room fell to seven texels to the unit. On its own, an object's
+    # islands are packed against each other and its box is about its own size.
+    for obj in curved:
+        select([obj])
         bpy.ops.object.mode_set(mode="EDIT")
         bpy.ops.mesh.select_all(action="SELECT")
-        bpy.ops.uv.smart_project(angle_limit=math.radians(66), island_margin=margin)
+        bpy.ops.uv.smart_project(angle_limit=math.radians(66), island_margin=0.03)
         bpy.ops.object.mode_set(mode="OBJECT")
-        # smart_project leaves them in a shared 0-1; put them on the same
-        # world-unit scale as the flat panels so the packer treats everything
-        # alike and the texel density comes out even.
-        for obj in curved:
-            to_world_scale(obj)
+        # Then onto the same world-unit scale as the flat panels, so the
+        # packer treats everything alike and the texel density comes out even.
+        to_world_scale(obj)
 
-    shelf_pack_uvs(parts)
+    shelf_pack_uvs(parts, gap=gap)
 
 
-def bake_combined(parts, path, size=2048, samples=64, margin=None, name="ShelfBake"):
+def bake_combined(parts, path, size=2048, samples=64, margin=None, name="ShelfBake", reuse=False):
     """
     Bake the lit result into one texture.
 
@@ -1360,6 +2132,14 @@ def bake_combined(parts, path, size=2048, samples=64, margin=None, name="ShelfBa
     # does not have, which makes the fast loop worse than useless.
     if margin is None:
         margin = max(4, round(size * 0.005))
+
+    # --reuse: take the atlas already on disk instead of baking it again. For
+    # when a bake was cut short part way, or only the Books' light needs
+    # redoing. It trusts that the unwrap is the same as the run that made the
+    # file, which it is for as long as the script has not changed in between.
+    if reuse and os.path.exists(path):
+        print(f"[shelf] reusing {path}")
+        return bpy.data.images.load(path)
 
     image = bpy.data.images.new(name, width=size, height=size)
 
@@ -1822,6 +2602,313 @@ def build_book():
     return parts
 
 
+
+# --------------------------------------------------------------------------
+# the Books at rest, per docs/adr/0006
+# --------------------------------------------------------------------------
+
+# Top to bottom, as src/lib/shelf.ts stacks them.
+SECTION_ORDER = ("Built for Myself", "Built for Work")
+
+# Mirrors src/components/shelf/readBooks.ts and BookStack.tsx.
+READ_BOOKS = ("#4a4230", "#53382c", "#3d3043", "#2e3d52")
+STACK = {"x": -2.08, "z": -0.16, "length": 0.42, "thickness": 0.046}
+
+# The second UV set every Book carries, and what the baked light is stored at.
+LIGHT_UV = "Light"
+# Light is stored at a quarter strength, so the top of a book right under the
+# desk lamp still fits in eight bits; the site multiplies it back.
+BOX_GAIN = 4.0
+
+
+def read_projects():
+    """
+    Which Project stands in which slot, read from the content collection the
+    same way src/lib/shelf.ts reads it: by Theme, newest first.
+
+    The bake needs this because a Book at rest is lit by where it stands and
+    by what stands next to it. A Project added after the last bake is simply
+    not in the result, and the site lights that one live until the next.
+    """
+    root = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src", "content", "work")
+    entries = []
+    for path in sorted(glob.glob(os.path.join(root, "*.md"))):
+        with open(path, encoding="utf-8") as fh:
+            text = fh.read()
+        front = re.match(r"---\n(.*?)\n---", text, re.S)
+        if not front:
+            continue
+
+        def field(key):
+            found = re.search(rf'^{key}:\s*"?([^"\n]+?)"?\s*$', front.group(1), re.M)
+            return found.group(1).strip() if found else None
+
+        entries.append({"slug": field("slug"), "theme": field("theme"), "date": field("date") or ""})
+
+    layout = []
+    themes = [t for t in SECTION_ORDER if any(e["theme"] == t for e in entries)]
+    for section, theme in enumerate(themes):
+        run = sorted((e for e in entries if e["theme"] == theme), key=lambda e: e["date"], reverse=True)
+        for slot, entry in enumerate(run[:SLOTS]):
+            layout.append({"slug": entry["slug"], "theme": theme, "section": section, "slot": slot})
+    return layout
+
+
+def section_floor_y(index):
+    """Matches sectionFloorY() in ShelfUnit.tsx."""
+    return UNIT_HEIGHT / 2 - SHELF["plank"] - (index + 1) * SHELF["opening_height"] - index * SHELF["plank"]
+
+
+def slot_x(index):
+    """Matches slotX() in ShelfUnit.tsx."""
+    return -SHELF["inner_width"] / 2 + SLOT / 2 + index * SLOT
+
+
+def build_book_template():
+    """
+    The Book, finished: modifiers applied, and a second UV set unwrapped
+    across all of it.
+
+    The first set is the printing, 0-1 on the Cover and the Spine, and several
+    faces share it. Light cannot share: every face needs its own place in the
+    map. So the whole Book is unwrapped again into one square, and that square
+    becomes one tile of the baked light per Book.
+
+    Modifiers are applied first so the unwrap sees the chamfers. Unwrapped
+    before, the bevel would stretch each 3.5mm strip between two islands and
+    sample light from somewhere else entirely.
+    """
+    parts = build_book()
+    for obj in parts:
+        select([obj])
+        for mod in list(obj.modifiers):
+            bpy.ops.object.modifier_apply(modifier=mod.name)
+        if not obj.data.uv_layers:
+            obj.data.uv_layers.new(name="UVMap")
+        obj.data.uv_layers[0].active_render = True
+        light = obj.data.uv_layers.new(name=LIGHT_UV)
+        obj.data.uv_layers.active = light
+
+    select(parts)
+    bpy.ops.object.mode_set(mode="EDIT")
+    bpy.ops.mesh.select_all(action="SELECT")
+    bpy.ops.uv.smart_project(angle_limit=math.radians(66), island_margin=0.0)
+    bpy.ops.uv.select_all(action="SELECT")
+    bpy.ops.uv.average_islands_scale()
+    # A wide margin: tiles sit edge to edge in the atlas, and this is the only
+    # thing keeping one Book's light out of the next one's.
+    bpy.ops.uv.pack_islands(margin=0.035, rotate=True)
+    bpy.ops.object.mode_set(mode="OBJECT")
+
+    for obj in parts:
+        obj.data.uv_layers.active = obj.data.uv_layers[0]
+    bpy.context.view_layer.update()
+    return parts
+
+
+def theme_cloth(theme, slug):
+    """Near enough the cloth covers.ts paints, for what it bounces."""
+    base = "#14110C" if theme == "Built for Work" else "#1E7A4D"
+    ink = srgb("#14110C")
+    return tuple(a + (b - a) * 0.23 for a, b in zip(srgb(base), ink))
+
+
+def place_books(template, layout):
+    """
+    Stand a copy of the Book in every slot a Project occupies, and lay the
+    four read books on the desk.
+
+    They are here to be lit, and to throw shadow and colour on the carcass and
+    the desk while those bake. None of them is exported: the site has its own
+    Book and only wants the light.
+
+    Returns the objects and, for each Book, the tile of the atlas its light
+    is in.
+    """
+    to_blender = Matrix.Rotation(math.pi / 2, 4, "X")  # site (x, y, z) -> (x, -z, y)
+    to_site = to_blender.inverted()
+
+    count = len(layout) + len(READ_BOOKS)
+    grid = max(2, math.ceil(math.sqrt(count)))
+    objs = []
+    manifest = {"gain": BOX_GAIN, "grid": grid, "boxes": [], "stack": []}
+
+    def tile_for(index):
+        col, row = index % grid, index // grid
+        # In glTF's UV space, where V runs down: see docs/adr/0006.
+        return col, row, [col / grid, (grid - 1 - row) / grid, 1 / grid]
+
+    def instance(tag, site_matrix, colour, index):
+        world = to_blender @ site_matrix @ to_site
+        cloth = cloth_material(f"Cloth.{tag}", colour=colour)
+        col, row, tile = tile_for(index)
+        for part in template:
+            dup = part.copy()
+            dup.data = part.data.copy()
+            dup.name = f"Box.{tag}.{part.name}"
+            bpy.context.collection.objects.link(dup)
+            dup.matrix_world = world @ part.matrix_world
+            for i, mat in enumerate(dup.data.materials):
+                if mat.name.split(".")[0] in ("BookCloth", "BookCover", "BookSpine"):
+                    dup.data.materials[i] = cloth
+            uv = dup.data.uv_layers[LIGHT_UV]
+            for d in uv.data:
+                d.uv = ((col + d.uv[0]) / grid, (row + d.uv[1]) / grid)
+            objs.append(dup)
+        return tile
+
+    index = 0
+    for entry in layout:
+        at = Matrix.Translation(
+            (slot_x(entry["slot"]), section_floor_y(entry["section"]) + BOX["height"] / 2, 0)
+        )
+        tile = instance(f"{entry['section']}.{entry['slot']}", at, theme_cloth(entry["theme"], entry["slug"]), index)
+        manifest["boxes"].append(
+            {"slug": entry["slug"], "section": entry["section"], "slot": entry["slot"], "tile": tile}
+        )
+        index += 1
+
+    desk_top = FLOOR_Y + DESK["height"]
+    scale = Matrix.Diagonal(
+        (STACK["thickness"] / BOX["thickness"], STACK["length"] / BOX["height"], STACK["length"] / BOX["height"], 1)
+    )
+    on_side = Matrix.Rotation(-math.pi / 2, 4, "Z")
+    for i, colour in enumerate(READ_BOOKS):
+        yaw = (((i * 37) % 11) - 5) * 0.012
+        at = (
+            Matrix.Translation((STACK["x"], desk_top + STACK["thickness"] * (i + 0.5), STACK["z"]))
+            @ Matrix.Rotation(yaw, 4, "Y")
+            @ on_side
+            @ scale
+        )
+        manifest["stack"].append(instance(f"Stack.{i}", at, srgb(colour), index))
+        index += 1
+
+    bpy.context.view_layer.update()
+    return objs, manifest
+
+
+def bake_box_light(objs, path, grid, size=2048, samples=64):
+    """
+    Bake the light falling on every Book at rest, without its colour.
+
+    Not COMBINED, which is what the room gets. A Book's colour is printed in
+    the browser, per Project, so what is stored here is only how much light
+    reaches each point of it: the site multiplies that by the printing. The
+    same light map serves whatever is printed on the Book, which is the thing
+    a combined bake could not do.
+    """
+    image = bpy.data.images.new("BoxLight", width=size, height=size, alpha=False, float_buffer=True)
+    seen = set()
+    for obj in objs:
+        for slot in obj.material_slots:
+            mat = slot.material
+            if mat.name in seen:
+                continue
+            seen.add(mat.name)
+            tex = mat.node_tree.nodes.new("ShaderNodeTexImage")
+            tex.image = image
+            tex.select = True
+            mat.node_tree.nodes.active = tex
+
+    scene = bpy.context.scene
+    scene.render.engine = "CYCLES"
+    scene.cycles.samples = samples
+    scene.cycles.use_denoising = True
+    bake = scene.render.bake
+    bake.use_selected_to_active = False
+    bake.use_clear = True
+    bake.use_pass_direct = True
+    bake.use_pass_indirect = True
+    bake.use_pass_color = False
+    # Under the 3.5% the template's islands were packed with, per tile.
+    margin = max(2, round(size / grid * 0.012))
+    bake.margin = margin
+
+    select(objs)
+    print(f"[shelf] baking light on {len(objs)} Book parts to {size}x{size} at {samples} samples ...")
+    bpy.ops.object.bake(
+        type="DIFFUSE", pass_filter={"DIRECT", "INDIRECT"}, uv_layer=LIGHT_UV, margin=margin, use_clear=True
+    )
+
+    import numpy as np
+
+    raw = np.empty(size * size * 4, dtype=np.float32)
+    image.pixels.foreach_get(raw)
+    light = raw.reshape(-1, 4)[:, :3] / BOX_GAIN
+    lit = light.max(axis=1) > 0
+    clipped = float((light[lit].max(axis=1) > 1).mean()) if lit.any() else 0.0
+    print(f"[shelf] Book light: {clipped:.2%} of lit texels over the top of the range")
+    light = np.clip(light, 0, 1)
+
+    # Smooth it. Cycles denoises a combined bake and not this one, and at any
+    # sample count worth waiting for the result is speckled: every texel a
+    # slightly different brightness from the one beside it, which on a Spine
+    # reads as glitter. Light on a Book is a slow gradient with no detail in
+    # it, so a few texels of blur costs nothing true. Only lit texels are
+    # averaged, and each by how many lit neighbours it had, so an island's
+    # edge is not dragged towards the black between islands.
+    def box(a, r):
+        pad = np.pad(a, ((r + 1, r), (r + 1, r), (0, 0)), mode="edge")
+        c = pad.cumsum(axis=0).cumsum(axis=1)
+        n = 2 * r + 1
+        return c[n:, n:] - c[:-n, n:] - c[n:, :-n] + c[:-n, :-n]
+
+    grid = light.reshape(size, size, 3).astype(np.float64)
+    mask = lit.reshape(size, size, 1).astype(np.float64)
+    for _ in range(3):
+        weight = box(mask, 2)
+        grid = np.where(mask > 0, box(grid * mask, 2) / np.maximum(weight, 1e-9), grid)
+    light = grid.reshape(-1, 3).astype(np.float32)
+
+    encoded = np.where(light <= 0.0031308, light * 12.92, 1.055 * np.power(light, 1 / 2.4) - 0.055)
+
+    out = bpy.data.images.new("BoxLightOut", width=size, height=size, alpha=False)
+    pixels = np.ones((size * size, 4), dtype=np.float32)
+    pixels[:, :3] = encoded
+    out.pixels.foreach_set(pixels.ravel())
+    out.filepath_raw = path
+    out.file_format = "PNG"
+    out.save()
+    print(f"[shelf] wrote {path}")
+    return out
+
+
+def show_baked_books(objs, image):
+    """
+    The Books as the site will draw them at rest: their own colour times the
+    baked light, and nothing else. The other half of show_baked().
+    """
+    made = {}
+    for obj in objs:
+        for i, mat in enumerate(obj.data.materials):
+            if mat.name not in made:
+                bsdf = mat.node_tree.nodes.get("Principled BSDF")
+                colour = tuple(bsdf.inputs["Base Color"].default_value) if bsdf else (0.5, 0.5, 0.5, 1)
+                shown = bpy.data.materials.new(f"Shown.{mat.name}")
+                shown.use_nodes = True
+                nt = shown.node_tree
+                nt.nodes.clear()
+                out = nt.nodes.new("ShaderNodeOutputMaterial")
+                emit = nt.nodes.new("ShaderNodeEmission")
+                emit.inputs["Strength"].default_value = BOX_GAIN
+                uv = nt.nodes.new("ShaderNodeUVMap")
+                uv.uv_map = LIGHT_UV
+                tex = nt.nodes.new("ShaderNodeTexImage")
+                tex.image = image
+                tint = nt.nodes.new("ShaderNodeMix")
+                tint.data_type = "RGBA"
+                tint.blend_type = "MULTIPLY"
+                tint.inputs["Factor"].default_value = 1.0
+                tint.inputs["B"].default_value = colour
+                nt.links.new(uv.outputs["UV"], tex.inputs["Vector"])
+                nt.links.new(tex.outputs["Color"], tint.inputs["A"])
+                nt.links.new(tint.outputs["Result"], emit.inputs["Color"])
+                nt.links.new(emit.outputs["Emission"], out.inputs["Surface"])
+                made[mat.name] = shown
+            obj.data.materials[i] = made[mat.name]
+
+
 # Views to judge a Book from. The three-quarter shows the Cover and the curve
 # of the back at once; "head" looks down on the top, where the square, the
 # hollow and the headband live; "spine" is what the Shelf actually shows.
@@ -1938,6 +3025,11 @@ def main():
     ap.add_argument("--show-baked", help="render the baked texture unlit, to this PNG")
     ap.add_argument("--export", help="write the .glb here")
     ap.add_argument("--bake-room", help="bake the room to this PNG")
+    ap.add_argument("--room-size", type=int, help="the room atlas, if not --bake-size")
+    ap.add_argument("--bake-boxes", help="bake the light on the Books at rest to this PNG")
+    ap.add_argument("--box-size", type=int, default=2048)
+    ap.add_argument("--box-samples", type=int, help="samples for the Books' light, if not --bake-samples")
+    ap.add_argument("--boxes-manifest", help="where to write which Book is in which tile")
     ap.add_argument("--book-render", help="render one Book on its own, to this PNG")
     ap.add_argument("--book-view", default="three-quarter", choices=sorted(BOOK_VIEWS))
     ap.add_argument("--cloth-bake", help="bake the tiling cloth normal map here")
@@ -1948,16 +3040,27 @@ def main():
     ap.add_argument("--width", type=int, default=1000)
     ap.add_argument("--height", type=int, default=760)
     ap.add_argument("--samples", type=int, default=160)
+    ap.add_argument("--reuse", action="store_true", help="keep any atlas already on disk: see bake_combined()")
+    ap.add_argument("--gpu", action="store_true", help="bake on the graphics card: see use_gpu()")
+    ap.add_argument(
+        "--standard",
+        action="store_true",
+        help="render --render through the Standard view, as the atlas will be seen, not AgX",
+    )
     args = ap.parse_args(argv)
 
     clear_scene()
+    if args.gpu:
+        use_gpu()
 
     if args.cloth_bake:
         bake_cloth_normal(args.cloth_bake, size=args.cloth_size, threads=args.cloth_threads)
         return
 
-    if args.book_export:
-        export_glb(build_book(), args.book_export, materials="EXPORT")
+    baking = bool(args.bake or args.show_baked or args.export or args.bake_boxes)
+
+    if args.book_export and not (baking or args.render):
+        export_glb(build_book_template(), args.book_export, materials="EXPORT")
         return
 
     if args.book_render:
@@ -1976,6 +3079,17 @@ def main():
 
     parts = build_carcass()
     room = build_room()
+
+    # The Books, standing where the Projects stand. Built from the same
+    # template the site's own book.glb is exported from, in the same run, so
+    # the second UV set the light is stored at cannot drift between the two.
+    template = build_book_template()
+    if args.book_export:
+        export_glb(template, args.book_export, materials="EXPORT")
+    books, manifest = place_books(template, read_projects())
+    select(template)
+    bpy.ops.object.delete(use_global=False)
+
     setup_evening()
     setup_camera(args.view)
     setup_render(width=args.width, height=args.height, samples=args.samples)
@@ -1983,11 +3097,13 @@ def main():
     print(f"[shelf] carcass {OUTER_WIDTH:.3f} x {UNIT_HEIGHT:.3f} x {SHELF['depth']:.3f}")
 
     if args.render:
+        if args.standard:
+            standard_view()
         bpy.context.scene.render.filepath = args.render
         bpy.ops.render.render(write_still=True)
         print(f"[shelf] wrote {args.render}")
 
-    if args.bake or args.show_baked or args.export:
+    if baking:
         # Two atlases, not one. A floor is mostly empty and a carcass is mostly
         # edges; sharing a map means the shadow on the floor and the grain on a
         # board edge compete for the same texels and both lose.
@@ -1998,27 +3114,53 @@ def main():
             size=args.bake_size,
             samples=args.bake_samples,
             name="CarcassBake",
+            reuse=args.reuse,
         )
 
-        unwrap_all(room, margin=0.01, planar=True)
+        # The glass is seen by the camera only, and the site draws what is
+        # outside the window itself, so it takes no part in the bake or the
+        # export. It stays in the scene for the previews.
+        fixed = [obj for obj in room if obj.name != "Room.Glass"]
+        # A tighter gap than the default, and a margin to match. A hundred
+        # islands at 1.5% of the side each was a quarter of the atlas spent on
+        # the space between them; at 4096 the 0.2% margin is still eight
+        # texels, three mip levels, which is all a margin is for.
+        room_size = args.room_size or args.bake_size
+        unwrap_all(fixed, margin=0.01, planar=True, gap=0.006)
         room_img = bake_combined(
-            room,
+            fixed,
             args.bake_room or "/tmp/room-bake.png",
-            size=args.bake_size,
+            size=room_size,
             samples=args.bake_samples,
+            margin=max(3, round(room_size * 0.002)),
             name="RoomBake",
+            reuse=args.reuse,
         )
+
+        box_img = None
+        if args.bake_boxes:
+            box_img = bake_box_light(
+                books, args.bake_boxes, manifest["grid"], size=args.box_size,
+                samples=args.box_samples or args.bake_samples,
+            )
+            manifest_path = args.boxes_manifest or os.path.splitext(args.bake_boxes)[0] + ".json"
+            with open(manifest_path, "w", encoding="utf-8") as fh:
+                json.dump(manifest, fh, indent=2)
+                fh.write("\n")
+            print(f"[shelf] wrote {manifest_path}")
 
         carcass = join_carcass(parts)
         carcass.name = "Carcass"
 
         if args.export:
-            export_glb([carcass, *room], args.export)
+            export_glb([carcass, *fixed], args.export)
 
         if args.show_baked:
             show_baked(carcass, carcass_img)
-            for obj in room:
+            for obj in fixed:
                 show_baked(obj, room_img)
+            if box_img is not None:
+                show_baked_books(books, box_img)
             standard_view()
             bpy.context.scene.render.filepath = args.show_baked
             bpy.ops.render.render(write_still=True)

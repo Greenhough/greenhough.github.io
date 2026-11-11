@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import * as THREE from 'three';
 import { useThree } from '@react-three/fiber';
-import { useGLTF } from '@react-three/drei';
+import { useGLTF, useTexture } from '@react-three/drei';
+import { BOX_LIGHT, bakeInto, prepareLight, stackTile } from './bakedLight';
 import { ensureFonts, paintReadSpine, toTexture } from './covers';
 import { READ_BOOKS } from './readBooks';
 import { BOX } from './Box';
@@ -44,6 +45,7 @@ const AT = { x: -2.08, z: -0.16 };
 export function BookStack() {
   const { scene } = useGLTF(MODEL);
   const renderer = useThree((s) => s.gl);
+  const light = prepareLight(useTexture(BOX_LIGHT));
   const [spines, setSpines] = useState<THREE.CanvasTexture[] | null>(null);
 
   // Painted once for the page. Unlike a Project's Spine these never change:
@@ -85,21 +87,44 @@ export function BookStack() {
       });
       materials.push(cover, spine);
 
+      // These never leave the desk, so they are never lit live: the light the
+      // desk lamp throws on them is baked, the same way the desk's is, and
+      // `live` stays at nought. See bakedLight.ts.
+      const tile = stackTile(i);
+      const atRest = { value: 0 };
+      if (tile) {
+        bakeInto(cover, light, tile, atRest);
+        bakeInto(spine, light, tile, atRest);
+      }
+      const own = new Map<string, THREE.MeshStandardMaterial>();
+
       const root = scene.clone(true);
       root.traverse((child) => {
         const mesh = child as THREE.Mesh;
         if (!mesh.isMesh) return;
-        const name = (mesh.material as THREE.Material)?.name ?? '';
-        if (name === 'BookCover') mesh.material = cover;
+        const shared = mesh.material as THREE.MeshStandardMaterial;
+        const name = shared?.name ?? '';
+        // Both boards are the binding's own cloth: only a Project's Cover is
+        // printed, and these are not Projects.
+        if (name === 'BookCover' || name === 'BookCloth') mesh.material = cover;
         else if (name === 'BookSpine') mesh.material = spine;
-        mesh.castShadow = true;
+        else if (tile) {
+          let mine = own.get(name);
+          if (!mine) {
+            mine = bakeInto(shared.clone(), light, tile, atRest);
+            own.set(name, mine);
+            materials.push(mine);
+          }
+          mesh.material = mine;
+        }
+        mesh.castShadow = !tile;
         mesh.receiveShadow = false;
       });
       return { book, root, i };
     });
 
     return { books, materials };
-  }, [scene, spines]);
+  }, [scene, spines, light]);
 
   useEffect(() => () => stack?.materials.forEach((m) => m.dispose()), [stack]);
 

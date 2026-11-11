@@ -181,6 +181,13 @@ export default function Shelf({
       <Canvas
         className="shelf-canvas"
         shadows
+        // No tone mapping. Almost everything on screen is baked, and a bake
+        // left Blender already mapped to a display; mapping the canvas again
+        // was only ever right for the Books, and a Book at rest is now baked
+        // light too. With the canvas flat, printing times baked light comes
+        // out exactly as Cycles rendered it, and the live lights in Scene.tsx
+        // are set to meet it. See docs/adr/0006.
+        flat
         // Measure immediately rather than on a debounce, so the first frame is
         // not missed when the island mounts into a container still settling.
         resize={RESIZE}
@@ -195,6 +202,7 @@ export default function Shelf({
             place={place}
             post={post}
             textureSize={phone ? 512 : 1024}
+            phone={phone}
             onFocus={setFocusedSlug}
             onInspect={inspect}
             onOpenPost={openPost}

@@ -30,19 +30,23 @@ The room the Shelf stands in. Floor, ceiling, three walls, a skirting board and 
 _Avoid_: backdrop, environment, set, background, scene
 
 **Window**:
-The opening in the Room's back wall, left of the Shelf. Shows a dusk sky and gives the Room its cool light, opposite the Lamp.
+The opening in the Room's back wall, left of the Shelf. Looks out on the Prairie and gives the Room its cool light, opposite the Lamp.
 _Avoid_: light, lightbox, panel
+
+**Prairie**:
+What is outside the Window: a low horizon at dusk, painted by a script and drawn live on a plane behind the glass, so it slides against the frame as the camera moves. Shows no real place.
+_Avoid_: view (which means a camera position), backdrop, sky, skybox
 
 **Lamp**:
 The floor lamp to the right of the Shelf. The Room's warm light and most of what makes it visible, since the Window alone leaves it nearly black. The Desk has a smaller one of its own.
 _Avoid_: light, lighting, practical
 
 **Desk**:
-The desk under the Window, left of the Shelf. Where Posts will live once the camera visits it. Carries a lamp, a closed laptop, a plant and the Book stack.
+The desk under the Window, left of the Shelf, with a chair at it. Where the latest Post lives, as the Sheet. Carries a lamp, an open laptop, a plant and the Book stack.
 _Avoid_: table, workstation
 
 **Book stack**:
-The four read books lying flat on the Desk. Real books by other people, not Projects — they lie down, they are not on the Shelf, and the titles are someone else's. Lettered at runtime, never baked.
+The four read books lying flat on the Desk. Real books by other people, not Projects — they lie down, they are not on the Shelf, and the titles are someone else's. Lettered at runtime; lit by baked light, since they never move.
 _Avoid_: books (unqualified, which means Boxes), library
 
 **View**:
@@ -56,6 +60,26 @@ _Avoid_: card, note, panel
 **Pinboard**:
 The cork board on the back wall right of the Shelf, with blank paper pinned to it. Dressing: nothing on it is clickable.
 _Avoid_: board, moodboard, gallery
+
+**Console**:
+The low cabinet right of the Shelf, with record sleeves in it and the Record player on it. Two Prints hang over it.
+_Avoid_: sideboard, cabinet, stand
+
+**Record player**:
+The turntable on the Console. Its record turns. Dressing for now; planned as the way in to a song.
+_Avoid_: turntable, deck, stereo
+
+**Prints**:
+The framed pictures: two over the Console, one leaning on top of the Shelf. Flat shapes in the Room's own colours, deliberately of nothing.
+_Avoid_: art, posters, photos (which is what the Pinboard is waiting for)
+
+**Live part**:
+Something in the Room drawn on top of the bake because it moves: the Prairie, the glow of the Lamps, their reflection in the Window glass, dust, leaves, the record. Each is either light itself or moves too little to need relighting, which is what lets it be live.
+_Avoid_: effect, animation, particle
+
+**At rest** / **In the hand**:
+The two ways a Box is lit. At rest on the Shelf it is its printing multiplied by baked light; in the hand, while Inspecting, it is lit live. The same Box passes from one to the other as it leaves the Shelf.
+_Avoid_: baked mode, live mode, static, dynamic
 
 **Section**:
 A labelled run of the Shelf holding the Projects of one Theme.

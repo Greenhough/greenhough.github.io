@@ -1,13 +1,16 @@
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { useFrame, useThree } from '@react-three/fiber';
-import { ContactShadows, Environment, Lightformer } from '@react-three/drei';
+import { Environment, Lightformer } from '@react-three/drei';
 import { Box, BOX } from './Box';
 import { SHELF, SectionLabel, sectionFloorY, slotX } from './ShelfUnit';
 import { ShelfModel } from './ShelfModel';
 import { BookStack } from './BookStack';
 import { palette } from './palette';
 import { Paper } from './Paper';
+import { Atmosphere } from './Atmosphere';
+import { boxTile } from './bakedLight';
+import { easeFor, isFrozen, roomTime } from './clock';
 import type { ShelfPlace, ShelfPost, ShelfSection, ShelfState } from './types';
 
 interface Props {
@@ -17,10 +20,28 @@ interface Props {
   place: ShelfPlace;
   post: ShelfPost | null;
   textureSize: number;
+  /** A phone gets the smaller room atlas. */
+  phone: boolean;
   onFocus: (slug: string) => void;
   onInspect: (slug: string) => void;
   onOpenPost: (slug: string) => void;
   onHover: (hovering: boolean) => void;
+}
+
+/** Half the carcass's width and a margin: what has to fit across a phone. */
+const SHELF_HALF = (SHELF.innerWidth + SHELF.side * 2) / 2 + 0.14;
+
+/**
+ * What the camera needs to know about the window it is drawing into.
+ *
+ * `fit` is how far back the camera has to stand for something this many units
+ * either side of where it is looking to fit across the frame. `wide` runs
+ * from 0 on a phone held upright to 1 on anything landscape, for the things
+ * that only make sense with room beside them.
+ */
+interface Frame {
+  fit: (halfWidth: number) => number;
+  wide: number;
 }
 
 /** How far forward a Box comes when it is held out for Inspecting. Matches Box.tsx. */
@@ -39,10 +60,16 @@ interface Focus {
  * corner the lamp and the book stack fall to the left, the sheet of paper sits
  * near the middle, and the plant closes the right — and the desk lands
  * right-of-centre in frame, clear of the HUD text that runs down the left.
+ *
+ * Stood further back and looking less steeply down than it first did. From
+ * close in and above, the window showed only ground: the horizon was just
+ * over the top of the frame, and the Prairie is mostly sky. Fourteen degrees
+ * down instead of twenty-two puts the horizon in the upper part of the window
+ * and the chair in the foreground.
  */
 const DESK_VIEW = {
-  position: new THREE.Vector3(-2.55, 0.32, 1.5),
-  lookAt: new THREE.Vector3(-1.8, -0.42, -0.12),
+  position: new THREE.Vector3(-2.6, 0.36, 2.05),
+  lookAt: new THREE.Vector3(-1.72, -0.27, -0.2),
 };
 
 /**
@@ -54,37 +81,59 @@ function cameraTargets(
   state: ShelfState,
   place: ShelfPlace,
   focus: Focus | null,
-  pullBack: number
+  frame: Frame
 ) {
   if (place === 'desk') {
-    // Pulled back on a narrow viewport the same way the Shelf is, so the desk
-    // stays in frame on a phone.
-    const back = DESK_VIEW.position.clone().sub(DESK_VIEW.lookAt).multiplyScalar(pullBack);
+    // Pulled back along its own line of sight until the desk fits the width.
+    const back = DESK_VIEW.position
+      .clone()
+      .sub(DESK_VIEW.lookAt)
+      .multiplyScalar(Math.max(1, frame.fit(1.0) / DESK_VIEW.position.distanceTo(DESK_VIEW.lookAt)));
     return { position: DESK_VIEW.lookAt.clone().add(back), lookAt: DESK_VIEW.lookAt.clone() };
   }
   if (!focus) {
     return {
-      position: new THREE.Vector3(0, 0, 4.4 * pullBack),
+      position: new THREE.Vector3(0, 0, Math.max(4.4, frame.fit(SHELF_HALF))),
       lookAt: new THREE.Vector3(0, 0, 0),
     };
   }
   if (state === 'inspecting' || state === 'opened') {
     // Aim to the left of the held Box so it sits in the right half of the
-    // frame, clear of the HUD text running down the left.
+    // frame, clear of the HUD text running down the left. On a narrow window
+    // the HUD is underneath instead and there is no left to keep clear, so
+    // the Box comes back to the middle.
+    const aside = 0.42 * frame.wide;
     const held = new THREE.Vector3(focus.x, focus.y + 0.12, INSPECT_FORWARD);
-    const aim = new THREE.Vector3(held.x - 0.42, held.y + 0.04, held.z);
+    const aim = new THREE.Vector3(held.x - aside, held.y + 0.04, held.z);
     return {
-      position: new THREE.Vector3(aim.x, aim.y + 0.1, held.z + 2.45 * pullBack),
+      position: new THREE.Vector3(
+        aim.x,
+        aim.y + 0.1,
+        held.z + Math.max(2.45, frame.fit(BOX.width / 2 + 0.1 + aside))
+      ),
       lookAt: aim,
     };
   }
   // Browsing: travel with the focused Box, but damped, so the whole Shelf stays
-  // in frame and the camera drifts rather than swinging. Biased upward to keep
-  // the Shelf clear of the HUD along the bottom edge.
-  const driftX = focus.x * 0.55;
+  // in frame and the camera drifts rather than swinging.
+  //
+  // Four units back, not three and a half. From closer the Shelf filled the
+  // frame and the room was a margin round it: the print on top of the carcass
+  // was cut off, the lamp was half out of the right edge and the console was
+  // under the HUD. The room is most of the picture now, so the camera stands
+  // where it can see it. The Spines are a tenth smaller for it and still read.
+  //
+  // On a phone it stands only as far back as the Shelf's width needs. It used
+  // to multiply the distance by up to 2.2, which was sized for a camera that
+  // started closer; from four units that put it nearly nine back, and the top
+  // third of a phone was ceiling.
+  const driftX = focus.x * 0.55 * frame.wide;
+  // On a phone the HUD is a block across the bottom, not a line down the
+  // left, so the camera looks a little lower and the Shelf rides up clear of it.
+  const under = -0.26 * (1 - frame.wide);
   return {
-    position: new THREE.Vector3(driftX, focus.y * 0.45 + 0.3, 3.5 * pullBack),
-    lookAt: new THREE.Vector3(driftX, focus.y * 0.45 - 0.05, 0),
+    position: new THREE.Vector3(driftX, focus.y * 0.4 + 0.2 + under, Math.max(4.0, frame.fit(SHELF_HALF))),
+    lookAt: new THREE.Vector3(driftX, focus.y * 0.4 + under, 0),
   };
 }
 
@@ -95,6 +144,7 @@ export function Scene({
   place,
   post,
   textureSize,
+  phone,
   onFocus,
   onInspect,
   onOpenPost,
@@ -104,12 +154,21 @@ export function Scene({
   const camera = useThree((s) => s.camera);
   const size = useThree((s) => s.size);
   const lookAt = useRef(new THREE.Vector3(0, 0, 0));
+  /** Where the camera would be with no lean on it. */
+  const rail = useRef(new THREE.Vector3(0, 0, 4.4));
 
   // A phone held upright is far narrower than it is tall, so the same camera
-  // distance that frames the Shelf on a desktop crops it on a phone. Pull back
-  // by however much the viewport is narrower than 4:3.
+  // distance that frames the Shelf on a desktop crops it on a phone. Each view
+  // asks how far back it must stand for what it is showing to fit the width.
   const aspect = size.width / Math.max(1, size.height);
-  const pullBack = Math.min(2.2, Math.max(1, 1.333 / Math.max(0.3, aspect)));
+  const halfFov = THREE.MathUtils.degToRad((camera as THREE.PerspectiveCamera).fov ?? 42) / 2;
+  const frame: Frame = {
+    fit: (halfWidth) => halfWidth / (Math.tan(halfFov) * Math.max(0.3, aspect)),
+    wide: THREE.MathUtils.smoothstep(aspect, 0.7, 1.25),
+  };
+  // How much further back than a desktop this window puts the Shelf camera.
+  // The lean of the camera scales with it, so parallax looks the same.
+  const pullBack = Math.max(1, frame.fit(SHELF_HALF) / 4.0);
 
   // Resolve the focused Box's resting place so the camera knows where to go.
   let focus: Focus | null = null;
@@ -124,10 +183,54 @@ export function Scene({
     });
   });
 
+  // Where the pointer is, -1 to 1 each way, and when it last moved. Tracked
+  // on the window rather than the canvas: the HUD and the nav sit on top of
+  // the canvas, and the room should not stop answering because the pointer is
+  // over a button.
+  const pointer = useRef({ x: 0, y: 0, movedAt: -Infinity });
+  const lean = useRef(new THREE.Vector2());
+  useEffect(() => {
+    const onMove = (e: PointerEvent) => {
+      pointer.current.x = (e.clientX / window.innerWidth) * 2 - 1;
+      pointer.current.y = (e.clientY / window.innerHeight) * 2 - 1;
+      pointer.current.movedAt = roomTime();
+    };
+    window.addEventListener('pointermove', onMove, { passive: true });
+    return () => window.removeEventListener('pointermove', onMove);
+  }, []);
+
+  const offset = useRef(new THREE.Vector3());
+  const right = useRef(new THREE.Vector3());
+
   useFrame((_, delta) => {
-    const ease = 1 - Math.pow(0.0025, delta);
-    const { position, lookAt: target } = cameraTargets(state, place, focus, pullBack);
-    camera.position.lerp(position, ease);
+    const ease = easeFor(delta, 0.0025);
+    const { position, lookAt: target } = cameraTargets(state, place, focus, frame);
+
+    // The camera leans a little towards the pointer, and with nothing to lean
+    // towards it drifts on its own. It moves, the thing it looks at does not,
+    // so near things slide against far ones: the Shelf against the wall, the
+    // window frame against the prairie. That slide is the cheapest proof there
+    // is that this is a room and not a picture of one.
+    const t = roomTime();
+    const idle = THREE.MathUtils.smoothstep(t - pointer.current.movedAt, 2.5, 6);
+    const wantX = THREE.MathUtils.lerp(pointer.current.x, Math.sin(t * 0.21) * 0.55, idle);
+    const wantY = THREE.MathUtils.lerp(pointer.current.y, Math.sin(t * 0.16 + 1.3) * 0.4, idle);
+    const settle = isFrozen ? 1 : 1 - Math.pow(0.03, delta);
+    lean.current.x += (wantX - lean.current.x) * settle;
+    lean.current.y += (wantY - lean.current.y) * settle;
+
+    // Less in the hand: a Book being read should hold still.
+    const reach = (state === 'browsing' ? 0.2 : 0.07) * pullBack;
+    right.current.set(1, 0, 0).applyQuaternion(camera.quaternion);
+    offset.current
+      .copy(right.current)
+      .multiplyScalar(lean.current.x * reach)
+      .addScaledVector(camera.up, -lean.current.y * reach * 0.55);
+
+    // Ease the unleaned position, then lean from it, so the lean is never
+    // fed back into the easing and the two cannot wind each other up.
+    rail.current.lerp(position, ease);
+    camera.position.copy(rail.current).add(offset.current);
     lookAt.current.lerp(target, ease);
     camera.lookAt(lookAt.current);
   });
@@ -135,8 +238,12 @@ export function Scene({
   return (
     <>
       {/*
-        All of this lights the Boxes only. The carcass and the room draw with
-        MeshBasicMaterial and ignore light entirely, because theirs is baked.
+        All of this lights one thing: a Box in the hand. The carcass and the
+        room draw with MeshBasicMaterial and ignore light entirely, because
+        theirs is baked, and so is a Box's while it stands on the Shelf (see
+        bakedLight.ts). These take over as a Box leaves its slot, and they are
+        set to meet the bake rather than to look good alone: the canvas is not
+        tone mapped, so what these produce goes to the screen as it is.
 
         An environment rather than bare lights: a Box sitting in a room is lit
         from every direction, and three directional lights cannot fake that.
@@ -184,7 +291,11 @@ export function Scene({
         shadow-normalBias={0.02}
       />
 
-      <ShelfModel />
+      <ShelfModel phone={phone} />
+
+      {/* The view through the window, the glow of the lamps and the dust in
+          it: the parts of the room that are drawn live. */}
+      <Atmosphere />
 
       {/* Lettered at runtime rather than baked into the room, because a title
           baked into the room atlas is about twenty texels tall. */}
@@ -218,6 +329,7 @@ export function Scene({
                   (state === 'inspecting' || state === 'opened')
                 }
                 opened={project.slug === focusedSlug && state === 'opened'}
+                tile={boxTile(project.slug, si, pi)}
                 onSelect={() =>
                   project.slug === focusedSlug ? onInspect(project.slug) : onFocus(project.slug)
                 }
@@ -228,15 +340,13 @@ export function Scene({
         );
       })}
 
-      <ContactShadows
-        position={[0, -(sections.length * (SHELF.openingHeight + SHELF.plank)) / 2 - 0.02, 0]}
-        opacity={0.28}
-        scale={6}
-        blur={2.4}
-        far={2}
-      />
+      {/* No contact shadow under the Shelf any more. It was a second render of
+          the scene every frame to ground the Boxes, and the Boxes' shadows on
+          the boards are in the bake now that they stand there while it bakes. */}
 
-      <color attach="background" args={[p.paper]} />
+      {/* The room with the lamps off. Only ever seen for a frame, or past the
+          open fourth side on a very wide window. */}
+      <color attach="background" args={["#16171d"]} />
     </>
   );
 }
