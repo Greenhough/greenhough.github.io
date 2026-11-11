@@ -6,7 +6,6 @@ tags: ["Power Automate", "Automation"]
 date: 2026-11-11
 description: "How I built an AI triage flow in Power Automate that sorts our general contact inbox, matches senders to customers, and drafts forwards a person sends."
 summary: "An AI triage flow that turns a shared inbox into Teams cards, with a draft ready and a person pressing send."
-dek: "Nothing sends on its own."
 theme: "Built for Work"
 ---
 <section class="cs-sec">
