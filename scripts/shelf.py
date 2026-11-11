@@ -32,8 +32,8 @@ without baking: the lit scene through the view the atlas is seen through.)
 Then judge the page itself, in a browser: docs/adr/0006.
 
 Iterate at --bake-size 768 --bake-samples 16, which takes a few minutes. The
-full bake is the best part of an hour on an M1, most of it the room at 4096,
-and caffeinate is there because a Mac that sleeps part way takes all night.
+full bake is about two hours on an M1, nearly all of it the room at 4096, and
+caffeinate is there because a Mac that sleeps part way takes all night.
 If one atlas is cut short, --reuse keeps the ones already written.
 
 Dimensions come from the site: a Box is 0.2 x 1.0 x 0.82 scene units, and the

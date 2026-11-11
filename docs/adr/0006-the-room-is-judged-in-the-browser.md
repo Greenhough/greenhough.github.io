@@ -117,10 +117,15 @@ claim about what is on Evan's wall.
 - **The room atlas is 4096 on a desktop, 2048 on a phone.** More objects need more
   texels. The surfaces that run the depth of the room are squeezed past 2.7 units, where
   only a phone pulled right back looks, which bought back most of what the dressing cost.
-- **`docs/adr/0002`'s budget should be measured again** after the full bake. The light
-  atlas and the Prairie are new downloads.
-- **A full bake is the best part of an hour on an M1.** `--gpu` is there for a machine
-  with a real graphics card; on this one Metal was slower than the CPU.
+- **`docs/adr/0002`'s 1.5MB budget still stands, measured.** After the full bake the
+  home page is about 1MB over the wire: 350KB of JavaScript, 110KB of geometry, 330KB of
+  atlases and the Prairie, and the fonts and Cover art it already had. The room at 4096
+  is 171KB as WebP, because a baked room is mostly smooth gradient. The light atlas is
+  baked at 2048 and shipped at 1024, which is 34KB.
+- **A full bake is about two hours on an M1**, nearly all of it the room at 4096, and
+  the machine has to stay awake for it. `--reuse` keeps the atlases already written if a
+  run is cut short. `--gpu` is there for a machine with a real graphics card; on this one
+  Metal was slower than the CPU.
 - **The bake depends on content.** Re-run it when Projects are added or reordered, not
   because anything breaks, but because the new Book is lit differently from its
   neighbours until then.
