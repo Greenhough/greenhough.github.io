@@ -3,6 +3,11 @@ import * as THREE from 'three';
 import { useFrame, useThree } from '@react-three/fiber';
 import { ensureFonts, paintSheet, toTexture } from './covers';
 import type { ShelfPost } from './types';
+import { easeFor, roomLight } from './clock';
+
+/** What white paper comes out as in the bake: on the desk by the lamp, and held up. */
+const ON_DESK = new THREE.Color(0.80, 0.66, 0.50);
+const HELD_UP = new THREE.Color(0.95, 0.89, 0.80);
 
 /**
  * The sheet of paper on the Desk: the latest Post, lying where someone left it.
@@ -27,16 +32,23 @@ interface Props {
 /** Mirrors DESK in scripts/shelf.py, and has to agree with it. */
 const DESK_TOP = -1.2975 + 0.74;
 
-/** A4 at the room's scale: one unit is one metre. */
-const WIDTH = 0.26;
+/**
+ * A4 at the room's scale, where one unit is one metre.
+ *
+ * It was 0.26 wide, which at A4's proportions is 368mm deep — and lying flat
+ * that put a third of the sheet out over the front edge of the desk, hanging
+ * in the air. Paper is a size people know; getting it wrong shows.
+ */
+const WIDTH = 0.22;
 const HEIGHT = WIDTH * 1.414;
 
 /**
- * In front of the laptop and clear of the plant. The desk is a crowded 1.77
- * units once a lamp, a book stack, a laptop and a plant are on it, and this is
- * the one stretch of it still free.
+ * To the right of the laptop and in front of the plant, where it fits the desk
+ * with a margin on every side. The desk is a crowded 1.77 units once a lamp, a
+ * book stack, a laptop and a plant are on it, and this is the one stretch of it
+ * still free.
  */
-const AT = { x: -1.6, z: 0.035 };
+const AT = { x: -1.13, z: -0.06 };
 
 /** A few degrees off square. Nobody sets a sheet of paper down straight. */
 const YAW = -0.055;
@@ -65,17 +77,22 @@ export function Paper({ post, active, onOpen, onHover }: Props) {
     };
   }, [post, renderer]);
 
+  // Unlit, and tinted by hand. The sheet was a standard material lit by the
+  // live lights, which are set for a Book held out in front of the Shelf: on
+  // the desk they made white paper a flat grey, the one dull thing under a
+  // lamp. A sheet of paper is as simple a surface as there is, so it takes
+  // the colour the bake gives paper where it is: warm and bright under the
+  // desk lamp lying down, a little cooler held up to be read.
   const material = useMemo(() => {
     if (!texture) return null;
-    return new THREE.MeshStandardMaterial({
+    return new THREE.MeshBasicMaterial({
       map: texture,
-      roughness: 0.95,
-      metalness: 0,
-      // Paper is thin enough to be lit from behind, and the sheet is a single
-      // plane, so the back has to draw as well as the front.
+      toneMapped: false,
+      // The sheet is a single plane, so the back has to draw as well.
       side: THREE.DoubleSide,
     });
   }, [texture]);
+  const lift = useRef(0);
 
   useEffect(() => () => material?.dispose(), [material]);
 
@@ -103,10 +120,13 @@ export function Paper({ post, active, onOpen, onHover }: Props) {
 
   useFrame((_, delta) => {
     if (!group.current) return;
-    const ease = 1 - Math.pow(0.004, delta);
+    const ease = easeFor(delta, 0.004);
 
     if (active) {
-      held.current.set(AT.x - 0.07, DESK_TOP + 0.26, AT.z + 0.1);
+      // Up off the desk and a good way towards the camera. The Desk view
+      // stands two metres back now, and a sheet held just above where it lay
+      // was the size of a postage stamp from there.
+      held.current.set(AT.x - 0.2, DESK_TOP + 0.38, AT.z + 0.62);
       aim.current.position.copy(held.current);
       aim.current.lookAt(camera.position);
       facing.current.copy(aim.current.quaternion);
@@ -117,6 +137,11 @@ export function Paper({ post, active, onOpen, onHover }: Props) {
 
     group.current.position.lerp(held.current, ease);
     group.current.quaternion.slerp(facing.current, ease);
+
+    // Larger in the hand: the Desk view stands two metres off.
+    lift.current += ((active ? 1 : 0) - lift.current) * ease;
+    group.current.scale.setScalar(1 + 0.35 * lift.current);
+    material?.color.copy(ON_DESK).lerp(HELD_UP, lift.current).multiply(roomLight);
   });
 
   if (!material) return null;
@@ -140,7 +165,7 @@ export function Paper({ post, active, onOpen, onHover }: Props) {
         onHover(false);
       }}
     >
-      <mesh material={material} castShadow>
+      <mesh material={material}>
         <planeGeometry args={[WIDTH, HEIGHT]} />
       </mesh>
     </group>

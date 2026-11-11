@@ -18,6 +18,31 @@
 
       root.classList.add('shelf-capable');
 
+      // Ask for the room now, while the island's JavaScript is still on its
+      // way. Left to the island, the model is not requested until React has
+      // booted and the atlases not until the model has arrived: three round
+      // trips in a row for files whose names were known from the start. Only
+      // for visitors who will get the room, which is why these are not plain
+      // <link> tags in the head.
+      var phone = window.matchMedia('(max-width: 760px)').matches;
+      var ahead = [
+        ['/models/shelf.glb', 'fetch'],
+        ['/models/book.glb', 'fetch'],
+        ['/models/shelf-bake.webp', 'image'],
+        [phone ? '/models/room-bake-2k.webp' : '/models/room-bake.webp', 'image'],
+        ['/models/box-bake.webp', 'image'],
+        ['/models/prairie.webp', 'image'],
+        ['/models/cloth-normal.webp', 'image'],
+      ];
+      for (var i = 0; i < ahead.length; i++) {
+        var link = document.createElement('link');
+        link.rel = 'preload';
+        link.href = ahead[i][0];
+        link.as = ahead[i][1];
+        link.crossOrigin = 'anonymous';
+        document.head.appendChild(link);
+      }
+
       // Failsafe: if the island has not reported itself live, put the Flat Site
       // back. Better a flat home page than a blank one.
       window.setTimeout(function () {

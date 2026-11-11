@@ -1,8 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import * as THREE from 'three';
+import { useFrame } from '@react-three/fiber';
 import { paintLabel, toTexture, ensureFonts } from './covers';
 import { palette } from './palette';
 import { BOX } from './Box';
+import { roomLight } from './clock';
+
+/** What white paper comes out as on the front of the Shelf, by the bake. */
+const LAMPLIGHT = new THREE.Color(0.86, 0.74, 0.58);
 
 /**
  * The Shelf, built from code geometry.
@@ -63,13 +68,25 @@ function SectionLabel({ text, y }: { text: string; y: number }) {
     };
   }, [text]);
 
-  if (!texture) return null;
+  // The label is a card on the Shelf, so it takes the Shelf's light: the
+  // lamp's warmth at about the strength it falls on the board edge beside it,
+  // and the lamps' level when they strike. Drawn at full white it was the one
+  // thing in the room lit like a web page.
+  const material = useMemo(() => {
+    if (!texture) return null;
+    return new THREE.MeshBasicMaterial({ map: texture, toneMapped: false });
+  }, [texture]);
+  useFrame(() => {
+    material?.color.copy(roomLight).multiply(LAMPLIGHT);
+  });
+  useEffect(() => () => material?.dispose(), [material]);
+
+  if (!material) return null;
 
   const w = SHELF.innerWidth * 0.62;
   return (
-    <mesh position={[-SHELF.innerWidth / 2 + w / 2, y, SHELF.depth / 2 + 0.002]}>
+    <mesh position={[-SHELF.innerWidth / 2 + w / 2, y, SHELF.depth / 2 + 0.002]} material={material}>
       <planeGeometry args={[w, w * 0.14]} />
-      <meshBasicMaterial map={texture} toneMapped={false} />
     </mesh>
   );
 }

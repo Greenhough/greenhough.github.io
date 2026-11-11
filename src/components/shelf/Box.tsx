@@ -4,6 +4,8 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { useGLTF, useTexture } from '@react-three/drei';
 import { useBoxTextures } from './useBoxTextures';
 import { palette } from './palette';
+import { BOX_LIGHT, bakeInto, prepareLight, type Tile } from './bakedLight';
+import { easeFor } from './clock';
 import type { ShelfProject } from './types';
 
 /**
@@ -83,8 +85,24 @@ function weaveFor(base: THREE.Texture, anisotropy: number) {
   return made;
 }
 
-/** The front board, hinged at the spine in the model so it can swing open. */
-const FRONT_BOARD = 'Book.FrontBoard';
+/**
+ * The front board, hinged at the spine in the model so it can swing open.
+ *
+ * Two spellings, because the loader strips the dot: three's GLTFLoader
+ * sanitises node names for its animation bindings, so 'Book.FrontBoard' in
+ * Blender arrives as 'BookFrontBoard'. Looking it up by the Blender name
+ * alone found nothing, and the cover never swung.
+ */
+const FRONT_BOARD = ['BookFrontBoard', 'Book.FrontBoard'];
+
+/**
+ * How far a Book has to be from its place on the Shelf before live light
+ * starts to take over from baked, and how far before it has taken over
+ * completely. The first is past the nudge a focused Book gets, so focusing
+ * never changes how a Book is lit; only taking it off the Shelf does.
+ */
+const LEAVES_AT = 0.16;
+const LEFT_BY = 0.8;
 /** How far the cover opens. Not flat: a hardback does not lie open easily. */
 const COVER_SWING = -1.15;
 
@@ -99,6 +117,8 @@ interface Props {
   focused: boolean;
   inspecting: boolean;
   opened: boolean;
+  /** Where this Book's baked light is, or null if the last bake did not have it here. */
+  tile: Tile | null;
   onSelect: () => void;
   onHover: (hovering: boolean) => void;
 }
@@ -110,6 +130,7 @@ export function Box({
   focused,
   inspecting,
   opened,
+  tile,
   onSelect,
   onHover,
 }: Props) {
@@ -119,7 +140,14 @@ export function Box({
   const renderer = useThree((s) => s.gl);
   const weave = weaveFor(useTexture(WEAVE), renderer.capabilities.getMaxAnisotropy());
   const textures = useBoxTextures(project, textureSize);
+  const light = prepareLight(useTexture(BOX_LIGHT));
   const p = palette();
+
+  // 0 on the Shelf, 1 in the hand. Held in a ref-like object rather than
+  // state because it is a shader uniform: the frame loop writes it and the
+  // card reads it, and React has no business re-rendering in between.
+  const live = useMemo(() => ({ value: tile ? 0 : 1 }), [tile]);
+  const rest = useMemo(() => new THREE.Vector3(...position), [position[0], position[1], position[2]]);
 
   // Every Box needs its own copy: the geometry is shared but the printing is
   // not, so the materials cannot be.
@@ -137,33 +165,54 @@ export function Box({
         metalness: 0,
       });
 
-    const cover = printed(textures.cover, weave.cover);
-    const spine = printed(textures.spine, weave.spine);
+    const atRest = <T extends THREE.MeshStandardMaterial>(m: T) =>
+      tile ? bakeInto(m, light, tile, live) : m;
+
+    const cover = atRest(printed(textures.cover, weave.cover));
+    const spine = atRest(printed(textures.spine, weave.spine));
+    const made: THREE.Material[] = [cover, spine];
+
+    // Cloth, pages, pastedown and headband are the same on every Book, and
+    // without baked light they share the materials the model came with. With
+    // it they cannot: each Book's light is in its own tile, so each Book
+    // needs its own copy to carry which.
+    const own = new Map<string, THREE.MeshStandardMaterial>();
 
     const root = scene.clone(true);
     root.traverse((child) => {
       const mesh = child as THREE.Mesh;
       if (!mesh.isMesh) return;
-      const name = (mesh.material as THREE.Material)?.name ?? '';
+      const shared = mesh.material as THREE.MeshStandardMaterial;
+      const name = shared?.name ?? '';
       if (name === COVER_MATERIAL) mesh.material = cover;
       else if (name === SPINE_MATERIAL) mesh.material = spine;
+      else if (tile) {
+        let mine = own.get(name);
+        if (!mine) {
+          mine = bakeInto(shared.clone(), light, tile, live);
+          own.set(name, mine);
+          made.push(mine);
+        }
+        mesh.material = mine;
+      }
       mesh.castShadow = true;
       mesh.receiveShadow = true;
     });
 
-    frontBoard.current = root.getObjectByName(FRONT_BOARD) ?? null;
-    return { root, made: [cover, spine] };
-  }, [scene, textures, weave, p.border]);
+    frontBoard.current =
+      FRONT_BOARD.map((name) => root.getObjectByName(name)).find(Boolean) ?? null;
+    return { root, made };
+  }, [scene, textures, weave, p.border, light, tile, live]);
 
-  // Only the printed materials are made per Book, so only those are let go.
-  // Disposing the shared cloth and pages would blank every other Book.
+  // Only what was made for this Book is let go. Disposing the materials the
+  // model came with would blank every other Book.
   useEffect(() => () => model.made.forEach((m) => m.dispose()), [model]);
 
   // Where the Box wants to be, given the state. The frame loop eases towards it
   // rather than snapping, which is what makes it feel like an object.
   useFrame((_, delta) => {
     if (!group.current) return;
-    const ease = 1 - Math.pow(0.0015, delta);
+    const ease = easeFor(delta, 0.0015);
 
     const target = new THREE.Vector3(...position);
     let targetRotY = 0;
@@ -178,6 +227,14 @@ export function Box({
 
     group.current.position.lerp(target, ease);
     group.current.rotation.y += (targetRotY - group.current.rotation.y) * ease;
+
+    // Baked light is the light where the Book stands. The further it is from
+    // there the less that is true, so live light takes over with distance and
+    // hands back the same way when the Book is put away.
+    if (tile) {
+      const gone = group.current.position.distanceTo(rest);
+      live.value = THREE.MathUtils.smoothstep(gone, LEAVES_AT, LEFT_BY);
+    }
 
     if (frontBoard.current) {
       // Hinged at the spine, so this swings the cover rather than spinning a

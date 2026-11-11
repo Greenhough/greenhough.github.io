@@ -210,6 +210,20 @@ small to read. A binder shortens a long title on a real spine for the same
 reason, and letters the case to match, so this sets both faces of the binding.
 The hub card and the write-up keep the full one.
 
+### The new Box and the bake
+
+A new Project appears on the Shelf as soon as its Markdown file is pushed.
+Nothing else is needed to publish it.
+
+It will be lit a little differently from its neighbours, though. The Boxes
+already on the Shelf are lit by light baked in Blender for the slot each stands
+in; a Box the last bake did not know about is lit live instead. A new Project
+also goes to the front of its Section and moves the others along one, so they
+fall back to live light too until the next bake. It looks fine. It looks best
+after re-running the bake, which takes the best part of an hour and can wait
+for a quiet evening. The command is at the top of `scripts/shelf.py`, and
+`docs/adr/0006` has the reasoning.
+
 ### Adding a new tag colour
 
 Tag labels map to a colour class in `src/components/Tags.astro`. A label with no
