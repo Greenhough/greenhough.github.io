@@ -1,0 +1,43 @@
+---
+import { getCollection } from 'astro:content';
+import Base from '../layouts/Base.astro';
+
+const INTRO = 'My ten favourite board games, in order.';
+const BGG_LIST = 'https://boardgamegeek.com/profile/Sketcherrrr/list/top';
+
+const games = (await getCollection('boardGames')).sort((a, b) => a.data.rank - b.data.rank);
+---
+
+<Base
+  title="Board Games | Evan Greenhough"
+  ogTitle="Board Games | Evan Greenhough"
+  description={INTRO}
+  path="/board-games"
+>
+  <header class="page-head">
+    <h1 class="page-title">Board Games</h1>
+    <p class="page-intro">
+      {INTRO} The list lives on{' '}
+      <a href={BGG_LIST} target="_blank" rel="noopener">BoardGameGeek</a>, where each game has its own page.
+    </p>
+  </header>
+
+  <section class="sec">
+    <ol class="post-list index ranked">
+      {
+        games.map((game) => (
+          <li class="post">
+            <h2 class="post-title">
+              <span class="rank">{game.data.rank}</span>
+              {game.data.title}
+            </h2>
+            <span class="post-date">{game.data.year}</span>
+          </li>
+        ))
+      }
+    </ol>
+    <p class="page-more">
+      <a href={BGG_LIST} target="_blank" rel="noopener">See the list on BoardGameGeek &nearr;</a>
+    </p>
+  </section>
+</Base>

@@ -1,0 +1,10 @@
+[
+  {"id": "thanks-for-asking", "order": 1, "artist": "Sam the Living", "song": "Thanks for Asking", "album": "The Heel", "youtube": "MSW3OQbMSXY", "sleeve": "#31483c", "ink": "#e9dfc8"},
+  {"id": "purgatory", "order": 2, "artist": "Tyler Childers", "song": "Feathered Indians", "album": "Purgatory", "youtube": "j-lwWgYLb68", "sleeve": "#cdbf9f", "ink": "#2a2219"},
+  {"id": "imaginary-appalachia", "order": 3, "artist": "Colter Wall", "song": "Sleeping on the Blacktop", "album": "Imaginary Appalachia", "youtube": "r7uiVktlD1U", "sleeve": "#5d4a35", "ink": "#eadcc0"},
+  {"id": "july-talk", "order": 4, "artist": "July Talk", "song": "The Garden", "album": "July Talk", "youtube": "e_0dho_HMq8", "sleeve": "#1b1a19", "ink": "#efe9dc"},
+  {"id": "mended-with-gold", "order": 5, "artist": "The Rural Alberta Advantage", "song": "Terrified", "album": "Mended with Gold", "youtube": "n9Y7T0Bfnkw", "sleeve": "#1f2c44", "ink": "#d9b25a"},
+  {"id": "outrage-is-now", "order": 6, "artist": "Death From Above 1979", "song": "Freeze Me", "album": "Outrage! Is Now", "youtube": "Q4bsDgZa4ns", "sleeve": "#8f3f52", "ink": "#f3e6dc"},
+  {"id": "cola", "order": 7, "artist": "CamelPhat & Elderbrook", "song": "Cola", "album": "Dark Matter", "youtube": "qke-jOUqSXU", "sleeve": "#6f1d1b", "ink": "#f0e4d0"},
+  {"id": "treasure-planet", "order": 8, "artist": "John Rzeznik", "song": "I'm Still Here (Jim's Theme)", "album": "Treasure Planet", "youtube": "MUZwblurraA", "sleeve": "#1c3a4a", "ink": "#e8c67a"}
+]

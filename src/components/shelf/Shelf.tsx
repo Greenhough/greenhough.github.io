@@ -1,7 +1,16 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { Scene } from './Scene';
-import type { ShelfPlace, ShelfPost, ShelfProject, ShelfSection, ShelfState } from './types';
+import { turntable } from './clock';
+import type {
+  ShelfBoardGame,
+  ShelfPlace,
+  ShelfPost,
+  ShelfProject,
+  ShelfRecord,
+  ShelfSection,
+  ShelfState,
+} from './types';
 
 /**
  * The Shelf island.
@@ -15,6 +24,10 @@ interface Props {
   sections: ShelfSection[];
   /** The latest Post, shown on the sheet of paper on the Desk. */
   post?: ShelfPost | null;
+  /** The records in the Console, in the order they are flipped through. */
+  records?: ShelfRecord[];
+  /** The Board games stacked in the Console, top first. */
+  boardGames?: ShelfBoardGame[];
   /** Slug to open in Inspecting, when the visitor landed on /box/{slug}. */
   initialSlug?: string | null;
   /** Where the camera starts, when the visitor landed on /work or /writing. */
@@ -37,16 +50,26 @@ function isPhone() {
 
 /** Which place each URL is. The inverse of placeUrl below. */
 function placeFor(pathname: string): ShelfPlace {
-  return pathname === '/writing' ? 'desk' : 'shelf';
+  if (pathname === '/writing') return 'desk';
+  if (pathname === '/music') return 'console';
+  return 'shelf';
 }
 
 function placeUrl(place: ShelfPlace): string {
-  return place === 'desk' ? '/writing' : '/work';
+  if (place === 'desk') return '/writing';
+  if (place === 'console') return '/music';
+  return '/work';
 }
+
+// Stable when a page passes none, for the same reason as RESIZE and CAMERA.
+const NO_RECORDS: ShelfRecord[] = [];
+const NO_GAMES: ShelfBoardGame[] = [];
 
 export default function Shelf({
   sections,
   post = null,
+  records = NO_RECORDS,
+  boardGames = NO_GAMES,
   initialSlug = null,
   initialPlace = 'shelf',
 }: Props) {
@@ -61,6 +84,11 @@ export default function Shelf({
   );
   const [place, setPlace] = useState<ShelfPlace>(initialPlace);
   const [hovering, setHovering] = useState(false);
+  // Which record is out of the row, and whether it is on the player. Nothing
+  // is asked of YouTube until a record is put on: see docs/adr/0005.
+  const [recordIndex, setRecordIndex] = useState(0);
+  const [playing, setPlaying] = useState(false);
+  const record = records[recordIndex] ?? null;
   // Read once, at mount. This island is client:only, so there is no server
   // render to disagree with.
   const [phone] = useState(() => isPhone());
@@ -101,6 +129,30 @@ export default function Shelf({
     },
     [pushUrl]
   );
+
+  const flipRecord = useCallback(
+    (by = 1) => {
+      if (records.length === 0) return;
+      setRecordIndex((i) => (i + by + records.length) % records.length);
+    },
+    [records.length]
+  );
+  const togglePlay = useCallback(() => setPlaying((on) => !on), []);
+  const visitConsole = useCallback(() => goTo('console'), [goTo]);
+  const openGames = useCallback(() => {
+    window.location.href = '/board-games';
+  }, []);
+  const openBooks = useCallback(() => {
+    window.location.href = '/books';
+  }, []);
+
+  // The record turns for as long as a song is on, wherever the camera is.
+  useEffect(() => {
+    turntable.playing = playing;
+    return () => {
+      turntable.playing = false;
+    };
+  }, [playing]);
 
   /** The sheet of paper on the Desk hands over to the Post, as a Box does. */
   const openPost = useCallback((slug: string) => {
@@ -150,6 +202,24 @@ export default function Shelf({
     const onKey = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
 
+      // At the Console the arrows flip through the records, not the Boxes.
+      if (place === 'console') {
+        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+          e.preventDefault();
+          flipRecord(1);
+        } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+          e.preventDefault();
+          flipRecord(-1);
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+          togglePlay();
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          goTo('shelf');
+        }
+        return;
+      }
+
       const i = ordered.findIndex((p) => p.slug === focusedSlug);
 
       if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
@@ -174,7 +244,7 @@ export default function Shelf({
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [state, ordered, focusedSlug, browse, inspect, open]);
+  }, [state, place, ordered, focusedSlug, browse, inspect, open, flipRecord, togglePlay, goTo]);
 
   return (
     <div className="shelf" data-state={state} data-hovering={hovering ? 'true' : undefined}>
@@ -207,6 +277,14 @@ export default function Shelf({
             onInspect={inspect}
             onOpenPost={openPost}
             onHover={setHovering}
+            records={records}
+            recordIndex={recordIndex}
+            boardGames={boardGames}
+            onVisitConsole={visitConsole}
+            onFlipRecord={flipRecord}
+            onTogglePlay={togglePlay}
+            onOpenGames={openGames}
+            onOpenBooks={openBooks}
           />
         </Suspense>
       </Canvas>
@@ -266,6 +344,47 @@ export default function Shelf({
             <a className="shelf-btn ghost" href="/writing#posts">
               All writing
             </a>
+          </div>
+        </div>
+      )}
+
+      {/* At the Console the HUD belongs to the record that is out of the row.
+          The player is YouTube's own, asked for only once a record is put on,
+          and it stays on screen while it plays wherever the camera goes. */}
+      {playing && record && (
+        <iframe
+          className="shelf-player"
+          key={record.youtube}
+          src={`https://www.youtube-nocookie.com/embed/${record.youtube}?autoplay=1&rel=0`}
+          title={`${record.song} by ${record.artist}`}
+          allow="autoplay; encrypted-media; picture-in-picture"
+          allowFullScreen
+        />
+      )}
+      {place === 'console' && record && (
+        <div className="shelf-hud">
+          <div className="shelf-hud-text">
+            <div className="shelf-hud-eyebrow">
+              {record.artist} &middot; {recordIndex + 1} of {records.length}
+            </div>
+            <h2 className="shelf-hud-title">{record.song}</h2>
+            <p className="shelf-hud-summary">
+              {record.album ? `From ${record.album}.` : 'A single.'} Flip through the sleeves, then put
+              one on.
+            </p>
+          </div>
+          <div className="shelf-hud-actions">
+            <button className="shelf-btn" onClick={togglePlay}>
+              {playing ? 'Take it off' : 'Put it on'}
+            </button>
+            <button className="shelf-btn ghost" onClick={() => flipRecord(1)}>
+              Next record
+            </button>
+            {boardGames.length > 0 && (
+              <a className="shelf-btn ghost" href="/board-games">
+                Board games
+              </a>
+            )}
           </div>
         </div>
       )}

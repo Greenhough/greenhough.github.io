@@ -8,10 +8,18 @@ import { ShelfModel } from './ShelfModel';
 import { BookStack } from './BookStack';
 import { palette } from './palette';
 import { Paper } from './Paper';
+import { Console } from './Console';
 import { Atmosphere } from './Atmosphere';
 import { boxTile } from './bakedLight';
 import { easeFor, isFrozen, roomTime } from './clock';
-import type { ShelfPlace, ShelfPost, ShelfSection, ShelfState } from './types';
+import type {
+  ShelfBoardGame,
+  ShelfPlace,
+  ShelfPost,
+  ShelfRecord,
+  ShelfSection,
+  ShelfState,
+} from './types';
 
 interface Props {
   sections: ShelfSection[];
@@ -26,6 +34,14 @@ interface Props {
   onInspect: (slug: string) => void;
   onOpenPost: (slug: string) => void;
   onHover: (hovering: boolean) => void;
+  records: ShelfRecord[];
+  recordIndex: number;
+  boardGames: ShelfBoardGame[];
+  onVisitConsole: () => void;
+  onFlipRecord: () => void;
+  onTogglePlay: () => void;
+  onOpenGames: () => void;
+  onOpenBooks: () => void;
 }
 
 /** Half the carcass's width and a margin: what has to fit across a phone. */
@@ -73,6 +89,28 @@ const DESK_VIEW = {
 };
 
 /**
+ * The Console, seen from in front of the Shelf's right-hand end.
+ *
+ * From straight on, the floor lamp's stem stands between the camera and the
+ * Console and cuts it in half. From here, left of the lamp, the stem falls
+ * to the right of the Console, between it and the tall plant, and the two
+ * paintings, the Record player and both bays are clear.
+ */
+const CONSOLE_VIEW = {
+  position: new THREE.Vector3(0.9, -0.4, 1.65),
+  lookAt: new THREE.Vector3(1.5, -0.68, -0.3),
+};
+
+/** Pull a composed view back along its own line of sight until `half` fits the width. */
+function composed(view: { position: THREE.Vector3; lookAt: THREE.Vector3 }, half: number, frame: Frame) {
+  const back = view.position
+    .clone()
+    .sub(view.lookAt)
+    .multiplyScalar(Math.max(1, frame.fit(half) / view.position.distanceTo(view.lookAt)));
+  return { position: view.lookAt.clone().add(back), lookAt: view.lookAt.clone() };
+}
+
+/**
  * Where the camera wants to be. Browsing travels the Shelf with the focused
  * Box; Inspecting comes in close on the Box held out in front of it; the Desk
  * is a fixed frame that does not move with anything.
@@ -83,14 +121,9 @@ function cameraTargets(
   focus: Focus | null,
   frame: Frame
 ) {
-  if (place === 'desk') {
-    // Pulled back along its own line of sight until the desk fits the width.
-    const back = DESK_VIEW.position
-      .clone()
-      .sub(DESK_VIEW.lookAt)
-      .multiplyScalar(Math.max(1, frame.fit(1.0) / DESK_VIEW.position.distanceTo(DESK_VIEW.lookAt)));
-    return { position: DESK_VIEW.lookAt.clone().add(back), lookAt: DESK_VIEW.lookAt.clone() };
-  }
+  // Pulled back along its own line of sight until the desk fits the width.
+  if (place === 'desk') return composed(DESK_VIEW, 1.0, frame);
+  if (place === 'console') return composed(CONSOLE_VIEW, 0.62, frame);
   if (!focus) {
     return {
       position: new THREE.Vector3(0, 0, Math.max(4.4, frame.fit(SHELF_HALF))),
@@ -149,6 +182,14 @@ export function Scene({
   onInspect,
   onOpenPost,
   onHover,
+  records,
+  recordIndex,
+  boardGames,
+  onVisitConsole,
+  onFlipRecord,
+  onTogglePlay,
+  onOpenGames,
+  onOpenBooks,
 }: Props) {
   const p = palette();
   const camera = useThree((s) => s.camera);
@@ -299,7 +340,21 @@ export function Scene({
 
       {/* Lettered at runtime rather than baked into the room, because a title
           baked into the room atlas is about twenty texels tall. */}
-      <BookStack />
+      <BookStack onOpen={onOpenBooks} onHover={onHover} />
+
+      {/* The Console's live parts: the paintings over it, the record that is
+          out of its sleeve row, and the names on the Board games. */}
+      <Console
+        records={records}
+        recordIndex={recordIndex}
+        boardGames={boardGames}
+        active={place === 'console'}
+        onVisit={onVisitConsole}
+        onFlip={onFlipRecord}
+        onTogglePlay={onTogglePlay}
+        onOpenGames={onOpenGames}
+        onHover={onHover}
+      />
 
       {/* The latest Post, lying on the Desk. The one kind of content the Shelf
           cannot hold, finally somewhere. */}

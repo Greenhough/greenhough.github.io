@@ -6,7 +6,7 @@
 import { getCollection } from 'astro:content';
 import Base from '../../layouts/Base.astro';
 import Tags from '../../components/Tags.astro';
-import { getShelfSections } from '../../lib/shelf';
+import { getRoomContent, getShelfSections } from '../../lib/shelf';
 import ShelfBoot from '../../components/shelf/ShelfBoot.astro';
 import Shelf from '../../components/shelf/Shelf';
 
@@ -20,6 +20,7 @@ export async function getStaticPaths() {
 
 const { entry } = Astro.props;
 const sections = await getShelfSections();
+const room = await getRoomContent();
 ---
 
 <Base
@@ -37,6 +38,7 @@ const sections = await getShelfSections();
     slot="overlay"
     client:only="react"
     sections={sections}
+    {...room}
     initialSlug={entry.data.slug}
   />
 

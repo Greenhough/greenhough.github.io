@@ -79,3 +79,10 @@ export const roomLight = new THREE.Color(1, 1, 1);
 export function setLamps(level: number): void {
   roomLight.copy(LAMPS_OFF).lerp(LAMPS_ON, level);
 }
+
+/**
+ * The Record player. The record turns only while a song is playing, so the
+ * room says what the page is doing: ShelfModel reads this every frame and the
+ * island writes it when a record is put on or taken off.
+ */
+export const turntable = { playing: false };

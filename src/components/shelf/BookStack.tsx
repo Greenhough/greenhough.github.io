@@ -42,7 +42,16 @@ const THICKNESS = 0.046;
 /** Where the stack sits: clear of the desk lamp on one side and the laptop on the other. */
 const AT = { x: -2.08, z: -0.16 };
 
-export function BookStack() {
+interface Props {
+  /** The stack is the way in to the books Evan would hand to someone. */
+  onOpen: () => void;
+  onHover: (hovering: boolean) => void;
+}
+
+export function BookStack({ onOpen, onHover }: Props) {
+  // The top book lifts a little under the pointer, the way the sheet of paper
+  // lifts a corner: the stack saying it can be picked up.
+  const [lifted, setLifted] = useState(false);
   const { scene } = useGLTF(MODEL);
   const renderer = useThree((s) => s.gl);
   const light = prepareLight(useTexture(BOX_LIGHT));
@@ -131,13 +140,28 @@ export function BookStack() {
   if (!stack) return null;
 
   return (
-    <group position={[AT.x, DESK_TOP, AT.z]}>
+    <group
+      position={[AT.x, DESK_TOP, AT.z]}
+      onClick={(e) => {
+        e.stopPropagation();
+        onOpen();
+      }}
+      onPointerOver={(e) => {
+        e.stopPropagation();
+        setLifted(true);
+        onHover(true);
+      }}
+      onPointerOut={() => {
+        setLifted(false);
+        onHover(false);
+      }}
+    >
       {stack.books.map(({ book, root, i }) => (
         <group
           key={book.title}
           // A few degrees out of square each, because a stack nobody squared
           // up is the only kind that looks like it was put there by a person.
-          position={[0, THICKNESS * (i + 0.5), 0]}
+          position={[0, THICKNESS * (i + 0.5) + (lifted && i === stack.books.length - 1 ? 0.014 : 0), 0]}
           rotation={[0, (((i * 37) % 11) - 5) * 0.012, 0]}
         >
           {/* Turned on its side: the Box's thickness axis becomes the vertical

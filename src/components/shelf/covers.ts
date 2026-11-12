@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { palette, themeColour } from './palette';
-import type { ShelfProject } from './types';
+import type { ShelfBoardGame, ShelfProject, ShelfRecord } from './types';
 import type { ReadBook } from './readBooks';
 import type { ShelfPost } from './types';
 
@@ -463,6 +463,89 @@ export function paintLabel(canvas: HTMLCanvasElement, text: string, width: numbe
   ctx.textAlign = 'center';
   ctx.letterSpacing = `${0.9 * u}px`;
   ctx.fillText(text.toUpperCase(), W / 2, H / 2 + 0.2 * u);
+  ctx.letterSpacing = '0px';
+  ctx.textAlign = 'left';
+}
+
+/**
+ * A record sleeve: card in one colour, lettered in another, and nothing else.
+ *
+ * No album art. A sleeve's cover belongs to whoever made it, and the room
+ * letters things in its own hand anyway: a Box, a read book, this.
+ */
+export function paintSleeve(canvas: HTMLCanvasElement, record: ShelfRecord, size: number) {
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d')!;
+  const u = size / 100;
+  const soft = mix(record.sleeve, record.ink, 0.5);
+
+  ctx.fillStyle = record.sleeve;
+  ctx.fillRect(0, 0, size, size);
+
+  // The ring a record wears into its sleeve.
+  ctx.strokeStyle = mix(record.sleeve, record.ink, 0.09);
+  ctx.lineWidth = 1.1 * u;
+  ctx.beginPath();
+  ctx.arc(size / 2, size / 2, 43 * u, 0, Math.PI * 2);
+  ctx.stroke();
+
+  const margin = 9 * u;
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillStyle = soft;
+  ctx.font = `700 ${3.6 * u}px "JetBrains Mono", monospace`;
+  ctx.letterSpacing = `${0.55 * u}px`;
+  ctx.fillText(record.artist.toUpperCase(), margin, 15 * u);
+  ctx.letterSpacing = '0px';
+
+  ctx.fillStyle = record.ink;
+  const title = fitTitle(ctx, record.album ?? record.song, size - margin * 2, 4, 15 * u, 7 * u);
+  ctx.font = `800 ${title.size}px Archivo, sans-serif`;
+  let y = 22 * u + title.size;
+  for (const line of title.lines) {
+    ctx.fillText(line, margin, y);
+    y += title.size * 1.04;
+  }
+
+  ctx.fillStyle = soft;
+  ctx.fillRect(margin, size - 21 * u, 14 * u, Math.max(1, 0.5 * u));
+  ctx.font = `500 ${3.4 * u}px "JetBrains Mono", monospace`;
+  ctx.letterSpacing = `${0.45 * u}px`;
+  const foot = wrap(ctx, record.song.toUpperCase(), size - margin * 2, 1);
+  ctx.fillText(foot[0] ?? '', margin, size - 12 * u);
+  ctx.letterSpacing = '0px';
+}
+
+/**
+ * The long side of a board game's box, which is all of it the Console shows.
+ * The game's name in the box's own two colours, and the line where the lid
+ * stops short of the table.
+ */
+export function paintGameSide(canvas: HTMLCanvasElement, game: ShelfBoardGame, width: number, aspect: number) {
+  const W = width;
+  const H = Math.round(width / aspect);
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext('2d')!;
+  const u = H / 10;
+
+  ctx.fillStyle = game.card;
+  ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = mix(game.card, '#000000', 0.38);
+  ctx.fillRect(0, H - 1.25 * u, W, Math.max(1, 0.16 * u));
+
+  ctx.fillStyle = game.ink;
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'center';
+  let size = 4.3 * u;
+  const text = game.lettering.toUpperCase();
+  for (;;) {
+    ctx.font = `800 ${size}px Archivo, sans-serif`;
+    ctx.letterSpacing = `${size * 0.09}px`;
+    if (ctx.measureText(text).width <= W * 0.86 || size < 1.5 * u) break;
+    size -= 0.15 * u;
+  }
+  ctx.fillText(text, W / 2, H * 0.44);
   ctx.letterSpacing = '0px';
   ctx.textAlign = 'left';
 }

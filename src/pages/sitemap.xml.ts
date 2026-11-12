@@ -9,7 +9,7 @@ import { getCollection } from 'astro:content';
 // urea-volatilization pages, which have always been excluded and now live
 // under /archive/ with the rest of what is kept but not current.
 
-const STATIC_PATHS = ['/', '/work', '/writing'];
+const STATIC_PATHS = ['/', '/work', '/writing', '/music', '/board-games', '/books'];
 
 const byNewest = (a: { data: { date: Date } }, b: { data: { date: Date } }) =>
   b.data.date.valueOf() - a.data.date.valueOf();

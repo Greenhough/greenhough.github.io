@@ -86,3 +86,31 @@ Views and the navigation first, with the sheet of paper on the desk as the only
 interactive object, so the camera system and the way an object opens are settled once.
 The book stack, the pinboard and the song are then repeats of a proven pattern rather
 than three separate inventions. The doorway move stays last, as `docs/adr/0004` has it.
+
+## Addendum, 2026-11-11: the Console
+
+The Console is the third View, and it holds two doors rather than one.
+
+| Object | Leads to | Status |
+|---|---|---|
+| Shelf | Projects | built |
+| Desk | Posts, as a sheet of paper | built |
+| Book stack | `/books` | built, as a placeholder list of the four in the stack |
+| Record player and Sleeves | `/music`, the Console View | built |
+| Board games | `/board-games` | built |
+| Pinboard | About, with real photographs | planned, last |
+| Laptop | undecided | waiting on what it should show |
+
+- **Sleeves, not one song.** The row is flipped through and any record can be put on.
+  Nothing is asked of YouTube until one is, so the tracking this ADR accepted arrives
+  only with the first song, and through the no-cookie player.
+- **No album art and no box art.** Sleeves and Board games are lettered in the room's
+  own hand. A cover belongs to whoever made it; a name does not.
+- **The record turns only while a song is on.** It used to turn always, as dressing. Now
+  that it is a door, its turning says something.
+- **The Paintings are real paintings.** `docs/adr/0004` kept the Prints abstract because
+  inventing what hangs on Evan's wall would be inventing content. He has now said what
+  hangs there, so the rule is kept rather than broken.
+- **The Bust is dressing.** A fifth View is the ceiling and the Pinboard has the last one.
+- The Lamp switching off and the Prairie following the hour are parked in
+  `docs/parked-room-ideas.md`.

@@ -823,6 +823,39 @@ html.shelf-capable .wrap { display: none; }
   .shelf-btn { flex: 1; }
 }
 
+a.shelf-btn { text-decoration: none; text-align: center; }
+
+/* The song. YouTube's own player, small, in the corner the HUD leaves free:
+   it has to be on screen while it plays, and it is not the picture. */
+.shelf-player {
+  position: absolute;
+  top: 70px;
+  right: 32px;
+  width: min(300px, 44vw);
+  aspect-ratio: 16 / 9;
+  border: 0;
+  border-radius: 10px;
+  box-shadow: 0 10px 40px rgb(14 12 10 / .55);
+}
+@media (max-width: 760px) {
+  .shelf-player { top: 58px; right: 20px; }
+}
+
 /* Pointer feedback lives in CSS rather than an inline style, so hovering a Box
    does not hand <Canvas> a fresh style object on every render. */
 .shelf[data-hovering='true'] canvas { cursor: pointer; }
+
+/* ---------- plain lists: board games, books ---------- */
+.post-list.ranked { list-style: none; margin: 0; padding: 0; }
+.post-list.ranked .post:hover { transform: none; box-shadow: var(--shadow); }
+.post-title .rank {
+  display: inline-block;
+  min-width: 1.9em;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: .7em;
+  font-weight: 700;
+  color: var(--green);
+}
+.page-intro a,
+.page-more a { color: var(--green); font-weight: 600; }
+.page-more { margin: 28px 0 0; font-size: 16px; }

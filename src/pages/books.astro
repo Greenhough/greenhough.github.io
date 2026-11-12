@@ -1,0 +1,32 @@
+---
+import Base from '../layouts/Base.astro';
+import { READ_BOOKS } from '../components/shelf/readBooks';
+
+// A placeholder. The Book stack on the Desk leads here, and for now this page
+// lists only what is in that stack; the full list, by kind, is still to come.
+const INTRO = 'Books I have read and would hand to someone else. A longer list is on its way.';
+---
+
+<Base
+  title="Books | Evan Greenhough"
+  ogTitle="Books | Evan Greenhough"
+  description={INTRO}
+  path="/books"
+>
+  <header class="page-head">
+    <h1 class="page-title">Books</h1>
+    <p class="page-intro">{INTRO}</p>
+  </header>
+
+  <section class="sec">
+    <ul class="post-list index ranked">
+      {
+        READ_BOOKS.map((book) => (
+          <li class="post">
+            <h2 class="post-title">{book.title}</h2>
+          </li>
+        ))
+      }
+    </ul>
+  </section>
+</Base>

@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
 import { useGLTF, useTexture } from '@react-three/drei';
-import { lampsNow, roomLight, roomTime, setLamps } from './clock';
+import { isFrozen, lampsNow, roomLight, roomTime, setLamps, turntable } from './clock';
 
 /**
  * The carcass and the room it stands in, modelled and lit in Blender.
@@ -108,16 +108,19 @@ export function ShelfModel({ phone = false }: { phone?: boolean }) {
     return { root, leaves, record: record as THREE.Object3D | null };
   }, [scene, carcassMap, roomMap]);
 
-  useFrame(() => {
+  useFrame((_, delta) => {
     const t = roomTime();
 
     // The lamps strike once, when the room first draws.
     setLamps(lampsNow());
 
-    // The record turns. Its light is baked, and a baked highlight that turned
-    // with it would be wrong, but vinyl at this size is a black disc with a
-    // label: what turns is the label, and that is all that needs to.
-    if (built.record) built.record.rotation.y = -t * RECORD_SPEED;
+    // The record turns while a song is playing, and stands still otherwise.
+    // Its light is baked, and a baked highlight that turned with it would be
+    // wrong, but vinyl at this size is a black disc with a label: what turns
+    // is the label, and that is all that needs to.
+    if (built.record && turntable.playing && !isFrozen) {
+      built.record.rotation.y -= delta * RECORD_SPEED;
+    }
 
     // Leaves, a degree or so, each on its own time. Enough that the corner of
     // the eye catches it and not enough that the baked shadows give it away.

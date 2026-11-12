@@ -175,11 +175,32 @@ RUG = {"x0": -2.30, "x1": 1.30, "z0": 0.42, "z1": 2.45, "thick": 0.012}
 # it is dressing, but it stands where that view would look.
 CONSOLE = {"x0": 1.02, "x1": 1.94, "depth": 0.40, "height": 0.52, "leg": 0.11}
 
-# Two prints over the console, under the pinboard.
+# Two paintings over the console, under the pinboard: Friedrich's Wanderer
+# above the Sea of Fog and Aivazovsky's Ship on Stormy Seas. The site draws
+# the pictures themselves, live, because a painting baked into the room atlas
+# is thirty texels tall: what is modelled here is the frame and a canvas in
+# the picture's average colour, so the wall round it takes the right bounce.
+# src/components/shelf/Console.tsx repeats these numbers.
 PRINTS = (
-    {"x": 1.25, "y": -0.235, "w": 0.30, "h": 0.40, "art": "sun"},
-    {"x": 1.69, "y": -0.235, "w": 0.30, "h": 0.40, "art": "bands"},
+    {"x": 1.25, "y": -0.235, "w": 0.30, "h": 0.40, "art": "wanderer"},
+    {"x": 1.69, "y": -0.235, "w": 0.30, "h": 0.40, "art": "storm"},
 )
+PAINTINGS = {"wanderer": (0.27, 0.30, 0.33), "storm": (0.085, 0.125, 0.135)}
+
+# The Board games: two boxes lying flat in the console's right bay, one on the
+# other, long side out. Bottom first. Which games they are, and their colours,
+# come from src/content/room/board-games.json; the lettering on their sides is
+# drawn by the site. Console.tsx repeats these numbers.
+GAMES = {
+    "front": 0.025,  # how far the stack sits back from the console's front edge
+    "boxes": (
+        {"w": 0.31, "h": 0.070, "d": 0.30, "yaw": 0.035},
+        {"w": 0.29, "h": 0.080, "d": 0.29, "yaw": -0.050},
+    ),
+}
+
+# Marcus Aurelius, on top of the carcass to the right of the plant.
+BUST = {"x": 0.705, "z": 0.10, "yaw": -0.30}
 
 # A tall plant in the back right corner, past the console.
 FLOOR_PLANT = {"x": 2.42, "z": -0.10, "pot_r": 0.155, "pot_h": 0.30, "height": 1.42}
@@ -1233,6 +1254,13 @@ def build_print(name, x, y, z, w, h, art, frame_mat, mount_mat, lean=0.0):
 
     parts.append(piece("Frame", (w, h, depth), depth / 2, frame_mat))
     iw, ih = w - border * 2, h - border * 2
+    if art in PAINTINGS:
+        # An oil painting is framed to its edge, with no mount.
+        parts.append(
+            piece("Art", (iw, ih, 0.003), depth + 0.0015,
+                  flat_material(f"Print.{name}", PAINTINGS[art], roughness=0.6), bevel=False)
+        )
+        return parts
     parts.append(piece("Mount", (iw, ih, 0.003), depth + 0.0015, mount_mat, bevel=False))
     aw, ah = iw - mount * 2, ih - mount * 2
     parts.append(
@@ -1392,6 +1420,125 @@ def build_console(oak, metal, vinyl, label_mat, plinth_mat, sleeve_mats):
     parts.append(arm)
     parts.append(board("Room.Player.Head", (0.016, 0.01, 0.024), (tip[0], deck + 0.03, tip[1]), plinth_mat, bevel=False))
     return parts
+
+
+def read_board_games():
+    """The Board games that have a box, bottom of the stack first."""
+    path = os.path.join(os.path.dirname(__file__), "..", "src", "content", "room", "board-games.json")
+    with open(path, encoding="utf-8") as fh:
+        games = [g for g in json.load(fh) if g.get("box")]
+    # Listed best first, and the best is on top.
+    return sorted(games, key=lambda g: -g["rank"])
+
+
+def build_board_games():
+    """
+    Two game boxes in the console's right bay. Plain card in each game's own
+    colour: the lettering is drawn live, for the reason the Book stack's is.
+    """
+    c = CONSOLE
+    t = 0.024
+    cx = (c["x0"] + c["x1"]) / 2
+    z0 = ROOM["back"] + SKIRTING["depth"] + 0.01
+    bay_x = ((cx + 0.02 + t / 2) + (c["x1"] - t)) / 2
+    front = z0 + c["depth"] - GAMES["front"]
+    y = FLOOR_Y + c["leg"] + t
+    parts = []
+    for i, (game, spec) in enumerate(zip(read_board_games(), GAMES["boxes"])):
+        card = flat_material(f"Game.{i}", srgb(game["box"]["card"]), roughness=0.55)
+        box = board(
+            f"Room.Game.{i}",
+            (spec["w"], spec["h"], spec["d"]),
+            (bay_x, y + spec["h"] / 2, front - spec["d"] / 2),
+            card,
+        )
+        box.rotation_euler = (0, 0, spec["yaw"])
+        parts.append(box)
+        y += spec["h"]
+    return parts
+
+
+def blob(name, radii, centre, material, yaw=0.0, segments=20):
+    """An ellipsoid, in site coordinates. What a bust is made of."""
+    bpy.ops.mesh.primitive_uv_sphere_add(
+        radius=1, segments=segments, ring_count=segments // 2,
+        location=(centre[0], -centre[2], centre[1]),
+    )
+    obj = bpy.context.active_object
+    obj.name = name
+    obj.scale = (radii[0], radii[2], radii[1])
+    obj.rotation_euler = (0, 0, yaw)
+    bpy.ops.object.shade_smooth()
+    obj.data.materials.append(material)
+    return obj
+
+
+def build_bust(marble):
+    """
+    Marcus Aurelius, as a marble bust: the curls and the full beard are what
+    make him him. Built from ellipsoids, which is enough at this size. The
+    room atlas gives the whole head about ten texels, so what has to be right
+    is the outline, and anything finer would be baked away.
+    """
+    b = BUST
+    y0 = UNIT_HEIGHT / 2
+    yaw = b["yaw"]
+    k = 1.2  # a shade over life size for a desk bust, so the outline survives the bake
+
+    def at(dx, dy, dz):
+        # Turned about the bust's own axis, so he looks into the room.
+        dx, dy, dz = dx * k, dy * k, dz * k
+        return (
+            b["x"] + dx * math.cos(yaw) + dz * math.sin(yaw),
+            y0 + dy,
+            b["z"] - dx * math.sin(yaw) + dz * math.cos(yaw),
+        )
+
+    def lump(name, radii, where, segments=12):
+        return blob(name, tuple(r * k for r in radii), at(*where), marble, yaw, segments=segments)
+
+    def post(name, radius, height, where, segments=24):
+        return cylinder(name, radius * k, height * k, at(*where), marble, segments=segments)
+
+    pieces = [
+        post("Bust.Base", 0.052, 0.018, (0, 0.009, 0), 28),
+        post("Bust.Stem", 0.030, 0.034, (0, 0.035, 0)),
+        # The chest: broad across the shoulders, shallow front to back, and
+        # cut off low, the way a bust is. Two caps square the shoulders off.
+        lump("Bust.Chest", (0.098, 0.050, 0.046), (0, 0.094, 0), 20),
+        lump("Bust.Shoulder.L", (0.034, 0.030, 0.036), (-0.072, 0.112, 0)),
+        lump("Bust.Shoulder.R", (0.034, 0.030, 0.036), (0.072, 0.112, 0)),
+        post("Bust.Neck", 0.024, 0.060, (0, 0.160, 0.002), 20),
+        lump("Bust.Head", (0.039, 0.050, 0.045), (0, 0.226, 0.006), 20),
+        lump("Bust.Nose", (0.007, 0.015, 0.010), (0, 0.222, 0.050), 10),
+        lump("Bust.Brow", (0.028, 0.006, 0.008), (0, 0.238, 0.046), 10),
+    ]
+    hy, hz = 0.226, 0.006
+    # Curls: small lumps over the crown, the sides and the back of the head,
+    # close to the skull. The face is left clear.
+    n = 44
+    for i in range(n):
+        up = 1 - (i + 0.5) / n * 1.05
+        ring = math.sqrt(max(0.0, 1 - up * up))
+        az = i * math.radians(137.5)
+        dx, dz = math.sin(az) * ring, math.cos(az) * ring
+        if dz > 0.30 and up < 0.50:
+            continue
+        r = 0.0095 + 0.002 * ((i * 7) % 3)
+        pieces.append(lump(f"Bust.Curl.{i}", (r, r, r), (dx * 0.040, hy + up * 0.050, hz + dz * 0.045), 6))
+    # The beard: along the jaw and under the chin, fullest in the middle.
+    for row, (drop, reach, size) in enumerate(((0.030, 0.036, 0.010), (0.044, 0.028, 0.011))):
+        for i, deg in enumerate((-66, -40, -14, 14, 40, 66)):
+            a = math.radians(deg)
+            pieces.append(
+                lump(f"Bust.Beard.{row}{i}", (size, size * 1.2, size),
+                     (math.sin(a) * reach, hy - drop, hz + math.cos(a) * reach + 0.004), 6)
+            )
+    select(pieces, active=pieces[0])
+    bpy.ops.object.join()
+    bust = bpy.context.active_object
+    bust.name = "Room.Bust"
+    return [bust]
 
 
 def build_chair(wood):
@@ -1589,6 +1736,7 @@ def build_room():
             )
         ],
     )
+    parts += build_board_games()
     for spec in PRINTS:
         parts += build_print(
             f"Print.{spec['art']}", spec["x"], spec["y"] - spec["h"] / 2, ROOM["back"],
@@ -1602,6 +1750,7 @@ def build_room():
     )
     parts += build_chair(oak_material("ChairOak", base=(0.070, 0.042, 0.024), light=(0.20, 0.125, 0.07), scale=1.6))
     parts += build_top_dressing(frame_mat, mount_mat, planter, leaf_mat)
+    parts += build_bust(flat_material("Marble", (0.66, 0.64, 0.60), roughness=0.42))
 
     # Skirting. Chamfered by board()'s bevel, which is the whole reason it is a
     # board rather than another quad: the chamfer catches a line of light along
@@ -1756,6 +1905,10 @@ SHELF_VIEWS = {
     # at site (0, 0, 4.4) with a 42 degree vertical field of view. Checking the
     # room against this is the only way to know whether a wall is in frame.
     "site": ((0.0, -4.4, 0.0), (0, 0, 0), {"fov": 42}),
+    # The Console view, as Scene.tsx composes it, and a close look at what
+    # stands on top of the carcass.
+    "console": ((0.9, -1.65, -0.40), (1.5, 0.30, -0.68), {"fov": 42}),
+    "top": ((0.50, -1.25, 1.42), (0.64, -0.10, 1.40), {"fov": 42}),
     # The same camera at the pull-back Scene.tsx uses on a phone held upright,
     # 2.2x, which puts it outside the open fourth side looking in. This is the
     # view ROOM["depth"] was chosen for; render it narrow, 420x900 or so.

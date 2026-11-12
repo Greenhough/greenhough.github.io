@@ -1,6 +1,6 @@
 import { defineCollection } from 'astro:content';
 import { z } from 'zod';
-import { glob } from 'astro/loaders';
+import { file, glob } from 'astro/loaders';
 
 // Every Project and Post on the site is one Markdown file in src/content/.
 // These schemas are the contract: a missing or misspelled field fails the build
@@ -95,4 +95,47 @@ const posts = defineCollection({
   }),
 });
 
-export const collections = { work, posts };
+/**
+ * The records in the Console. One sleeve each, and one song: the Record player
+ * plays it as the publisher's own embedded video, per docs/adr/0005. Listed on
+ * /music, which is also the URL of the Console view.
+ */
+const records = defineCollection({
+  loader: file('./src/content/room/records.json'),
+  schema: z.object({
+    /** Where it stands in the row: 1 is the record that is out when the page loads. */
+    order: z.number().int().positive(),
+    artist: z.string(),
+    song: z.string(),
+    /** Null for a single that is not on an album. */
+    album: z.string().nullable(),
+    /** The YouTube video id, not the URL. */
+    youtube: z.string(),
+    /** The sleeve's card and the colour it is lettered in. No album art. */
+    sleeve: z.string(),
+    ink: z.string(),
+  }),
+});
+
+/**
+ * Evan's top ten board games, in order. Listed on /board-games. The two with
+ * a `box` are the Board games stacked in the Console.
+ */
+const boardGames = defineCollection({
+  loader: file('./src/content/room/board-games.json'),
+  schema: z.object({
+    rank: z.number().int().positive(),
+    title: z.string(),
+    year: z.number().int(),
+    box: z
+      .object({
+        /** What the side of the box says. Shorter than the title. */
+        lettering: z.string(),
+        card: z.string(),
+        ink: z.string(),
+      })
+      .optional(),
+  }),
+});
+
+export const collections = { work, posts, records, boardGames };

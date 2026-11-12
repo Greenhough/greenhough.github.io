@@ -49,4 +49,24 @@ export interface ShelfPost {
  * these; within the Shelf, the Browsing and Inspecting states still apply.
  * See docs/adr/0004 for the views and docs/adr/0005 for the navigation.
  */
-export type ShelfPlace = 'shelf' | 'desk';
+export type ShelfPlace = 'shelf' | 'desk' | 'console';
+
+/** A record in the Console: a sleeve to flip to and a song to play. */
+export interface ShelfRecord {
+  id: string;
+  artist: string;
+  song: string;
+  album: string | null;
+  /** The YouTube video id. */
+  youtube: string;
+  sleeve: string;
+  ink: string;
+}
+
+/** One of the Board games stacked in the Console, as its side is lettered. */
+export interface ShelfBoardGame {
+  title: string;
+  lettering: string;
+  card: string;
+  ink: string;
+}

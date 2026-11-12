@@ -3,7 +3,7 @@ import { getCollection } from 'astro:content';
 import Base from '../layouts/Base.astro';
 import Tags from '../components/Tags.astro';
 import { monthYear } from '../lib/format';
-import { getLatestPost, getShelfSections } from '../lib/shelf';
+import { getRoomContent, getShelfSections } from '../lib/shelf';
 import ShelfBoot from '../components/shelf/ShelfBoot.astro';
 import Shelf from '../components/shelf/Shelf';
 
@@ -21,7 +21,7 @@ const posts = (await getCollection('posts')).sort(byNewest).slice(0, 3);
 const sections = await getShelfSections();
 // The sheet of paper on the Desk. See docs/adr/0005: the room renders content
 // it does not own, so this comes from the same collection /writing lists.
-const latestPost = await getLatestPost();
+const room = await getRoomContent();
 ---
 
 <Base
@@ -31,7 +31,7 @@ const latestPost = await getLatestPost();
   path="/"
 >
   <ShelfBoot slot="head" />
-  <Shelf slot="overlay" client:only="react" sections={sections} post={latestPost} />
+  <Shelf slot="overlay" client:only="react" sections={sections} {...room} />
 
   <header class="hero">
     <div class="hero-text">

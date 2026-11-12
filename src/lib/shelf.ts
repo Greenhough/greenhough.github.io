@@ -1,6 +1,6 @@
 import { getCollection } from 'astro:content';
 import { getImage } from 'astro:assets';
-import type { ShelfPost, ShelfSection } from '../components/shelf/types';
+import type { ShelfBoardGame, ShelfPost, ShelfRecord, ShelfSection } from '../components/shelf/types';
 import { monthYear } from './format';
 
 /**
@@ -79,4 +79,36 @@ export async function getLatestPost(): Promise<ShelfPost | null> {
     excerpt: latest.data.excerpt.replace(/<[^>]*>/g, ''),
     readTime: latest.data.readTime,
   };
+}
+
+/** The records in the Console, in the order they are flipped through. */
+export async function getRecords(): Promise<ShelfRecord[]> {
+  const records = (await getCollection('records')).sort((a, b) => a.data.order - b.data.order);
+  return records.map((entry) => ({
+    id: entry.id,
+    artist: entry.data.artist,
+    song: entry.data.song,
+    album: entry.data.album,
+    youtube: entry.data.youtube,
+    sleeve: entry.data.sleeve,
+    ink: entry.data.ink,
+  }));
+}
+
+/** The Board games stacked in the Console: the ones given a box, top first. */
+export async function getBoardGameBoxes(): Promise<ShelfBoardGame[]> {
+  return (await getCollection('boardGames'))
+    .filter((entry) => entry.data.box)
+    .sort((a, b) => a.data.rank - b.data.rank)
+    .map((entry) => ({ title: entry.data.title, ...entry.data.box! }));
+}
+
+/** Everything the room shows that is not a Project, for the pages that carry it. */
+export async function getRoomContent() {
+  const [post, records, boardGames] = await Promise.all([
+    getLatestPost(),
+    getRecords(),
+    getBoardGameBoxes(),
+  ]);
+  return { post, records, boardGames };
 }

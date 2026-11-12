@@ -46,11 +46,11 @@ The desk under the Window, left of the Shelf, with a chair at it. Where the late
 _Avoid_: table, workstation
 
 **Book stack**:
-The four read books lying flat on the Desk. Real books by other people, not Projects — they lie down, they are not on the Shelf, and the titles are someone else's. Lettered at runtime; lit by baked light, since they never move.
+The four read books lying flat on the Desk. Real books by other people, not Projects — they lie down, they are not on the Shelf, and the titles are someone else's. Lettered at runtime; lit by baked light, since they never move. The way in to `/books`.
 _Avoid_: books (unqualified, which means Boxes), library
 
 **View**:
-A composed camera position in the Room, authored by hand and named — Shelf, Desk. The navigation moves between them. A Project never needs one; an object does.
+A composed camera position in the Room, authored by hand and named — Shelf, Desk, Console. The navigation moves between them. A Project never needs one; an object does.
 _Avoid_: angle, shot, scene, page
 
 **Sheet**:
@@ -62,19 +62,31 @@ The cork board on the back wall right of the Shelf, with blank paper pinned to i
 _Avoid_: board, moodboard, gallery
 
 **Console**:
-The low cabinet right of the Shelf, with record sleeves in it and the Record player on it. Two Prints hang over it.
+The low cabinet right of the Shelf, with the Sleeves and the Board games in it and the Record player on it. The two Paintings hang over it. Has a View of its own, whose URL is `/music`.
 _Avoid_: sideboard, cabinet, stand
 
 **Record player**:
-The turntable on the Console. Its record turns. Dressing for now; planned as the way in to a song.
+The turntable on the Console. Plays the song of whichever Sleeve is out, as the publisher's own embedded video; its record turns only while a song is on.
 _Avoid_: turntable, deck, stereo
 
-**Prints**:
-The framed pictures: two over the Console, one leaning on top of the Shelf. Flat shapes in the Room's own colours, deliberately of nothing.
-_Avoid_: art, posters, photos (which is what the Pinboard is waiting for)
+**Sleeve**:
+A record in the Console's left bay: one artist, one song. At the Console one Sleeve is out of the row and held up, and they are flipped through one at a time. Lettered in the Room's own hand, in two colours, with no album art.
+_Avoid_: album, cover (which is a Box's), track
+
+**Board games**:
+The two game boxes lying flat in the Console's right bay, one on the other, long side out. Two of Evan's top ten; the way in to `/board-games`. Never called boxes unqualified, because a Box is a Project.
+_Avoid_: boxes, games (unqualified), Boxes
+
+**Paintings**:
+The two framed pictures over the Console: Friedrich's *Wanderer above the Sea of Fog* and Aivazovsky's *Ship on Stormy Seas*. Real paintings Evan chose, both long out of copyright. The frames are baked; the pictures are drawn live.
+_Avoid_: prints, art, posters, photos (which is what the Pinboard is waiting for)
+
+**Bust**:
+Marcus Aurelius in marble, on top of the Shelf to the right of the plant. Dressing: it leads nowhere.
+_Avoid_: statue, head, sculpture
 
 **Live part**:
-Something in the Room drawn on top of the bake because it moves: the Prairie, the glow of the Lamps, their reflection in the Window glass, dust, leaves, the record. Each is either light itself or moves too little to need relighting, which is what lets it be live.
+Something in the Room drawn on top of the bake because it moves: the Prairie, the glow of the Lamps, their reflection in the Window glass, dust, leaves, the record, the Paintings, the Sleeve that is out. Each is either light itself or moves too little to need relighting, which is what lets it be live.
 _Avoid_: effect, animation, particle
 
 **At rest** / **In the hand**:

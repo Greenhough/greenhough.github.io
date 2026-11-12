@@ -2,7 +2,7 @@
 import { getCollection } from 'astro:content';
 import Base from '../layouts/Base.astro';
 import Tags from '../components/Tags.astro';
-import { getLatestPost, getShelfSections } from '../lib/shelf';
+import { getRoomContent, getShelfSections } from '../lib/shelf';
 import ShelfBoot from '../components/shelf/ShelfBoot.astro';
 import Shelf from '../components/shelf/Shelf';
 
@@ -17,7 +17,7 @@ const work = (await getCollection('work')).sort(
 // move the camera and still leave every view a real URL that survives a
 // reload. Everything below is the Flat Site, unchanged. See docs/adr/0005.
 const sections = await getShelfSections();
-const latestPost = await getLatestPost();
+const room = await getRoomContent();
 ---
 
 <Base
@@ -32,7 +32,7 @@ const latestPost = await getLatestPost();
     slot="overlay"
     client:only="react"
     sections={sections}
-    post={latestPost}
+    {...room}
     initialPlace="shelf"
   />
 
