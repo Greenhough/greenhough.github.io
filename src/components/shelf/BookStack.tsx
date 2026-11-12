@@ -6,6 +6,7 @@ import { BOX_LIGHT, bakeInto, prepareLight, stackTile } from './bakedLight';
 import { ensureFonts, paintReadSpine, toTexture } from './covers';
 import { READ_BOOKS } from './readBooks';
 import { BOX } from './Box';
+import { model } from './models';
 
 /**
  * The stack of read books on the desk.
@@ -19,7 +20,7 @@ import { BOX } from './Box';
  * Why four books that are not Projects can sit in a scene where a book means a
  * Project is argued in docs/adr/0004 and summarised in readBooks.ts.
  */
-const MODEL = '/models/book.glb';
+const MODEL = model('book.glb');
 
 /** Mirrors DESK in scripts/shelf.py, and has to agree with it. */
 const DESK = { height: 0.74, floorY: -1.2975 };

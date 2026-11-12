@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import manifest from './box-bake.json';
 import { roomLight } from './clock';
+import { model } from './models';
 
 /**
  * The light on a Book at rest, baked in Blender.
@@ -18,9 +19,18 @@ import { roomLight } from './clock';
  * printed on the Book. Each Book has a tile of one atlas; which tile is in
  * box-bake.json, written by scripts/shelf.py alongside the atlas.
  */
-export const BOX_LIGHT = '/models/box-bake.webp';
+export const BOX_LIGHT = model('box-bake.webp');
 
-export type Tile = [number, number, number];
+/** Where a Book's light is in the atlas (u, v, size), and how far it is lifted. */
+export type Tile = [number, number, number, number];
+
+/**
+ * The lower Section stands under a shelf board and away from the Lamp, and
+ * the bake is honest about it: its Spines came out too dark to read. A Spine
+ * nobody can read has failed at the one thing it is for, so the lower Section's
+ * baked light is lifted. The shading within it is untouched.
+ */
+const LOWER_LIFT = 1.9;
 
 interface Manifest {
   gain: number;
@@ -39,12 +49,13 @@ const baked = manifest as Manifest;
  */
 export function boxTile(slug: string, section: number, slot: number): Tile | null {
   const hit = baked.boxes.find((b) => b.slug === slug && b.section === section && b.slot === slot);
-  return hit ? (hit.tile as Tile) : null;
+  return hit ? ([...hit.tile, section === 0 ? 1 : LOWER_LIFT] as Tile) : null;
 }
 
 /** The tile for the nth read book in the stack on the Desk. */
 export function stackTile(index: number): Tile | null {
-  return (baked.stack[index] as Tile | undefined) ?? null;
+  const tile = baked.stack[index];
+  return tile ? ([...tile, 1] as Tile) : null;
 }
 
 /** Set a loaded atlas up to be sampled through the Book's second UV set. */
@@ -91,7 +102,7 @@ export function bakeInto<T extends THREE.MeshStandardMaterial>(
 ): T {
   material.lightMap = light;
   material.lightMapIntensity = 0;
-  const tileUniform = { value: new THREE.Vector3(tile[0], tile[1], tile[2]) };
+  const tileUniform = { value: new THREE.Vector4(tile[0], tile[1], tile[2], tile[3]) };
 
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uLive = live;
@@ -101,12 +112,12 @@ export function bakeInto<T extends THREE.MeshStandardMaterial>(
     shader.fragmentShader = shader.fragmentShader
       .replace(
         '#include <common>',
-        '#include <common>\nuniform float uLive;\nuniform vec3 uTile;\nuniform float uGain;\nuniform vec3 uRoom;'
+        '#include <common>\nuniform float uLive;\nuniform vec4 uTile;\nuniform float uGain;\nuniform vec3 uRoom;'
       )
       .replace(
         '#include <opaque_fragment>',
         `#ifdef USE_LIGHTMAP
-          vec3 restLight = texture2D( lightMap, vLightMapUv * uTile.z + uTile.xy ).rgb * uGain * uRoom;
+          vec3 restLight = texture2D( lightMap, vLightMapUv * uTile.z + uTile.xy ).rgb * uGain * uTile.w * uRoom;
           outgoingLight = mix( diffuseColor.rgb * restLight, outgoingLight, uLive );
         #endif
         #include <opaque_fragment>`

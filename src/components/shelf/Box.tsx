@@ -7,6 +7,7 @@ import { palette } from './palette';
 import { BOX_LIGHT, bakeInto, prepareLight, type Tile } from './bakedLight';
 import { easeFor } from './clock';
 import type { ShelfProject } from './types';
+import { model } from './models';
 
 /**
  * A Box: a Project in its physical form.
@@ -28,14 +29,14 @@ export const BOX = {
   width: 0.82, // Z: the depth into the shelf, and the Cover's width
 };
 
-const MODEL = '/models/book.glb';
+const MODEL = model('book.glb');
 
 /**
  * A tiling normal map of book cloth, baked in Blender. One small map, shared by
  * every Box, is what stops a painted Spine reading as paint: cloth is given
  * away by the light crawling over the weave rather than by its colour.
  */
-const WEAVE = '/models/cloth-normal.webp';
+const WEAVE = model('cloth-normal.webp');
 /** How wide one tile of the weave is, in scene units. 22 threads across it. */
 const WEAVE_TILE = 0.066;
 /** Shallow. A spine you can see the threads of from across the room is a rug. */

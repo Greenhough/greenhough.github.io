@@ -2,9 +2,14 @@
 // Runs in <head>, before first paint, so the Flat Site never flashes on screen
 // before the Shelf covers it. Deliberately tiny and inline: nothing here waits
 // on a download, which is what keeps first paint off the WebGL path.
+//
+// The preloads carry the same version the island asks with (see models.ts), or
+// they would fetch one URL and the island another.
+import { MODELS_VERSION } from './models';
+const v = MODELS_VERSION;
 ---
 
-<script is:inline>
+<script is:inline define:vars={{ v }}>
   (function () {
     var root = document.documentElement;
     try {
@@ -37,7 +42,7 @@
       for (var i = 0; i < ahead.length; i++) {
         var link = document.createElement('link');
         link.rel = 'preload';
-        link.href = ahead[i][0];
+        link.href = ahead[i][0] + '?v=' + v;
         link.as = ahead[i][1];
         link.crossOrigin = 'anonymous';
         document.head.appendChild(link);

@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
 import { useTexture } from '@react-three/drei';
 import { lampsNow, roomTime } from './clock';
+import { model } from './models';
 
 /**
  * The live parts of the room: the things drawn on top of the bake.
@@ -29,7 +30,7 @@ const inGlass = (p: THREE.Vector3) => new THREE.Vector3(p.x, p.y, 2 * GLASS_Z - 
 
 // ---------------------------------------------------------------- the Prairie
 
-const PRAIRIE = '/models/prairie.webp';
+const PRAIRIE = model('prairie.webp');
 /** How far behind the glass it hangs. Far enough to slide, not to swim. */
 const PRAIRIE_DISTANCE = 4;
 const PRAIRIE_WIDTH = 9.6;

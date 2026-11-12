@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
 import { useGLTF, useTexture } from '@react-three/drei';
 import { isFrozen, lampsNow, roomLight, roomTime, setLamps, turntable } from './clock';
+import { model } from './models';
 
 /**
  * The carcass and the room it stands in, modelled and lit in Blender.
@@ -12,11 +13,11 @@ import { isFrozen, lampsNow, roomLight, roomTime, setLamps, turntable } from './
  * window rather than a floor and a wall fading into the page, and
  * docs/adr/0006 for the few things in it that move.
  */
-const MODEL = '/models/shelf.glb';
-const CARCASS_ATLAS = '/models/shelf-bake.webp';
+const MODEL = model('shelf.glb');
+const CARCASS_ATLAS = model('shelf-bake.webp');
 /** The room atlas is 4096 on a desktop and half that on a phone. */
-const ROOM_ATLAS = '/models/room-bake.webp';
-const ROOM_ATLAS_SMALL = '/models/room-bake-2k.webp';
+const ROOM_ATLAS = model('room-bake.webp');
+const ROOM_ATLAS_SMALL = model('room-bake-2k.webp');
 
 /** Meshes whose names start with this take the room atlas. */
 const ROOM_PREFIX = 'Room';
