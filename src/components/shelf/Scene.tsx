@@ -12,6 +12,7 @@ import { Console } from './Console';
 import { Atmosphere, Laptop, SCREEN_CENTRE, SCREEN_NORMAL, SCREEN_UP } from './Atmosphere';
 import { boxTile } from './bakedLight';
 import { easeFor, isFrozen, roomTime } from './clock';
+import { applyOrbit, useOrbit } from './useOrbit';
 import type {
   ShelfBoardGame,
   ShelfPlace,
@@ -31,6 +32,7 @@ interface Props {
   /** A phone gets the smaller room atlas. */
   phone: boolean;
   onFocus: (slug: string) => void;
+  onPreview: (slug: string) => void;
   onInspect: (slug: string) => void;
   onOpenPost: (slug: string) => void;
   onHover: (hovering: boolean) => void;
@@ -125,8 +127,7 @@ function composed(view: { position: THREE.Vector3; lookAt: THREE.Vector3 }, half
 }
 
 /**
- * Where the camera wants to be. Browsing travels the Shelf with the focused
- * Box; Inspecting comes in close on the Box held out in front of it; the Desk
+ * Where the camera wants to be. Browsing looks at the whole Shelf; Inspecting comes in close on the Box held out in front of it; the Desk
  * is a fixed frame that does not move with anything.
  */
 function cameraTargets(
@@ -152,13 +153,7 @@ function cameraTargets(
     }
     return view;
   }
-  if (!focus) {
-    return {
-      position: new THREE.Vector3(0, 0, Math.max(4.4, frame.fit(SHELF_HALF))),
-      lookAt: new THREE.Vector3(0, 0, 0),
-    };
-  }
-  if (state === 'inspecting' || state === 'opened') {
+  if (focus && (state === 'inspecting' || state === 'opened')) {
     // Aim to the left of the held Box so it sits in the right half of the
     // frame, clear of the HUD text running down the left. On a narrow window
     // the HUD is underneath instead and there is no left to keep clear, so
@@ -175,26 +170,20 @@ function cameraTargets(
       lookAt: aim,
     };
   }
-  // Browsing: travel with the focused Box, but damped, so the whole Shelf stays
-  // in frame and the camera drifts rather than swinging.
+  // Browsing: the whole Shelf, square on. It used to travel with the focused
+  // Box, but a Box is now focused by pointing at it, and a camera that moves
+  // when you point slides the Box out from under the pointer. Looking around
+  // is the visitor's to do now, by dragging (see useOrbit).
   //
-  // Four units back, not three and a half. From closer the Shelf filled the
-  // frame and the room was a margin round it: the print on top of the carcass
-  // was cut off, the lamp was half out of the right edge and the console was
-  // under the HUD. The room is most of the picture now, so the camera stands
-  // where it can see it. The Spines are a tenth smaller for it and still read.
+  // Four units back, so the room is most of the picture and not a margin
+  // round the Shelf. On a phone, only as far back as the Shelf's width needs.
   //
-  // On a phone it stands only as far back as the Shelf's width needs. It used
-  // to multiply the distance by up to 2.2, which was sized for a camera that
-  // started closer; from four units that put it nearly nine back, and the top
-  // third of a phone was ceiling.
-  const driftX = focus.x * 0.55 * frame.wide;
   // On a phone the HUD is a block across the bottom, not a line down the
   // left, so the camera looks a little lower and the Shelf rides up clear of it.
   const under = -0.26 * (1 - frame.wide);
   return {
-    position: new THREE.Vector3(driftX, focus.y * 0.4 + 0.2 + under, Math.max(4.0, frame.fit(SHELF_HALF))),
-    lookAt: new THREE.Vector3(driftX, focus.y * 0.4 + under, 0),
+    position: new THREE.Vector3(0, 0.2 + under, Math.max(4.0, frame.fit(SHELF_HALF))),
+    lookAt: new THREE.Vector3(0, under, 0),
   };
 }
 
@@ -207,6 +196,7 @@ export function Scene({
   textureSize,
   phone,
   onFocus,
+  onPreview,
   onInspect,
   onOpenPost,
   onHover,
@@ -222,6 +212,15 @@ export function Scene({
 }: Props) {
   const p = palette();
   const camera = useThree((s) => s.camera);
+  const canvas = useThree((s) => s.gl.domElement);
+  // Not at the Laptop: there a drag is a game being played.
+  const orbit = useOrbit(
+    canvas,
+    `${place}:${state}:${state === 'browsing' ? '' : focusedSlug}`,
+    place !== 'laptop'
+  );
+  const seat = useRef(new THREE.Vector3());
+  const aim = useRef(new THREE.Vector3());
   const size = useThree((s) => s.size);
   const lookAt = useRef(new THREE.Vector3(0, 0, 0));
   /** Where the camera would be with no lean on it. */
@@ -301,9 +300,13 @@ export function Scene({
     // Ease the unleaned position, then lean from it, so the lean is never
     // fed back into the easing and the two cannot wind each other up.
     rail.current.lerp(position, ease);
-    camera.position.copy(rail.current).add(offset.current);
     lookAt.current.lerp(target, ease);
-    camera.lookAt(lookAt.current);
+    // Then swing the whole thing round what it is looking at, if the visitor
+    // has dragged. The lean rides on top, so the room still breathes.
+    aim.current.copy(lookAt.current);
+    applyOrbit(seat.current.copy(rail.current), aim.current, orbit(delta));
+    camera.position.copy(seat.current).add(offset.current);
+    camera.lookAt(aim.current);
   });
 
   return (
@@ -422,6 +425,7 @@ export function Scene({
                   project.slug === focusedSlug ? onInspect(project.slug) : onFocus(project.slug)
                 }
                 onHover={onHover}
+                onPreview={() => onPreview(project.slug)}
               />
             ))}
           </group>

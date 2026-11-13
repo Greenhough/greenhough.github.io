@@ -82,9 +82,9 @@ export default function Shelf({
   );
 
   const [state, setState] = useState<ShelfState>(initialSlug ? 'inspecting' : 'browsing');
-  const [focusedSlug, setFocusedSlug] = useState<string | null>(
-    initialSlug ?? ordered[0]?.slug ?? null
-  );
+  // Nothing is picked until the visitor picks it. Landing with the first Box
+  // already slid out made the room read as a page about that one project.
+  const [focusedSlug, setFocusedSlug] = useState<string | null>(initialSlug);
   const [place, setPlace] = useState<ShelfPlace>(initialPlace);
   const [hovering, setHovering] = useState(false);
   // Which record is out of the row, and whether it is on the player. Nothing
@@ -162,6 +162,14 @@ export default function Shelf({
   const openPost = useCallback((slug: string) => {
     window.location.href = `/${slug}`;
   }, []);
+
+  /** A mouse over a Box while Browsing slides it out and names it in the HUD. */
+  const preview = useCallback(
+    (slug: string) => {
+      if (state === 'browsing' && place === 'shelf') setFocusedSlug(slug);
+    },
+    [state, place]
+  );
 
   const inspect = useCallback(
     (slug: string) => {
@@ -287,6 +295,7 @@ export default function Shelf({
             textureSize={phone ? 512 : 1024}
             phone={phone}
             onFocus={setFocusedSlug}
+            onPreview={preview}
             onInspect={inspect}
             onOpenPost={openPost}
             onHover={setHovering}
@@ -437,6 +446,20 @@ export default function Shelf({
                 Board games
               </a>
             )}
+          </div>
+        </div>
+      )}
+
+      {place === 'shelf' && !focused && (
+        <div className="shelf-hud">
+          <div className="shelf-hud-text">
+            <div className="shelf-hud-eyebrow">Work</div>
+            <h2 className="shelf-hud-title">Pick something off the shelf</h2>
+            <p className="shelf-hud-summary">
+              {phone
+                ? 'Tap a box to see what it is. Drag to look around the room, pinch to get closer.'
+                : 'Point at a box to see what it is, click to take it down. Drag to look around the room, scroll to get closer.'}
+            </p>
           </div>
         </div>
       )}

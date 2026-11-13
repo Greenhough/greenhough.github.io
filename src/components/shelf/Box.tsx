@@ -122,6 +122,8 @@ interface Props {
   tile: Tile | null;
   onSelect: () => void;
   onHover: (hovering: boolean) => void;
+  /** A mouse came over this Box. Touch has no hover, so a tap only selects. */
+  onPreview?: () => void;
 }
 
 export function Box({
@@ -134,6 +136,7 @@ export function Box({
   tile,
   onSelect,
   onHover,
+  onPreview,
 }: Props) {
   const group = useRef<THREE.Group>(null);
   const frontBoard = useRef<THREE.Object3D | null>(null);
@@ -256,6 +259,7 @@ export function Box({
       onPointerOver={(e) => {
         e.stopPropagation();
         onHover(true);
+        if (e.pointerType === 'mouse') onPreview?.();
       }}
       onPointerOut={() => onHover(false)}
     >
