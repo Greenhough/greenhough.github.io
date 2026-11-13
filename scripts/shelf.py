@@ -200,7 +200,7 @@ GAMES = {
 }
 
 # Marcus Aurelius, on top of the carcass to the right of the plant.
-BUST = {"x": 0.705, "z": 0.10, "yaw": -0.30}
+BUST = {"x": 0.69, "z": 0.07, "yaw": -0.30, "height": 0.36, "uv_scale": 3.0}
 
 # A tall plant in the back right corner, past the console.
 FLOOR_PLANT = {"x": 2.42, "z": -0.10, "pot_r": 0.155, "pot_h": 0.30, "height": 1.42}
@@ -1458,86 +1458,30 @@ def build_board_games():
     return parts
 
 
-def blob(name, radii, centre, material, yaw=0.0, segments=20):
-    """An ellipsoid, in site coordinates. What a bust is made of."""
-    bpy.ops.mesh.primitive_uv_sphere_add(
-        radius=1, segments=segments, ring_count=segments // 2,
-        location=(centre[0], -centre[2], centre[1]),
-    )
-    obj = bpy.context.active_object
-    obj.name = name
-    obj.scale = (radii[0], radii[2], radii[1])
-    obj.rotation_euler = (0, 0, yaw)
-    bpy.ops.object.shade_smooth()
-    obj.data.materials.append(material)
-    return obj
-
-
 def build_bust(marble):
     """
-    Marcus Aurelius, as a marble bust: the curls and the full beard are what
-    make him him. Built from ellipsoids, which is enough at this size. The
-    room atlas gives the whole head about ten texels, so what has to be right
-    is the outline, and anything finer would be baked away.
+    Marcus Aurelius, in marble: a scan of a real bust, cut down by
+    scripts/bust_prep.py to the few thousand triangles in scripts/bust.ply.
+
+    It is given several times the room's usual share of the atlas. At a
+    hundred texels to the unit his whole head would be fifteen across, and a
+    portrait is the one thing in the room that has to be recognised.
     """
     b = BUST
-    y0 = UNIT_HEIGHT / 2
-    yaw = b["yaw"]
-    k = 1.2  # a shade over life size for a desk bust, so the outline survives the bake
-
-    def at(dx, dy, dz):
-        # Turned about the bust's own axis, so he looks into the room.
-        dx, dy, dz = dx * k, dy * k, dz * k
-        return (
-            b["x"] + dx * math.cos(yaw) + dz * math.sin(yaw),
-            y0 + dy,
-            b["z"] - dx * math.sin(yaw) + dz * math.cos(yaw),
-        )
-
-    def lump(name, radii, where, segments=12):
-        return blob(name, tuple(r * k for r in radii), at(*where), marble, yaw, segments=segments)
-
-    def post(name, radius, height, where, segments=24):
-        return cylinder(name, radius * k, height * k, at(*where), marble, segments=segments)
-
-    pieces = [
-        post("Bust.Base", 0.052, 0.018, (0, 0.009, 0), 28),
-        post("Bust.Stem", 0.030, 0.034, (0, 0.035, 0)),
-        # The chest: broad across the shoulders, shallow front to back, and
-        # cut off low, the way a bust is. Two caps square the shoulders off.
-        lump("Bust.Chest", (0.098, 0.050, 0.046), (0, 0.094, 0), 20),
-        lump("Bust.Shoulder.L", (0.034, 0.030, 0.036), (-0.072, 0.112, 0)),
-        lump("Bust.Shoulder.R", (0.034, 0.030, 0.036), (0.072, 0.112, 0)),
-        post("Bust.Neck", 0.024, 0.060, (0, 0.160, 0.002), 20),
-        lump("Bust.Head", (0.039, 0.050, 0.045), (0, 0.226, 0.006), 20),
-        lump("Bust.Nose", (0.007, 0.015, 0.010), (0, 0.222, 0.050), 10),
-        lump("Bust.Brow", (0.028, 0.006, 0.008), (0, 0.238, 0.046), 10),
-    ]
-    hy, hz = 0.226, 0.006
-    # Curls: small lumps over the crown, the sides and the back of the head,
-    # close to the skull. The face is left clear.
-    n = 44
-    for i in range(n):
-        up = 1 - (i + 0.5) / n * 1.05
-        ring = math.sqrt(max(0.0, 1 - up * up))
-        az = i * math.radians(137.5)
-        dx, dz = math.sin(az) * ring, math.cos(az) * ring
-        if dz > 0.30 and up < 0.50:
-            continue
-        r = 0.0095 + 0.002 * ((i * 7) % 3)
-        pieces.append(lump(f"Bust.Curl.{i}", (r, r, r), (dx * 0.040, hy + up * 0.050, hz + dz * 0.045), 6))
-    # The beard: along the jaw and under the chin, fullest in the middle.
-    for row, (drop, reach, size) in enumerate(((0.030, 0.036, 0.010), (0.044, 0.028, 0.011))):
-        for i, deg in enumerate((-66, -40, -14, 14, 40, 66)):
-            a = math.radians(deg)
-            pieces.append(
-                lump(f"Bust.Beard.{row}{i}", (size, size * 1.2, size),
-                     (math.sin(a) * reach, hy - drop, hz + math.cos(a) * reach + 0.004), 6)
-            )
-    select(pieces, active=pieces[0])
-    bpy.ops.object.join()
-    bust = bpy.context.active_object
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "bust.ply")
+    bpy.ops.wm.ply_import(filepath=path)
+    bust = bpy.context.selected_objects[0]
+    bpy.context.view_layer.objects.active = bust
     bust.name = "Room.Bust"
+    bust.location = (b["x"], -b["z"], UNIT_HEIGHT / 2)
+    bust.scale = (b["height"],) * 3
+    # Turned a little, so he looks into the room rather than straight out.
+    bust.rotation_euler = (0, 0, b["yaw"])
+    bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+    bpy.ops.object.shade_smooth()
+    bust.data.materials.append(marble)
+    bust["uv_scale"] = b["uv_scale"]
+    bust["uv_tight"] = True
     return [bust]
 
 
@@ -1589,7 +1533,7 @@ def build_top_dressing(frame_mat, mount_mat, pot_mat, leaf_mat):
     parts = []
 
     # The plant, near the front edge, so the carcass does not hide its pot.
-    px, pz = 0.47, 0.16
+    px, pz = 0.27, 0.16
     parts.append(cylinder("Room.TopPlant.Pot", 0.07, 0.12, (px, top + 0.06, pz), pot_mat))
     for i in range(9):
         turn = i * math.radians(137.5) + 0.6
@@ -2228,11 +2172,25 @@ def unwrap_all(parts, margin=0.004, planar=False, gap=0.015):
         select([obj])
         bpy.ops.object.mode_set(mode="EDIT")
         bpy.ops.mesh.select_all(action="SELECT")
-        bpy.ops.uv.smart_project(angle_limit=math.radians(66), island_margin=0.03)
+        # A scanned surface breaks into hundreds of small islands. Left at the
+        # usual spacing, the gaps between them are wider than the bake's
+        # margin fills, and the unbaked black in them bleeds into every edge
+        # once the texture is drawn small: dark seams across a face. So an
+        # object that asks for it is cut into fewer islands, set close.
+        tight = bool(obj.get("uv_tight"))
+        bpy.ops.uv.smart_project(
+            angle_limit=math.radians(80 if tight else 66),
+            island_margin=0.005 if tight else 0.03,
+        )
         bpy.ops.object.mode_set(mode="OBJECT")
         # Then onto the same world-unit scale as the flat panels, so the
         # packer treats everything alike and the texel density comes out even.
         to_world_scale(obj)
+        # Unless it asks for more than its share, as the bust does.
+        extra = obj.get("uv_scale", 1.0)
+        if extra != 1.0:
+            for d in obj.data.uv_layers.active.data:
+                d.uv = (d.uv[0] * extra, d.uv[1] * extra)
 
     shelf_pack_uvs(parts, gap=gap)
 
