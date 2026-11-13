@@ -138,4 +138,22 @@ const boardGames = defineCollection({
   }),
 });
 
-export const collections = { work, posts, records, boardGames };
+/**
+ * The books on /books, three to a topic. Real covers, unlike the Room's
+ * Sleeves and Board games: see the 2026-11-13 addendum to docs/adr/0005.
+ * Each cover is public/assets/books/{id}.webp, 300 wide.
+ */
+const books = defineCollection({
+  loader: file('./src/content/room/books.json'),
+  schema: z.object({
+    /** Across the whole list, so topics come out in the order they were written. */
+    order: z.number().int().positive(),
+    topic: z.string(),
+    title: z.string(),
+    /** Used in the cover's alt text, not shown. */
+    author: z.string(),
+    cover: z.object({ width: z.number().int(), height: z.number().int() }),
+  }),
+});
+
+export const collections = { work, posts, records, boardGames, books };

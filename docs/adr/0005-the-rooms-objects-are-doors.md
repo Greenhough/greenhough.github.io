@@ -125,3 +125,16 @@ away. It does not spend the fifth View, which is still the Pinboard's.
 The line follows the one-source rule: it lives in `src/data/meditation.ts`, and the Flat
 Site carries it on the 404 page. It is Gregory Hays's wording, so it is credited to him
 in both places.
+
+## Addendum, 2026-11-13: /books shows real covers
+
+`/books` is now the full list, three books to a topic, each with its real cover and its
+title under it. That is a deliberate exception to "no album art and no box art", and it is
+scoped: the rule is about the Room, where Sleeves and Board games are lettered in the
+Room's own hand, and it still holds there. The Book stack on the Desk stays lettered.
+
+On a Flat Site page a cover is how a reader recognises a book, and a list of books read
+is the ordinary place covers are shown. They come from Open Library (or the publisher
+where Open Library had none), resized to 300 wide and kept in `public/assets/books/`, so
+a visitor's browser never asks a third party for them. The list lives in
+`src/content/room/books.json`.
