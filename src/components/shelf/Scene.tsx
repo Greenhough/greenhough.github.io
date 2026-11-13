@@ -45,6 +45,8 @@ interface Props {
   onOpenGames: () => void;
   onOpenBooks: () => void;
   onVisitLaptop: () => void;
+  /** The Bust was clicked. It is not a View: see ShelfModel. */
+  onBust: () => void;
 }
 
 /** Half the carcass's width and a margin: what has to fit across a phone. */
@@ -215,6 +217,7 @@ export function Scene({
   onOpenGames,
   onOpenBooks,
   onVisitLaptop,
+  onBust,
 }: Props) {
   const p = palette();
   const camera = useThree((s) => s.camera);
@@ -371,7 +374,7 @@ export function Scene({
         shadow-normalBias={0.02}
       />
 
-      <ShelfModel phone={phone} />
+      <ShelfModel phone={phone} onBust={place === 'shelf' ? onBust : undefined} onHover={onHover} />
 
       {/* The view through the window, the glow of the lamps and the dust in
           it: the parts of the room that are drawn live. */}

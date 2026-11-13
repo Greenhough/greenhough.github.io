@@ -3,6 +3,7 @@ import { Canvas } from '@react-three/fiber';
 import { Scene } from './Scene';
 import { turntable } from './clock';
 import Bones from '../bones/Bones';
+import { MEDITATION } from '../../data/meditation';
 import type {
   ShelfBoardGame,
   ShelfPlace,
@@ -87,6 +88,9 @@ export default function Shelf({
   const [focusedSlug, setFocusedSlug] = useState<string | null>(initialSlug);
   const [place, setPlace] = useState<ShelfPlace>(initialPlace);
   const [hovering, setHovering] = useState(false);
+  // The Bust has been clicked and its line is in the HUD. It goes again as
+  // soon as anything else is picked.
+  const [musing, setMusing] = useState(false);
   // Which record is out of the row, and whether it is on the player. Nothing
   // is asked of YouTube until a record is put on: see docs/adr/0005.
   const [recordIndex, setRecordIndex] = useState(0);
@@ -146,6 +150,15 @@ export default function Shelf({
   const openGames = useCallback(() => {
     window.location.href = '/board-games';
   }, []);
+  /** The Bust is dressing that answers: it puts the Meditation in the HUD. */
+  const bust = useCallback(() => {
+    setFocusedSlug(null);
+    setMusing((on) => !on);
+  }, []);
+  useEffect(() => {
+    if (focusedSlug || place !== 'shelf' || state !== 'browsing') setMusing(false);
+  }, [focusedSlug, place, state]);
+
   const openBooks = useCallback(() => {
     window.location.href = '/books';
   }, []);
@@ -284,6 +297,8 @@ export default function Shelf({
         resize={RESIZE}
         dpr={dpr}
         camera={CAMERA}
+        // A click on nothing in particular puts the Bust's line away.
+        onPointerMissed={() => setMusing(false)}
       >
         <Suspense fallback={null}>
           <Scene
@@ -308,6 +323,7 @@ export default function Shelf({
             onOpenGames={openGames}
             onOpenBooks={openBooks}
             onVisitLaptop={visitLaptop}
+            onBust={bust}
           />
         </Suspense>
       </Canvas>
@@ -450,7 +466,19 @@ export default function Shelf({
         </div>
       )}
 
-      {place === 'shelf' && !focused && (
+      {place === 'shelf' && !focused && musing && (
+        <div className="shelf-hud shelf-hud-bust">
+          <figure className="shelf-hud-text">
+            <figcaption className="shelf-hud-eyebrow">
+              {MEDITATION.author} &middot; {MEDITATION.source}
+            </figcaption>
+            <blockquote className="shelf-hud-title">{MEDITATION.text}</blockquote>
+            <p className="shelf-hud-credit">Translated by {MEDITATION.translator}</p>
+          </figure>
+        </div>
+      )}
+
+      {place === 'shelf' && !focused && !musing && (
         <div className="shelf-hud">
           <div className="shelf-hud-text">
             <div className="shelf-hud-eyebrow">Work</div>

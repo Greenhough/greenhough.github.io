@@ -799,6 +799,22 @@ html.shelf-capable .wrap { display: none; }
   color: #d9d4c7;
   text-shadow: 0 1px 10px rgb(14 12 10 / .6);
 }
+/* The Bust's line. A quotation, so it is set as one, in the title's place. */
+.shelf-hud-bust .shelf-hud-text { margin: 0; max-width: 34ch; }
+.shelf-hud-bust blockquote.shelf-hud-title {
+  margin: 0 0 8px;
+  font-style: italic;
+  font-weight: 700;
+  font-size: clamp(20px, 2.6vw, 28px);
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+.shelf-hud-credit {
+  margin: 0;
+  font-size: 13px;
+  color: #b5ae9e;
+  text-shadow: 0 1px 10px rgb(14 12 10 / .6);
+}
 .shelf-hud-actions { display: flex; gap: 10px; flex-shrink: 0; pointer-events: auto; }
 .shelf-btn {
   font-family: 'Archivo', sans-serif;

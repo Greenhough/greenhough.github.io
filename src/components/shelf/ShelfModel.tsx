@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
 import { useGLTF, useTexture } from '@react-three/drei';
@@ -28,6 +28,12 @@ const ROOM_PREFIX = 'Room';
  */
 const RECORD = /^RoomRecord$/;
 const LEAF = /^Room(FloorPlant|TopPlant|Plant)Leaf/;
+/** Marcus Aurelius. Dressing that answers when spoken to: see BustProps. */
+const BUST = 'RoomBust';
+/** How much the Bust brightens under the pointer. Quiet, like the Book stack's lift. */
+const BUST_LIFT = 1.14;
+/** Hit box margin around the Bust, so a head this small is not fiddly to click. */
+const BUST_MARGIN = 0.03;
 /** 33⅓ rpm, in radians a second. */
 const RECORD_SPEED = (100 / 3 / 60) * Math.PI * 2;
 
@@ -59,7 +65,19 @@ interface Leaf {
  * is mostly edges. Sharing a map makes the soft shadow and the grain on a
  * board edge compete for the same texels, and both lose.
  */
-export function ShelfModel({ phone = false }: { phone?: boolean }) {
+interface Props {
+  phone?: boolean;
+  /**
+   * The Bust leads nowhere, and is not a View (docs/adr/0005 keeps the last
+   * one for the Pinboard). Clicking it only puts a line of the Meditations in
+   * the HUD; the camera does not move.
+   */
+  onBust?: () => void;
+  onHover?: (hovering: boolean) => void;
+}
+
+export function ShelfModel({ phone = false, onBust, onHover }: Props) {
+  const bustHovered = useRef(false);
   const { scene } = useGLTF(MODEL);
   const [carcassMap, roomMap] = useTexture([CARCASS_ATLAS, phone ? ROOM_ATLAS_SMALL : ROOM_ATLAS]);
 
@@ -79,6 +97,10 @@ export function ShelfModel({ phone = false }: { phone?: boolean }) {
 
     const carcassMaterial = baked(carcassMap);
     const roomMaterial = baked(roomMap);
+    // The Bust gets its own copy of the room's material so it alone can
+    // brighten under the pointer. Its colour follows roomLight every frame.
+    const bustMaterial = new THREE.MeshBasicMaterial({ map: roomMaterial.map, toneMapped: false });
+    let bust: THREE.Object3D | null = null;
 
     const root = scene.clone(true);
     const leaves: Leaf[] = [];
@@ -86,6 +108,7 @@ export function ShelfModel({ phone = false }: { phone?: boolean }) {
 
     root.traverse((child) => {
       if (RECORD.test(child.name)) record = child;
+      if (child.name === BUST) bust = child;
       if (LEAF.test(child.name)) {
         leaves.push({
           object: child,
@@ -100,17 +123,29 @@ export function ShelfModel({ phone = false }: { phone?: boolean }) {
       // A joined object arrives as a group of meshes, one per material, under
       // a node carrying the name. Either the mesh or its parent says "Room".
       const named = mesh.name.startsWith(ROOM_PREFIX) || !!mesh.parent?.name.startsWith(ROOM_PREFIX);
-      mesh.material = named ? roomMaterial : carcassMaterial;
+      const isBust = mesh.name === BUST || mesh.parent?.name === BUST;
+      mesh.material = isBust ? bustMaterial : named ? roomMaterial : carcassMaterial;
       // Baked surfaces neither cast nor receive at runtime; their shading is
       // already in the texture. Only a Book in the hand does real-time shadow.
       mesh.castShadow = false;
       mesh.receiveShadow = false;
     });
-    return { root, leaves, record: record as THREE.Object3D | null };
+    // Where the Bust stands, for a hit box around it. The root sits at the
+    // origin, so its own bounds are already in the Room's coordinates.
+    let bustBox: { center: THREE.Vector3; size: THREE.Vector3 } | null = null;
+    if (bust) {
+      root.updateMatrixWorld(true);
+      const box = new THREE.Box3().setFromObject(bust).expandByScalar(BUST_MARGIN);
+      bustBox = { center: box.getCenter(new THREE.Vector3()), size: box.getSize(new THREE.Vector3()) };
+    }
+    return { root, leaves, record: record as THREE.Object3D | null, bustMaterial, bustBox };
   }, [scene, carcassMap, roomMap]);
 
   useFrame((_, delta) => {
     const t = roomTime();
+
+    built.bustMaterial.color.copy(roomLight);
+    if (bustHovered.current) built.bustMaterial.color.multiplyScalar(BUST_LIFT);
 
     // The lamps strike once, when the room first draws.
     setLamps(lampsNow());
@@ -131,7 +166,35 @@ export function ShelfModel({ phone = false }: { phone?: boolean }) {
     }
   });
 
-  return <primitive object={built.root} />;
+  const box = built.bustBox;
+  return (
+    <>
+      <primitive object={built.root} />
+      {box && onBust && (
+        // An invisible box rather than handlers on the room itself, so the
+        // pointer is only raycast against six faces and not every wall.
+        <mesh
+          position={box.center}
+          onClick={(e) => {
+            e.stopPropagation();
+            onBust();
+          }}
+          onPointerOver={(e) => {
+            e.stopPropagation();
+            bustHovered.current = true;
+            onHover?.(true);
+          }}
+          onPointerOut={() => {
+            bustHovered.current = false;
+            onHover?.(false);
+          }}
+        >
+          <boxGeometry args={[box.size.x, box.size.y, box.size.z]} />
+          <meshBasicMaterial colorWrite={false} depthWrite={false} />
+        </mesh>
+      )}
+    </>
+  );
 }
 
 // Asked for at module load, alongside the model, rather than when the model

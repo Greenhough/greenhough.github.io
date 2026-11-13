@@ -114,3 +114,14 @@ The Console is the third View, and it holds two doors rather than one.
 - **The Bust is dressing.** A fifth View is the ceiling and the Pinboard has the last one.
 - The Lamp switching off and the Prairie following the hour are parked in
   `docs/parked-room-ideas.md`.
+
+## Addendum, 2026-11-13: the Bust answers
+
+The Bust stays dressing and still has no View, but clicking it from the Shelf puts one
+line of the *Meditations* in the HUD, in the place a focused Box's title would go. The
+camera does not move, nothing is pushed to the URL, and picking anything else puts it
+away. It does not spend the fifth View, which is still the Pinboard's.
+
+The line follows the one-source rule: it lives in `src/data/meditation.ts`, and the Flat
+Site carries it on the 404 page. It is Gregory Hays's wording, so it is credited to him
+in both places.

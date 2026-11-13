@@ -1,5 +1,6 @@
 ---
 import Base from '../layouts/Base.astro';
+import { MEDITATION } from '../data/meditation';
 ---
 
 <Base
@@ -17,5 +18,30 @@ import Base from '../layouts/Base.astro';
       Let's get you back on track.
     </p>
     <a class="sec-link" href="/">&larr; Back home</a>
+    <figure class="meditation">
+      <blockquote>{MEDITATION.text}</blockquote>
+      <figcaption>
+        {MEDITATION.author}, <cite>{MEDITATION.source}</cite>, translated by {MEDITATION.translator}
+      </figcaption>
+    </figure>
   </header>
 </Base>
+
+<style>
+  /* The Bust's line, on the Flat Site. See src/data/meditation.ts. */
+  .meditation {
+    margin: 56px 0 0;
+    max-width: 40ch;
+  }
+  .meditation blockquote {
+    margin: 0 0 8px;
+    font-style: italic;
+    font-size: 19px;
+    line-height: 1.45;
+  }
+  .meditation figcaption {
+    font-size: 14px;
+    opacity: 0.7;
+  }
+  .meditation cite { font-style: normal; }
+</style>
