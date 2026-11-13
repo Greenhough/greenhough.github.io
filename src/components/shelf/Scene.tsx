@@ -181,9 +181,15 @@ function cameraTargets(
   // On a phone the HUD is a block across the bottom, not a line down the
   // left, so the camera looks a little lower and the Shelf rides up clear of it.
   const under = -0.26 * (1 - frame.wide);
+  // On a wide window it looks a little higher instead, and stands a third of
+  // a unit further back. The Shelf with the Bust on top of it is taller than
+  // the frame from four units, and the Bust was cut off at the shoulders. A
+  // phone stands further back already and has it whole.
+  const over = 0.13 * frame.wide;
+  const back = 4.0 + 0.3 * frame.wide;
   return {
-    position: new THREE.Vector3(0, 0.2 + under, Math.max(4.0, frame.fit(SHELF_HALF))),
-    lookAt: new THREE.Vector3(0, under, 0),
+    position: new THREE.Vector3(0, 0.2 + under + over, Math.max(back, frame.fit(SHELF_HALF))),
+    lookAt: new THREE.Vector3(0, under + over, 0),
   };
 }
 
