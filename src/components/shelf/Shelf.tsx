@@ -2,6 +2,7 @@ import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { Scene } from './Scene';
 import { turntable } from './clock';
+import Bones from '../bones/Bones';
 import type {
   ShelfBoardGame,
   ShelfPlace,
@@ -52,12 +53,14 @@ function isPhone() {
 function placeFor(pathname: string): ShelfPlace {
   if (pathname === '/writing') return 'desk';
   if (pathname === '/music') return 'console';
+  if (pathname === '/play') return 'laptop';
   return 'shelf';
 }
 
 function placeUrl(place: ShelfPlace): string {
   if (place === 'desk') return '/writing';
   if (place === 'console') return '/music';
+  if (place === 'laptop') return '/play';
   return '/work';
 }
 
@@ -139,6 +142,7 @@ export default function Shelf({
   );
   const togglePlay = useCallback(() => setPlaying((on) => !on), []);
   const visitConsole = useCallback(() => goTo('console'), [goTo]);
+  const visitLaptop = useCallback(() => goTo('laptop'), [goTo]);
   const openGames = useCallback(() => {
     window.location.href = '/board-games';
   }, []);
@@ -201,6 +205,15 @@ export default function Shelf({
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+      // At the Laptop the keys belong to Bones (1, 2 and 3), except the way out.
+      if (place === 'laptop') {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          goTo('desk');
+        }
+        return;
+      }
 
       // At the Console the arrows flip through the records, not the Boxes.
       if (place === 'console') {
@@ -285,6 +298,7 @@ export default function Shelf({
             onTogglePlay={togglePlay}
             onOpenGames={openGames}
             onOpenBooks={openBooks}
+            onVisitLaptop={visitLaptop}
           />
         </Suspense>
       </Canvas>
@@ -344,6 +358,44 @@ export default function Shelf({
             <a className="shelf-btn ghost" href="/writing#posts">
               All writing
             </a>
+            <a
+              className="shelf-btn ghost"
+              href="/play"
+              onClick={(e) => {
+                if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+                e.preventDefault();
+                goTo('laptop');
+              }}
+            >
+              Play Bones
+            </a>
+          </div>
+        </div>
+      )}
+
+      {/* At the Laptop the game is on the screen, and the HUD only says what it
+          is, whose rules they are, and the way back to the Desk. On a phone the
+          screen is too small to play on, so the game itself comes up here. */}
+      {place === 'laptop' && (
+        <div className={phone ? 'shelf-hud shelf-hud-play' : 'shelf-hud'}>
+          {phone ? (
+            <div className="shelf-play">
+              <Bones />
+            </div>
+          ) : (
+            <div className="shelf-hud-text">
+              <div className="shelf-hud-eyebrow">On the laptop</div>
+              <h2 className="shelf-hud-title">Bones</h2>
+              <p className="shelf-hud-summary">
+                Knucklebones from <em>Cult of the Lamb</em>, against the computer. Click a column
+                or press 1, 2 or 3. Matching dice multiply and knock out the other side's.
+              </p>
+            </div>
+          )}
+          <div className="shelf-hud-actions">
+            <button className="shelf-btn ghost" onClick={() => goTo('desk')}>
+              Back to the desk
+            </button>
           </div>
         </div>
       )}

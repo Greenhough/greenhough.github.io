@@ -49,7 +49,7 @@ export interface ShelfPost {
  * these; within the Shelf, the Browsing and Inspecting states still apply.
  * See docs/adr/0004 for the views and docs/adr/0005 for the navigation.
  */
-export type ShelfPlace = 'shelf' | 'desk' | 'console';
+export type ShelfPlace = 'shelf' | 'desk' | 'console' | 'laptop';
 
 /** A record in the Console: a sleeve to flip to and a song to play. */
 export interface ShelfRecord {

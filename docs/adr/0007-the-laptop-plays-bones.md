@@ -40,8 +40,20 @@ pips. No art, characters or music from *Cult of the Lamb*.
 
 A game is not read, it is played, and "showing is not reading" cuts the other way here: a
 board four hundred pixels wide on a tilted plane is worse than the page. So the Laptop gets
-a View, close enough that the screen fills the frame, and its URL is `/play`. On a phone
-the camera does not try: `/play` opens as the page.
+a View, square on to the screen and close enough that it fills the frame, and its URL is
+`/play`. The camera's lean is off there: a board that swims under the pointer gets
+miss-clicked.
+
+On a phone the screen would be a few hundred pixels of tilted plane, too small to tap.
+So the camera stands back until the Laptop is small on the Desk at the top of the frame,
+and Bones comes up as a panel under it, in the HUD's place. Same component, laid out as
+on the page.
+
+Bones on the screen is drei's `Html` in transform mode, not a canvas texture: real DOM,
+so it is crisp, takes real clicks and keys, and is the same code as the page. Its
+`distanceFactor` is worked out from the screen's width, so 600 CSS pixels are exactly
+the display. It only mounts at the Laptop View; everywhere else the screen is the
+painted editor, and a game left by walking away is not kept.
 
 This raises the ceiling `docs/adr/0005` set. Shelf, Desk, Console and the Pinboard's View
 were to be the last; the Laptop makes one more. That is accepted on the grounds the ceiling

@@ -160,6 +160,38 @@ button.bones-col:not(:disabled):focus-visible {
 }
 .bones-again:focus-visible { outline: 2px solid var(--ed-text); outline-offset: 2px; }
 
+/*
+ * On the Laptop's screen: exactly the screen's size, the log down the right like an
+ * editor's terminal pane, and nothing round the outside, because the bezel is the frame.
+ */
+.bones.screen {
+  --die: 30px;
+  width: 600px;
+  height: 387px;
+  max-width: none;
+  margin: 0;
+  border-radius: 0;
+  box-shadow: none;
+  font-size: 12px;
+  display: grid;
+  grid-template-columns: 1fr 186px;
+  grid-template-rows: auto 1fr;
+}
+.bones.screen .bones-bar { grid-column: 1 / -1; padding: 6px 12px; }
+.bones.screen .bones-table { padding: 8px 8px 6px; align-self: center; }
+.bones.screen .bones-status { margin: 5px 0; padding: 6px 0; }
+.bones.screen .bones-who b { font-size: 22px; }
+.bones.screen .bones-col { padding: 4px 5px; }
+.bones.screen .bones-term {
+  flex-direction: column;
+  align-items: stretch;
+  min-height: 0;
+  border-top: 0;
+  border-left: 1px solid var(--ed-line);
+  padding: 10px;
+}
+.bones.screen .bones-log { height: auto; flex: 1; min-height: 0; font-size: 11px; }
+
 @media (max-width: 420px) {
   .bones-side { gap: 4px; }
   .bones-board { gap: 4px; }

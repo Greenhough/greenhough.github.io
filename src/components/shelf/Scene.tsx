@@ -9,7 +9,7 @@ import { BookStack } from './BookStack';
 import { palette } from './palette';
 import { Paper } from './Paper';
 import { Console } from './Console';
-import { Atmosphere } from './Atmosphere';
+import { Atmosphere, Laptop, SCREEN_CENTRE, SCREEN_NORMAL, SCREEN_UP } from './Atmosphere';
 import { boxTile } from './bakedLight';
 import { easeFor, isFrozen, roomTime } from './clock';
 import type {
@@ -42,6 +42,7 @@ interface Props {
   onTogglePlay: () => void;
   onOpenGames: () => void;
   onOpenBooks: () => void;
+  onVisitLaptop: () => void;
 }
 
 /** Half the carcass's width and a margin: what has to fit across a phone. */
@@ -101,6 +102,19 @@ const CONSOLE_VIEW = {
   lookAt: new THREE.Vector3(1.5, -0.68, -0.3),
 };
 
+/**
+ * The Laptop, from straight in front of its screen (docs/adr/0007).
+ *
+ * Square on, along the lid's own normal, because Bones is drawn on the screen as
+ * a page and a page read at an angle is a page that is harder to read. Aimed a
+ * little below the middle of the screen, so it rides up clear of the HUD and a
+ * strip of keyboard shows under it: still a laptop, not a screenshot of one.
+ */
+const LAPTOP_VIEW = {
+  position: SCREEN_CENTRE.clone().addScaledVector(SCREEN_NORMAL, 0.4).addScaledVector(SCREEN_UP, -0.035),
+  lookAt: SCREEN_CENTRE.clone().addScaledVector(SCREEN_UP, -0.035),
+};
+
 /** Pull a composed view back along its own line of sight until `half` fits the width. */
 function composed(view: { position: THREE.Vector3; lookAt: THREE.Vector3 }, half: number, frame: Frame) {
   const back = view.position
@@ -124,6 +138,20 @@ function cameraTargets(
   // Pulled back along its own line of sight until the desk fits the width.
   if (place === 'desk') return composed(DESK_VIEW, 1.0, frame);
   if (place === 'console') return composed(CONSOLE_VIEW, 0.62, frame);
+  if (place === 'laptop') {
+    // On a phone Bones is a panel over the lower three quarters, so the camera
+    // stands back far enough to see the Laptop on the Desk, small, and aims low
+    // so it rides up into the strip between the nav and the panel.
+    const view = composed(LAPTOP_VIEW, 0.19, frame);
+    const narrow = 1 - frame.wide;
+    if (narrow > 0) {
+      const back = SCREEN_NORMAL.clone().multiplyScalar(1.5 * narrow);
+      const lift = SCREEN_UP.clone().multiplyScalar(-0.56 * narrow);
+      view.position.add(back).add(lift);
+      view.lookAt.add(lift);
+    }
+    return view;
+  }
   if (!focus) {
     return {
       position: new THREE.Vector3(0, 0, Math.max(4.4, frame.fit(SHELF_HALF))),
@@ -190,6 +218,7 @@ export function Scene({
   onTogglePlay,
   onOpenGames,
   onOpenBooks,
+  onVisitLaptop,
 }: Props) {
   const p = palette();
   const camera = useThree((s) => s.camera);
@@ -260,8 +289,9 @@ export function Scene({
     lean.current.x += (wantX - lean.current.x) * settle;
     lean.current.y += (wantY - lean.current.y) * settle;
 
-    // Less in the hand: a Book being read should hold still.
-    const reach = (state === 'browsing' ? 0.2 : 0.07) * pullBack;
+    // Less in the hand: a Book being read should hold still. None at all at the
+    // Laptop: a game whose board swims under the pointer is a game you miss-click.
+    const reach = place === 'laptop' ? 0 : (state === 'browsing' ? 0.2 : 0.07) * pullBack;
     right.current.set(1, 0, 0).applyQuaternion(camera.quaternion);
     offset.current
       .copy(right.current)
@@ -337,6 +367,9 @@ export function Scene({
       {/* The view through the window, the glow of the lamps and the dust in
           it: the parts of the room that are drawn live. */}
       <Atmosphere />
+
+      {/* The Laptop's screen: an editor, and at the Laptop View, Bones in it. */}
+      <Laptop active={place === 'laptop'} phone={phone} onVisit={onVisitLaptop} onHover={onHover} />
 
       {/* Lettered at runtime rather than baked into the room, because a title
           baked into the room atlas is about twenty texels tall. */}

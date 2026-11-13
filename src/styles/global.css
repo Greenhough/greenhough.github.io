@@ -767,6 +767,12 @@ html.shelf-capable .wrap { display: none; }
   pointer-events: none;
 }
 .shelf-hud-text { max-width: 46ch; }
+/* At the Laptop on a phone the HUD carries Bones itself: the screen in the Room
+   is too small to tap, so the game comes up under it (docs/adr/0007). */
+.shelf-play { pointer-events: auto; width: 100%; }
+.shelf-hud-play { padding-top: 28px; }
+.shelf-hud-play .shelf-hud-actions { justify-content: center; }
+
 .shelf-hud-eyebrow {
   font-family: 'JetBrains Mono', monospace;
   font-size: 11.5px;

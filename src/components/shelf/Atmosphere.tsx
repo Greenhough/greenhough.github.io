@@ -1,7 +1,8 @@
 import { useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
-import { useTexture } from '@react-three/drei';
+import { Html, useTexture } from '@react-three/drei';
+import Bones from '../bones/Bones';
 import { lampsNow, roomTime } from './clock';
 import { model } from './models';
 
@@ -73,11 +74,31 @@ function Prairie() {
 const LID_LEAN = (20 * Math.PI) / 180;
 const SCREEN_SIZE: [number, number] = [0.288 - 0.006, 0.188 - 0.006];
 /** A hair in front of the baked display, along the lid's own normal. */
-const SCREEN_FACE = new THREE.Vector3(
+export const SCREEN_CENTRE = new THREE.Vector3(
   -1.6,
   DESK_TOP + 0.011 + Math.cos(LID_LEAN) * 0.103 + Math.sin(LID_LEAN) * 0.0068,
   -0.17 - 0.106 - Math.sin(LID_LEAN) * 0.103 + Math.cos(LID_LEAN) * 0.0068
 );
+const SCREEN_FACE = SCREEN_CENTRE;
+/** The way the screen faces, and the way is up on it: the lid leans back, so both tip. */
+export const SCREEN_NORMAL = new THREE.Vector3(0, Math.sin(LID_LEAN), Math.cos(LID_LEAN));
+export const SCREEN_UP = new THREE.Vector3(0, Math.cos(LID_LEAN), -Math.sin(LID_LEAN));
+/** The canvas painted on the screen, and the size Bones is laid out at to cover it. */
+const SCREEN_PIXELS: [number, number] = [600, 392];
+/**
+ * drei's Html in transform mode draws 400 / distanceFactor CSS pixels to the unit,
+ * so this is the factor that makes Bones' 600 pixels exactly the screen's width.
+ */
+const SCREEN_DISTANCE_FACTOR = (400 * SCREEN_SIZE[0]) / SCREEN_PIXELS[0];
+
+interface LaptopProps {
+  /** At the Laptop View: Bones is on the screen and taking input. */
+  active: boolean;
+  /** A phone plays Bones under the Room instead, where it is big enough to tap. */
+  phone: boolean;
+  onVisit: () => void;
+  onHover: (hovering: boolean) => void;
+}
 
 /**
  * What is on the laptop: an editor, mid-thought, with the cursor blinking.
@@ -89,7 +110,7 @@ const SCREEN_FACE = new THREE.Vector3(
  * view shows it, text would be four pixels tall, and bars at that size are
  * what code looks like anyway.
  */
-function Laptop() {
+export function Laptop({ active, phone, onVisit, onHover }: LaptopProps) {
   const cursor = useRef<THREE.Mesh>(null);
   const map = useMemo(() => {
     const w = 600;
@@ -138,16 +159,53 @@ function Laptop() {
 
   useFrame(() => {
     // A second on, a little less off: the rhythm of a cursor nobody is typing at.
-    if (cursor.current) cursor.current.visible = roomTime() % 1.1 < 0.62;
+    if (cursor.current) cursor.current.visible = !active && roomTime() % 1.1 < 0.62;
   });
 
   const [w, h] = SCREEN_SIZE;
+  const onScreen = active && !phone;
   return (
     <group position={SCREEN_FACE} rotation={[-LID_LEAN, 0, 0]}>
-      <mesh>
+      {/* The screen is the door to the Laptop View, the way the Sheet is to a Post. */}
+      <mesh
+        onClick={(e) => {
+          if (active) return;
+          e.stopPropagation();
+          onHover(false);
+          onVisit();
+        }}
+        onPointerOver={(e) => {
+          if (active) return;
+          e.stopPropagation();
+          onHover(true);
+        }}
+        onPointerOut={() => onHover(false)}
+      >
         <planeGeometry args={[w, h]} />
         <meshBasicMaterial map={map} toneMapped={false} />
       </mesh>
+      {onScreen && (
+        // The page's own Bones, laid over the screen as DOM rather than painted
+        // into it, so it is the same component, crisp, and takes real clicks.
+        // Pointer events stop here: they would otherwise bubble to the canvas
+        // and be raycast into the Room behind the screen.
+        <Html
+          transform
+          center
+          position={[0, 0, 0.0006]}
+          distanceFactor={SCREEN_DISTANCE_FACTOR}
+          zIndexRange={[20, 0]}
+        >
+          <div
+            className="bones-on-screen"
+            onPointerDown={(e) => e.stopPropagation()}
+            onPointerUp={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Bones variant="screen" />
+          </div>
+        </Html>
+      )}
       {/* At the end of the last line of code. */}
       <mesh ref={cursor} position={[w * (-0.5 + 195 / 600), h * (0.5 - 348 / 392), 0.0004]}>
         <planeGeometry args={[w * (7 / 600), h * (13 / 392)]} />
@@ -341,7 +399,6 @@ export function Atmosphere() {
   return (
     <>
       <Prairie />
-      <Laptop />
       <Glows />
       <Dust />
     </>

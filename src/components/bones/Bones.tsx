@@ -111,7 +111,15 @@ function label(column: Column, n: number): string {
   return `Column ${n}: ${dice}. Scores ${columnScore(column)}.`;
 }
 
-export default function Bones() {
+interface Props {
+  /**
+   * 'page' stacks the log under the table, for `/play` and a phone. 'screen' is
+   * laid out at exactly the Laptop screen's 600 by 387 pixels, log down the side.
+   */
+  variant?: 'page' | 'screen';
+}
+
+export default function Bones({ variant = 'page' }: Props) {
   const [game, setGame] = useState<Game>(() => newGame(0));
   const [log, setLog] = useState<string[]>(['$ bones', 'new game. you go first.']);
   const [tally, setTally] = useState<Tally>({ won: 0, lost: 0, drawn: 0 });
@@ -119,6 +127,7 @@ export default function Bones() {
   const quick = useRef(false);
   const nextFirst = useRef<Player>(1);
   const logEnd = useRef<HTMLOListElement>(null);
+  const root = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setTally(readTally());
@@ -188,10 +197,13 @@ export default function Bones() {
     setGame(after);
   };
 
-  // 1, 2 and 3 put the die down, for anyone playing from the keyboard.
+  // 1, 2 and 3 put the die down, for anyone playing from the keyboard. Only
+  // while this board is on screen: on /play with the Room up, the page's own
+  // board is still mounted underneath it, hidden, and must not play along.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (!root.current || root.current.getClientRects().length === 0) return;
       const n = Number(e.key);
       if (n >= 1 && n <= 3) put((n - 1) as ColumnIndex);
     };
@@ -221,7 +233,7 @@ export default function Bones() {
         : 'CPU is thinking…';
 
   return (
-    <div className="bones" data-turn={game.turn}>
+    <div className={`bones ${variant}`} data-turn={game.turn} ref={root}>
       <div className="bones-bar">
         <span className="bones-lights" aria-hidden="true">
           <i />

@@ -1,12 +1,19 @@
 ---
 import Base from '../layouts/Base.astro';
 import Bones from '../components/bones/Bones';
+import { getRoomContent, getShelfSections } from '../lib/shelf';
+import ShelfBoot from '../components/shelf/ShelfBoot.astro';
+import Shelf from '../components/shelf/Shelf';
 
 const INTRO = 'A dice game against the laptop on my desk.';
 const ORIGINAL = 'https://www.cultofthelamb.com/';
 
-// The Flat Site's Bones (docs/adr/0007). The Laptop will carry the same component
-// in the Room; this page is the one that works without it.
+// This page carries the room as an overlay, opened at the Laptop, the way /music
+// carries it opened at the Console. Everything below is the Flat Site's Bones, the
+// same component the Laptop draws, and the one that works without the room.
+// See docs/adr/0007.
+const sections = await getShelfSections();
+const room = await getRoomContent();
 ---
 
 <Base
@@ -15,6 +22,8 @@ const ORIGINAL = 'https://www.cultofthelamb.com/';
   description="Bones, a dice game you can play against the computer. The rules are Knucklebones from Cult of the Lamb."
   path="/play"
 >
+  <ShelfBoot slot="head" />
+  <Shelf slot="overlay" client:only="react" sections={sections} {...room} initialPlace="laptop" />
   <header class="page-head">
     <h1 class="page-title">Bones</h1>
     <p class="page-intro">{INTRO}</p>
@@ -27,7 +36,7 @@ const ORIGINAL = 'https://www.cultofthelamb.com/';
     </noscript>
   </section>
 
-  <section class="sec play-rules">
+  <section class="sec play-rules" id="rules">
     <h2 class="sec-title">Rules</h2>
     <p>
       These are the rules of Knucklebones, the dice game from{' '}
