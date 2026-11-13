@@ -2,7 +2,7 @@
 import { getCollection } from 'astro:content';
 import Base from '../layouts/Base.astro';
 
-const INTRO = 'Books I have read and would hand to someone else, three to a topic.';
+const INTRO = 'Below are some of my favourite books.';
 
 const books = (await getCollection('books')).sort((a, b) => a.data.order - b.data.order);
 // Topics in the order they first appear, each with its books.
