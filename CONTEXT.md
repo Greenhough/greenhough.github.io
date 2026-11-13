@@ -49,6 +49,14 @@ _Avoid_: table, workstation
 The four read books lying flat on the Desk. Real books by other people, not Projects — they lie down, they are not on the Shelf, and the titles are someone else's. Lettered at runtime; lit by baked light, since they never move. The way in to `/books`.
 _Avoid_: books (unqualified, which means Boxes), library
 
+**Laptop**:
+The open laptop on the Desk. Its screen is a Live part: an editor, and in it Bones, which is played there at the Laptop's own View, `/play`.
+_Avoid_: computer, screen, monitor
+
+**Bones**:
+The dice game on the Laptop and at `/play`, played against the computer. Its rules are Knucklebones' from *Cult of the Lamb* by Massive Monster, and it says so; its name and look are the Room's own.
+_Avoid_: Knucklebones (which is the original, not this), dice game, minigame
+
 **View**:
 A composed camera position in the Room, authored by hand and named — Shelf, Desk, Console. The navigation moves between them. A Project never needs one; an object does.
 _Avoid_: angle, shot, scene, page

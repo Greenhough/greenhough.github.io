@@ -1,0 +1,64 @@
+---
+import Base from '../layouts/Base.astro';
+import Bones from '../components/bones/Bones';
+
+const INTRO = 'A dice game against the laptop on my desk.';
+const ORIGINAL = 'https://www.cultofthelamb.com/';
+
+// The Flat Site's Bones (docs/adr/0007). The Laptop will carry the same component
+// in the Room; this page is the one that works without it.
+---
+
+<Base
+  title="Bones | Evan Greenhough"
+  ogTitle="Bones | Evan Greenhough"
+  description="Bones, a dice game you can play against the computer. The rules are Knucklebones from Cult of the Lamb."
+  path="/play"
+>
+  <header class="page-head">
+    <h1 class="page-title">Bones</h1>
+    <p class="page-intro">{INTRO}</p>
+  </header>
+
+  <section class="sec">
+    <Bones client:load />
+    <noscript>
+      <p class="page-intro play-noscript">Bones needs JavaScript to roll the dice. The rules are below.</p>
+    </noscript>
+  </section>
+
+  <section class="sec play-rules">
+    <h2 class="sec-title">Rules</h2>
+    <p>
+      These are the rules of Knucklebones, the dice game from{' '}
+      <a href={ORIGINAL} target="_blank" rel="noopener"><em>Cult of the Lamb</em></a> by Massive
+      Monster. I didn't invent it. I liked it enough to want it on my desk, so I rebuilt it to
+      play here. If you like it, go play the original.
+    </p>
+    <ol>
+      <li>You and the computer each have three columns, and each column holds three dice.</li>
+      <li>On your turn you roll one die and put it in one of your columns that has room.</li>
+      <li>
+        Matching dice in a column multiply. Two 4s score (4 + 4) × 2 = 16. Three 4s score
+        (4 + 4 + 4) × 3 = 36. Different faces just add.
+      </li>
+      <li>
+        Putting a die down removes every die of the same number from your opponent's column
+        directly across from it.
+      </li>
+      <li>The game ends as soon as either side fills all nine spaces. Higher total wins.</li>
+    </ol>
+    <p class="play-keys">Click a column to place your die, or press 1, 2 or 3.</p>
+  </section>
+</Base>
+
+<style>
+  .play-rules { max-width: 640px; }
+  .play-rules p,
+  .play-rules li { color: var(--body); line-height: 1.6; }
+  .play-rules ol { padding-left: 1.3em; margin: 14px 0; }
+  .play-rules li { margin-bottom: 8px; }
+  .play-rules a { color: var(--green); }
+  .play-keys { color: var(--muted); font-size: 14px; }
+  .play-noscript { text-align: center; margin-top: 16px; }
+</style>
