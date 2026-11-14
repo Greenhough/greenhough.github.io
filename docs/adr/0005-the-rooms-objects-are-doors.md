@@ -138,3 +138,8 @@ is the ordinary place covers are shown. They come from Open Library (or the publ
 where Open Library had none), resized to 300 wide and kept in `public/assets/books/`, so
 a visitor's browser never asks a third party for them. The list lives in
 `src/content/room/books.json`.
+
+The same exception now covers `/board-games`: each ranked game shows its box beside it.
+The images come from the publishers' own product pages (or Asmodee, their distributor,
+where the publisher no longer sells it), trimmed and kept in `public/assets/board-games/`.
+The Board games in the Room are still lettered, with no box art.

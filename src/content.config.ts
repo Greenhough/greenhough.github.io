@@ -135,6 +135,12 @@ const boardGames = defineCollection({
         ink: z.string(),
       })
       .optional(),
+    /**
+     * The box image on /board-games, public/assets/board-games/{id}.webp,
+     * from the publisher's own product page. The Room still letters its
+     * Board games and shows no box art: see docs/adr/0005.
+     */
+    cover: z.object({ width: z.number().int(), height: z.number().int() }).optional(),
   }),
 });
 

@@ -1,12 +1,12 @@
 [
-  { "id": "arcs", "rank": 1, "title": "Arcs", "year": 2024 },
-  { "id": "twilight-imperium-fourth-edition", "rank": 2, "title": "Twilight Imperium: Fourth Edition", "year": 2017 },
-  { "id": "root", "rank": 3, "title": "Root", "year": 2018 },
-  { "id": "john-company-second-edition", "rank": 4, "title": "John Company: Second Edition", "year": 2022, "box": { "lettering": "John Company", "card": "#a3161f", "ink": "#f6efe2" } },
-  { "id": "the-old-kings-crown", "rank": 5, "title": "The Old King's Crown", "year": 2025, "box": { "lettering": "The Old King's Crown", "card": "#1d2c47", "ink": "#e3b64e" } },
-  { "id": "the-castles-of-burgundy-special-edition", "rank": 6, "title": "The Castles of Burgundy: Special Edition", "year": 2023 },
-  { "id": "android-netrunner", "rank": 7, "title": "Android: Netrunner", "year": 2012 },
-  { "id": "eternal-decks", "rank": 8, "title": "Eternal Decks", "year": 2025 },
-  { "id": "the-kings-dilemma", "rank": 9, "title": "The King's Dilemma", "year": 2019 },
-  { "id": "pax-pamir-second-edition", "rank": 10, "title": "Pax Pamir: Second Edition", "year": 2019 }
+  {"id": "arcs", "rank": 1, "title": "Arcs", "year": 2024, "cover": {"width": 320, "height": 287}},
+  {"id": "twilight-imperium-fourth-edition", "rank": 2, "title": "Twilight Imperium: Fourth Edition", "year": 2017, "cover": {"width": 320, "height": 240}},
+  {"id": "root", "rank": 3, "title": "Root", "year": 2018, "cover": {"width": 320, "height": 313}},
+  {"id": "john-company-second-edition", "rank": 4, "title": "John Company: Second Edition", "year": 2022, "box": {"lettering": "John Company", "card": "#a3161f", "ink": "#f6efe2"}, "cover": {"width": 320, "height": 290}},
+  {"id": "the-old-kings-crown", "rank": 5, "title": "The Old King's Crown", "year": 2025, "box": {"lettering": "The Old King's Crown", "card": "#1d2c47", "ink": "#e3b64e"}, "cover": {"width": 236, "height": 320}},
+  {"id": "the-castles-of-burgundy-special-edition", "rank": 6, "title": "The Castles of Burgundy: Special Edition", "year": 2023, "cover": {"width": 208, "height": 320}},
+  {"id": "android-netrunner", "rank": 7, "title": "Android: Netrunner", "year": 2012, "cover": {"width": 320, "height": 320}},
+  {"id": "eternal-decks", "rank": 8, "title": "Eternal Decks", "year": 2025, "cover": {"width": 320, "height": 320}},
+  {"id": "the-kings-dilemma", "rank": 9, "title": "The King's Dilemma", "year": 2019, "cover": {"width": 304, "height": 320}},
+  {"id": "pax-pamir-second-edition", "rank": 10, "title": "Pax Pamir: Second Edition", "year": 2019, "cover": {"width": 320, "height": 287}}
 ]

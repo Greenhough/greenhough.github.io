@@ -26,7 +26,18 @@ const games = (await getCollection('boardGames')).sort((a, b) => a.data.rank - b
     <ol class="post-list index ranked">
       {
         games.map((game) => (
-          <li class="post">
+          <li class="post game">
+            {game.data.cover && (
+              <img
+                class="game-box"
+                src={`/assets/board-games/${game.id}.webp`}
+                alt={`Box of ${game.data.title}`}
+                width={game.data.cover.width}
+                height={game.data.cover.height}
+                loading={game.data.rank <= 4 ? 'eager' : 'lazy'}
+                decoding="async"
+              />
+            )}
             <h2 class="post-title">
               <span class="rank">{game.data.rank}</span>
               {game.data.title}
@@ -41,3 +52,26 @@ const games = (await getCollection('boardGames')).sort((a, b) => a.data.rank - b
     </p>
   </section>
 </Base>
+
+<style>
+  /* The box sits in a square slot left of the title, so boxes of every shape
+     line up and the titles start in one column. */
+  .game {
+    grid-template-columns: 84px 1fr auto;
+    align-items: center;
+    column-gap: 22px;
+  }
+  .game-box {
+    grid-column: 1;
+    grid-row: 1;
+    width: 84px;
+    height: 84px;
+    object-fit: contain;
+  }
+  .game .post-title { grid-column: 2; grid-row: 1; }
+  .game .post-date { grid-column: 3; grid-row: 1; align-self: center; }
+  @media (max-width: 560px) {
+    .game { grid-template-columns: 60px 1fr auto; column-gap: 14px; }
+    .game-box { width: 60px; height: 60px; }
+  }
+</style>
