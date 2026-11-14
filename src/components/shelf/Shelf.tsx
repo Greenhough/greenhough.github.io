@@ -283,6 +283,13 @@ export default function Shelf({
         return;
       }
 
+      // The Desk's way out, as at the Console: Escape goes back to the room.
+      if (place === 'desk' && e.key === 'Escape') {
+        e.preventDefault();
+        goTo('shelf');
+        return;
+      }
+
       const i = ordered.findIndex((p) => p.slug === focusedSlug);
 
       if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
@@ -423,6 +430,17 @@ export default function Shelf({
             >
               Play Bones
             </a>
+            <a
+              className="shelf-btn ghost"
+              href="/work"
+              onClick={(e) => {
+                if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+                e.preventDefault();
+                goTo('shelf');
+              }}
+            >
+              Back to the room
+            </a>
           </div>
         </div>
       )}
@@ -491,6 +509,17 @@ export default function Shelf({
                 Board games
               </a>
             )}
+            <a
+              className="shelf-btn ghost"
+              href="/work"
+              onClick={(e) => {
+                if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+                e.preventDefault();
+                goTo('shelf');
+              }}
+            >
+              Back to the room
+            </a>
           </div>
         </div>
       )}

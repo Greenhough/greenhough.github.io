@@ -845,8 +845,9 @@ html.shelf-capable .wrap { display: none; }
     gap: 14px;
   }
   .shelf-hud-summary { display: none; }
-  .shelf-hud-actions { justify-content: stretch; }
-  .shelf-btn { flex: 1; }
+  /* Up to four buttons at the Desk: two to a row rather than four squeezed. */
+  .shelf-hud-actions { justify-content: stretch; flex-wrap: wrap; }
+  .shelf-btn { flex: 1 1 40%; text-align: center; }
 }
 
 a.shelf-btn { text-decoration: none; text-align: center; }
