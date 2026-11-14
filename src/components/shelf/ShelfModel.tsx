@@ -19,6 +19,13 @@ const CARCASS_ATLAS = model('shelf-bake.webp');
 /** The room atlas is 4096 on a desktop and half that on a phone. */
 const ROOM_ATLAS = model('room-bake.webp');
 const ROOM_ATLAS_SMALL = model('room-bake-2k.webp');
+/**
+ * The Monstera's leaves are cut-out cards. This is where the holes are, read
+ * through each leaf's second UV set: see build_floor_plant() in shelf.py.
+ */
+const LEAF_MASK = model('leaf-mask.webp');
+/** Matches the cut-off the model shipped with. */
+const LEAF_CUTOFF = 0.224;
 
 /** Meshes whose names start with this take the room atlas. */
 const ROOM_PREFIX = 'Room';
@@ -83,7 +90,11 @@ export function ShelfModel({ phone = false, onBust, onHover }: Props) {
   const bustHovered = useRef(false);
   const bustVoice = useRef(0);
   const { scene } = useGLTF(MODEL);
-  const [carcassMap, roomMap] = useTexture([CARCASS_ATLAS, phone ? ROOM_ATLAS_SMALL : ROOM_ATLAS]);
+  const [carcassMap, roomMap, leafMask] = useTexture([
+    CARCASS_ATLAS,
+    phone ? ROOM_ATLAS_SMALL : ROOM_ATLAS,
+    LEAF_MASK,
+  ]);
 
   const built = useMemo(() => {
     // No tone mapping on these, for the same reason they take no light: an
@@ -104,6 +115,19 @@ export function ShelfModel({ phone = false, onBust, onHover }: Props) {
     // The Bust gets its own copy of the room's material so it alone can
     // brighten under the pointer. Its colour follows roomLight every frame.
     const bustMaterial = new THREE.MeshBasicMaterial({ map: roomMaterial.map, toneMapped: false });
+    // The big plant's leaves: the room's light, the model's own holes, and
+    // both faces, since a leaf is a single card seen from either side.
+    const mask = prepare(leafMask);
+    mask.colorSpace = THREE.NoColorSpace;
+    mask.channel = 1;
+    const leafMaterial = new THREE.MeshBasicMaterial({
+      map: roomMaterial.map,
+      alphaMap: mask,
+      alphaTest: LEAF_CUTOFF,
+      side: THREE.DoubleSide,
+      toneMapped: false,
+    });
+    leafMaterial.color = roomLight;
     let bust: THREE.Object3D | null = null;
 
     const root = scene.clone(true);
@@ -128,7 +152,8 @@ export function ShelfModel({ phone = false, onBust, onHover }: Props) {
       // a node carrying the name. Either the mesh or its parent says "Room".
       const named = mesh.name.startsWith(ROOM_PREFIX) || !!mesh.parent?.name.startsWith(ROOM_PREFIX);
       const isBust = mesh.name === BUST || mesh.parent?.name === BUST;
-      mesh.material = isBust ? bustMaterial : named ? roomMaterial : carcassMaterial;
+      const isCutout = /^RoomFloorPlantLeaf/.test(mesh.name) || /^RoomFloorPlantLeaf/.test(mesh.parent?.name ?? '');
+      mesh.material = isBust ? bustMaterial : isCutout ? leafMaterial : named ? roomMaterial : carcassMaterial;
       // Baked surfaces neither cast nor receive at runtime; their shading is
       // already in the texture. Only a Book in the hand does real-time shadow.
       mesh.castShadow = false;
@@ -143,7 +168,7 @@ export function ShelfModel({ phone = false, onBust, onHover }: Props) {
       bustBox = { center: box.getCenter(new THREE.Vector3()), size: box.getSize(new THREE.Vector3()) };
     }
     return { root, leaves, record: record as THREE.Object3D | null, bustMaterial, bustBox };
-  }, [scene, carcassMap, roomMap]);
+  }, [scene, carcassMap, roomMap, leafMask]);
 
   useFrame((_, delta) => {
     const t = roomTime();
@@ -209,3 +234,4 @@ export function ShelfModel({ phone = false, onBust, onHover }: Props) {
 // it suspends, which made these a second round trip behind the .glb.
 useGLTF.preload(MODEL);
 useTexture.preload(CARCASS_ATLAS);
+useTexture.preload(LEAF_MASK);

@@ -584,6 +584,15 @@ a { color: inherit; }
   color: var(--faint);
 }
 .dot { color: #D9D3C6; }
+/* Credit for the room's one borrowed model, which its licence asks for. */
+.foot-credit {
+  margin-left: auto;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--faint);
+}
+.foot-credit a { color: inherit; text-decoration: none; }
+.foot-credit a:hover { color: var(--green); }
 .icon { display: inline-block; color: var(--muted); transition: color .15s ease; }
 .icon:hover { color: var(--green); }
 .icon svg { display: block; }

@@ -31,6 +31,10 @@ const ATLASES = [
   // gradient, the bake is already smoothed, and at 1024 each Book still has
   // a 340px tile to itself. It is a quarter of the download.
   { source: `${FROM}/box-bake.png`, out: 'public/models/box-bake.webp', size: 1024, quality: 90 },
+  // The Monstera's leaf cut-out, read as an alphaMap through the leaves'
+  // second UV set: see build_floor_plant() in scripts/shelf.py. Kept at the
+  // source's full 1024, because its only job is a crisp edge on each hole.
+  { source: `${FROM}/leaf-mask.png`, out: 'public/models/leaf-mask.webp', size: 1024, quality: 90 },
   // The cloth weave is a normal map, not a picture: every pixel is a direction,
   // so the usual quality setting would ripple the lighting across the Spine.
   // It is small enough that near-lossless costs almost nothing.

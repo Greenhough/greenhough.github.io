@@ -201,7 +201,7 @@ GAMES = {
 BUST = {"x": 0.69, "z": 0.07, "yaw": -0.30, "height": 0.36, "uv_scale": 3.0}
 
 # A tall plant in the back right corner, past the console.
-FLOOR_PLANT = {"x": 2.42, "z": -0.10, "pot_r": 0.155, "pot_h": 0.30, "height": 1.42}
+FLOOR_PLANT = {"x": 2.30, "z": -0.04, "yaw": math.radians(20), "height": 1.42}
 
 # The chair, pushed most of the way in and left a little out of square.
 CHAIR = {"x": -1.92, "z": 0.36, "yaw": math.radians(14), "seat": 0.45, "back": 0.86}
@@ -1288,33 +1288,137 @@ def build_leaf(name, base, length, width, lean, turn, material):
     return leaf
 
 
-def build_floor_plant(pot_mat, soil_mat, stem_mat, leaf_mat):
+def build_floor_plant():
     """
-    A tall plant in the corner past the console: a rubber plant, more or less,
-    because broad leaves read at this distance and fine ones turn to noise.
+    A Monstera on a mid-century stand, in the corner past the console.
+
+    Not modelled here: "Monstera Deliciosa Potted Mid-Century plant" by Giora
+    (sketchfab.com/ChubbyPanda), CC BY 4.0, downloaded as the 1k-texture GLB
+    and kept as scripts/monstera.glb. The licence asks for credit, which the
+    site gives in its footer.
+
+    It keeps its own textures for the bake: each part carries its original
+    UVs as a second layer, "Source", and its materials are rewired to read
+    from that, so the atlas unwrap on the first layer does not scramble them.
+    The leaves are cut-out cards, holes and all, so the site needs the same
+    cut-out: the mask is written by save_leaf_mask() and applied by
+    ShelfModel.tsx through that second UV set.
     """
     p = FLOOR_PLANT
-    x, z = p["x"], p["z"]
-    parts = [
-        cylinder("Room.FloorPlant.Pot", p["pot_r"], p["pot_h"], (x, FLOOR_Y + p["pot_h"] / 2, z), pot_mat),
-        cylinder("Room.FloorPlant.Soil", p["pot_r"] - 0.014, 0.01, (x, FLOOR_Y + p["pot_h"] + 0.001, z), soil_mat),
-    ]
-    stem_h = p["height"] - p["pot_h"] - 0.12
-    parts.append(
-        cylinder("Room.FloorPlant.Stem", 0.011, stem_h, (x, FLOOR_Y + p["pot_h"] + stem_h / 2, z), stem_mat, segments=10)
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "monstera.glb")
+    before = set(bpy.data.objects)
+    bpy.ops.import_scene.gltf(filepath=path)
+    new = [o for o in bpy.data.objects if o not in before]
+    meshes = [o for o in new if o.type == "MESH"]
+
+    # Sketchfab wraps the meshes in four empties of FBX scale. Bake that into
+    # the vertices and drop them, so each part is a plain object at the origin.
+    for obj in meshes:
+        world = obj.matrix_world.copy()
+        obj.parent = None
+        obj.matrix_world = world
+    for obj in new:
+        if obj.type != "MESH":
+            bpy.data.objects.remove(obj, do_unlink=True)
+    select(meshes)
+    bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+
+    # Stood on the floor, scaled to height, turned to face into the room.
+    lo = Vector((min(v.co[i] for o in meshes for v in o.data.vertices) for i in range(3)))
+    hi = Vector((max(v.co[i] for o in meshes for v in o.data.vertices) for i in range(3)))
+    scale = p["height"] / (hi.z - lo.z)
+    centre = Vector(((lo.x + hi.x) / 2, (lo.y + hi.y) / 2, lo.z))
+    place = (
+        Matrix.Translation((p["x"], -p["z"], FLOOR_Y))
+        @ Matrix.Rotation(p["yaw"], 4, "Z")
+        @ Matrix.Scale(scale, 4)
+        @ Matrix.Translation(-centre)
     )
-    count = 13
-    for i in range(count):
-        t = i / (count - 1)
-        turn = i * math.radians(137.5)  # the golden angle, as a real stem does
-        base_y = FLOOR_Y + p["pot_h"] + 0.16 + t * (stem_h - 0.14)
-        # Lower leaves hang out wide, the top ones stand nearly upright.
-        lean = math.radians(72 - 50 * t)
-        length = 0.30 - 0.09 * t
-        parts.append(
-            build_leaf(f"Room.FloorPlant.Leaf.{i}", (x, base_y, z), length, length * 0.52, lean, turn, leaf_mat)
-        )
+    for obj in meshes:
+        obj.data.transform(place)
+        obj.data.update()
+
+    names = {"Leaves": "Leaves", "root_HP": "Stems", "Stand": "Stand", "Pot_LP": "Pot"}
+    parts, leaves, stems = [], None, None
+    for obj in meshes:
+        tag = next(v for k, v in names.items() if obj.name.startswith(k))
+        obj.name = f"Room.FloorPlant.{tag}"
+        # The original UVs, copied to a second layer before the atlas unwrap
+        # takes over the first.
+        obj.data.uv_layers.new(name="Source", do_init=True)
+        obj.data.uv_layers.active_index = 0
+        obj.data.uv_layers[0].active_render = True
+        if tag == "Leaves":
+            leaves = obj
+        else:
+            if tag == "Stems":
+                stems = obj
+            parts.append(obj)
+
+    for mat in {s.material for o in meshes for s in o.material_slots if s.material}:
+        source_uvs(mat)
+
+    # One object per leaf, so the site can sway them. Each turns about the
+    # point nearest a stem, which is near enough where its stalk meets it at
+    # the degree or two they move.
+    from mathutils.kdtree import KDTree
+    tree = KDTree(len(stems.data.vertices))
+    for i, v in enumerate(stems.data.vertices):
+        tree.insert(v.co, i)
+    tree.balance()
+    select([leaves])
+    bpy.ops.mesh.separate(type="LOOSE")
+    cut = sorted(bpy.context.selected_objects, key=lambda o: -max(v.co.z for v in o.data.vertices))
+    for i, leaf in enumerate(cut):
+        leaf.name = f"Room.FloorPlant.Leaf.{i}"
+        pivot = min((v.co for v in leaf.data.vertices), key=lambda co: tree.find(co)[2]).copy()
+        leaf.data.transform(Matrix.Translation(-pivot))
+        leaf.location = pivot
+        leaf["cutout"] = True
+        parts.append(leaf)
     return parts
+
+
+def source_uvs(mat):
+    """
+    Point every texture and normal map in an imported material at the
+    "Source" UV layer, so it keeps reading the model's own UVs once the atlas
+    unwrap owns the first layer.
+    """
+    nt = mat.node_tree
+    for node in list(nt.nodes):
+        if node.type == "TEX_IMAGE" and not node.inputs["Vector"].is_linked:
+            uv = nt.nodes.new("ShaderNodeUVMap")
+            uv.uv_map = "Source"
+            nt.links.new(uv.outputs["UV"], node.inputs["Vector"])
+        elif node.type == "NORMAL_MAP":
+            node.uv_map = "Source"
+
+
+def save_leaf_mask(parts, path):
+    """
+    The leaves' cut-out, as a greyscale image the site reads as an alphaMap.
+    The base colour's alpha, which is where Sketchfab keeps the holes.
+    """
+    leaf = next(o for o in parts if o.get("cutout"))
+    nt = leaf.material_slots[0].material.node_tree
+    image = next(
+        n.image for n in nt.nodes
+        if n.type == "TEX_IMAGE" and n.image and any(l.to_socket.name == "Base Color" for l in n.outputs["Color"].links)
+    )
+    w, h = image.size
+    px = list(image.pixels)
+    mask = bpy.data.images.new("LeafMask", width=w, height=h, alpha=False)
+    out = [0.0] * (w * h * 4)
+    for i in range(w * h):
+        a = px[i * 4 + 3]
+        out[i * 4] = out[i * 4 + 1] = out[i * 4 + 2] = a
+        out[i * 4 + 3] = 1.0
+    mask.pixels = out
+    mask.filepath_raw = path
+    mask.file_format = "PNG"
+    mask.save()
+    print(f"[shelf] wrote {path}")
 
 
 def build_rug():
@@ -1688,12 +1792,7 @@ def build_room():
             f"Print.{spec['art']}", spec["x"], spec["y"] - spec["h"] / 2, ROOM["back"],
             spec["w"], spec["h"], spec["art"], frame_mat, mount_mat,
         )
-    parts += build_floor_plant(
-        planter,
-        flat_material("Soil", (0.030, 0.022, 0.016), roughness=0.95),
-        flat_material("Stalk", (0.060, 0.050, 0.030), roughness=0.7),
-        leaf_mat,
-    )
+    parts += build_floor_plant()
     parts += build_chair(oak_material("ChairOak", base=(0.070, 0.042, 0.024), light=(0.20, 0.125, 0.07), scale=1.6))
     parts += build_top_dressing(frame_mat, mount_mat, planter, leaf_mat)
     parts += build_bust(flat_material("Marble", (0.66, 0.64, 0.60), roughness=0.42))
@@ -3231,6 +3330,9 @@ def main():
         # texels, three mip levels, which is all a margin is for.
         room_size = args.room_size or args.bake_size
         unwrap_all(fixed, margin=0.01, planar=True, gap=0.006)
+        # Beside the room atlas, wherever that is going, so a trial bake in
+        # build/m keeps its own copy. bake-to-webp.mjs ships it.
+        save_leaf_mask(fixed, os.path.join(os.path.dirname(args.bake_room or "/tmp/room-bake.png"), "leaf-mask.png"))
         room_img = bake_combined(
             fixed,
             args.bake_room or "/tmp/room-bake.png",
