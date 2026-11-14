@@ -8,6 +8,7 @@ import { ShelfModel } from './ShelfModel';
 import { BookStack } from './BookStack';
 import { palette } from './palette';
 import { Paper } from './Paper';
+import { Sticker } from './Sticker';
 import { Console } from './Console';
 import { Atmosphere, Laptop, SCREEN_CENTRE, SCREEN_NORMAL, SCREEN_UP } from './Atmosphere';
 import { boxTile } from './bakedLight';
@@ -386,6 +387,9 @@ export function Scene({
       {/* Lettered at runtime rather than baked into the room, because a title
           baked into the room atlas is about twenty texels tall. */}
       <BookStack onOpen={onOpenBooks} onHover={onHover} />
+
+      {/* A Claude sticker on the Pinboard. */}
+      <Sticker />
 
       {/* The Console's live parts: the paintings over it, the record that is
           out of its sleeve row, and the names on the Board games. */}
