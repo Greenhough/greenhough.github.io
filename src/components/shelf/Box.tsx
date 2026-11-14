@@ -53,7 +53,7 @@ const SPINE_MATERIAL = 'BookSpine';
  */
 const SPINE_ROUND = 0.03;
 const GROOVE = 0.005;
-const COVER_SPAN = BOX.width - SPINE_ROUND - GROOVE;
+export const COVER_SPAN = BOX.width - SPINE_ROUND - GROOVE;
 const SPINE_RADIUS = ((BOX.thickness / 2) ** 2 + SPINE_ROUND ** 2) / (2 * SPINE_ROUND);
 const SPINE_SPAN = 2 * SPINE_RADIUS * Math.asin(BOX.thickness / 2 / SPINE_RADIUS);
 

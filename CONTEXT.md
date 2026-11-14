@@ -46,7 +46,7 @@ The desk under the Window, left of the Shelf, with a chair at it. Where the late
 _Avoid_: table, workstation
 
 **Book stack**:
-The four read books lying flat on the Desk. Real books by other people, not Projects — they lie down, they are not on the Shelf, and the titles are someone else's. Lettered at runtime; lit by baked light, since they never move. The way in to `/books`.
+The four read books lying flat on the Desk. Real books by other people, not Projects — they lie down, they are not on the Shelf, and the titles are someone else's. They wear their real dust jackets: the cover on the front board, the spine lettered in the jacket's colours at runtime. Lit by baked light, since they never move. The way in to `/books`.
 _Avoid_: books (unqualified, which means Boxes), library
 
 **Laptop**:

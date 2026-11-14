@@ -326,12 +326,13 @@ export function paintSpine(
 /**
  * A read book's Spine: the ones lying on the desk, not the ones on the Shelf.
  *
- * Close to paintSpine and deliberately not the same function. Two differences
- * carry meaning rather than style. The binding colour comes from the book
- * itself instead of from a Theme, because these are nobody's Projects and have
- * no Theme to belong to. And there is no asterisk at the foot: that is the
- * site's own device, and stamping it on someone else's book would be claiming
- * it. See src/components/shelf/readBooks.ts.
+ * Its dust jacket's spine, in the jacket's own ground and lettering: the title
+ * from the head and the author at the foot, the way a jacket sets them. No
+ * asterisk: that is the site's own device, and stamping it on someone else's
+ * book would be claiming it. See src/components/shelf/readBooks.ts.
+ *
+ * Lettered head to foot, as English-language spines are, which is what lets
+ * the title read left to right when the book lies front cover up.
  */
 export function paintReadSpine(canvas: HTMLCanvasElement, book: ReadBook, height: number) {
   const H = height;
@@ -341,41 +342,50 @@ export function paintReadSpine(canvas: HTMLCanvasElement, book: ReadBook, height
 
   const ctx = canvas.getContext('2d')!;
   const u = H / 100;
-  const p = palette();
-  const stamp = mix(book.cloth, p.paper, 0.80);
-  const rule = mix(book.cloth, p.paper, 0.38);
 
-  ctx.fillStyle = book.cloth;
+  ctx.fillStyle = book.jacket;
   ctx.fillRect(0, 0, W, H);
 
-  const inset = 2.6 * u;
-  const bands = (y: number) => {
-    ctx.fillStyle = rule;
-    const t = Math.max(1, 0.4 * u);
-    ctx.fillRect(inset, y, W - inset * 2, t);
-    ctx.fillRect(inset, y + 1.9 * u, W - inset * 2, t);
-  };
-  bands(7 * u);
-  bands(H - 9 * u);
-
+  // Turned so the canvas's top, the head, is where a line of text starts.
   ctx.save();
-  ctx.translate(W / 2, H - 12 * u);
-  ctx.rotate(-Math.PI / 2);
-  ctx.fillStyle = stamp;
+  ctx.translate(W / 2, 0);
+  ctx.rotate(Math.PI / 2);
+  ctx.fillStyle = book.ink;
   ctx.textBaseline = 'middle';
-  ctx.textAlign = 'left';
-  ctx.letterSpacing = `${0.2 * u}px`;
 
-  let size = 9 * u;
-  const run = H - 24 * u;
+  const head = 5 * u;
+  const foot = H - 5 * u;
+  const bylineSize = 5.2 * u;
+  ctx.font = `700 ${bylineSize}px Archivo, sans-serif`;
+  ctx.letterSpacing = `${0.3 * u}px`;
+  const byline = book.byline.toUpperCase();
+  const bylineWidth = ctx.measureText(byline).width;
+  ctx.textAlign = 'right';
+  ctx.fillText(byline, foot, 0);
+
+  const title = book.title.toUpperCase();
+  const run = foot - bylineWidth - 6 * u - head;
+  let size = 11 * u;
+  ctx.textAlign = 'left';
+  ctx.letterSpacing = `${0.15 * u}px`;
   ctx.font = `800 ${size}px Archivo, sans-serif`;
-  while (ctx.measureText(book.title).width > run && size > 3 * u) {
+  while (ctx.measureText(title).width > run && size > 3 * u) {
     size -= 0.25 * u;
     ctx.font = `800 ${size}px Archivo, sans-serif`;
   }
-  ctx.fillText(book.title, 0, 0);
+  ctx.fillText(title, head, 0);
   ctx.letterSpacing = '0px';
   ctx.restore();
+}
+
+/**
+ * A read book's front cover, from the image /books shows. The book is shaped
+ * to the cover, so it is drawn edge to edge with nothing cropped.
+ */
+export function paintReadCover(canvas: HTMLCanvasElement, art: HTMLImageElement, width: number) {
+  canvas.width = width;
+  canvas.height = Math.round(width * (art.naturalHeight / art.naturalWidth));
+  canvas.getContext('2d')!.drawImage(art, 0, 0, canvas.width, canvas.height);
 }
 
 /**

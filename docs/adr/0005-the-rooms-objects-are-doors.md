@@ -139,7 +139,7 @@ fetched on the first click.
 `/books` is now the full list, three books to a topic, each with its real cover and its
 title under it. That is a deliberate exception to "no album art and no box art", and it is
 scoped: the rule is about the Room, where Sleeves and Board games are lettered in the
-Room's own hand, and it still holds there. The Book stack on the Desk stays lettered.
+Room's own hand, and it still holds there. The Book stack on the Desk stayed lettered until the addendum below.
 
 On a Flat Site page a cover is how a reader recognises a book, and a list of books read
 is the ordinary place covers are shown. They come from Open Library (or the publisher
@@ -162,3 +162,18 @@ The faces were straightened out of the publishers' photographs and kept in
 `public/assets/board-games/room/`. They are drawn live on top of the bake, like the
 Book stack's lettering, and tinted by the room's light so they sit in the bay rather than
 glow. Sleeves stay lettered: "no album art" still holds for records.
+
+## Addendum, 2026-11-13: the Book stack wears its dust jackets
+
+The board games showed what real art does for the Room, and the Book stack is the way in to
+`/books`, which already shows every cover, so the stack follows. Each of the four books now
+lies front cover up with its real cover on the board (the same image `/books` uses, from
+`public/assets/books/`) and its jacket's colours on the spine and back, lettered head to
+foot as English-language spines are. Lying that way, with the head to the left, is how a
+real book lies, and it keeps the titles reading left to right.
+
+Each book is shaped to its cover: the printed face is as wide as the cover's proportions in
+`src/content/room/books.json` say, so nothing is cropped. That changes the stack's
+footprint, so the room and the books' light were baked again. The spines are lettered
+rather than photographed: there is no clean source for spine art, and a jacket's spine is
+its title and author in the cover's colours, which is what is drawn.

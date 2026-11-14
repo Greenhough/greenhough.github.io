@@ -2692,9 +2692,23 @@ def build_book():
 # Top to bottom, as src/lib/shelf.ts stacks them.
 SECTION_ORDER = ("Built for Myself", "Built for Work")
 
-# Mirrors src/components/shelf/readBooks.ts and BookStack.tsx.
-READ_BOOKS = ("#4a4230", "#53382c", "#3d3043", "#2e3d52")
+# Mirrors src/components/shelf/readBooks.ts and BookStack.tsx: bottom of the
+# stack first, each in its dust jacket's ground. Each book is shaped to its
+# cover, whose proportions come from src/content/room/books.json.
+READ_BOOKS = (
+    ("good-to-great", "#e5242a"),
+    ("deep-work", "#f0c419"),
+    ("gap-selling", "#d81f30"),
+    ("atomic-habits", "#ede7e1"),
+)
 STACK = {"x": -2.08, "z": -0.16, "length": 0.42, "thickness": 0.046}
+
+
+def read_book_aspects():
+    """Each book on the desk's cover, width over height, by id."""
+    path = os.path.join(os.path.dirname(__file__), "..", "src", "content", "room", "books.json")
+    with open(path, encoding="utf-8") as fh:
+        return {b["id"]: b["cover"]["width"] / b["cover"]["height"] for b in json.load(fh)}
 
 # The second UV set every Book carries, and what the baked light is stored at.
 LIGHT_UV = "Light"
@@ -2851,14 +2865,22 @@ def place_books(template, layout):
         index += 1
 
     desk_top = FLOOR_Y + DESK["height"]
-    scale = Matrix.Diagonal(
-        (STACK["thickness"] / BOX["thickness"], STACK["length"] / BOX["height"], STACK["length"] / BOX["height"], 1)
-    )
-    on_side = Matrix.Rotation(-math.pi / 2, 4, "Z")
-    for i, colour in enumerate(READ_BOOKS):
+    # Front cover up and head to the left, as BookStack.tsx lays them. The
+    # printed face of the board is the cover's proportions; the widest book
+    # sets where the spines line up.
+    aspects = read_book_aspects()
+    cover_span = BOX["width"] - SPINE_ROUND - GROOVE
+    depth_scale = {book: STACK["length"] * aspects[book] / cover_span for book, _ in READ_BOOKS}
+    deepest = max(BOX["width"] * d for d in depth_scale.values())
+    on_side = Matrix.Rotation(math.pi / 2, 4, "Z")
+    for i, (book, colour) in enumerate(READ_BOOKS):
+        scale = Matrix.Diagonal(
+            (STACK["thickness"] / BOX["thickness"], STACK["length"] / BOX["height"], depth_scale[book], 1)
+        )
         yaw = (((i * 37) % 11) - 5) * 0.012
+        set_back = (deepest - BOX["width"] * depth_scale[book]) / 2
         at = (
-            Matrix.Translation((STACK["x"], desk_top + STACK["thickness"] * (i + 0.5), STACK["z"]))
+            Matrix.Translation((STACK["x"], desk_top + STACK["thickness"] * (i + 0.5), STACK["z"] + set_back))
             @ Matrix.Rotation(yaw, 4, "Y")
             @ on_side
             @ scale

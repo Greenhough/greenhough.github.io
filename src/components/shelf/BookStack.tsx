@@ -3,9 +3,9 @@ import * as THREE from 'three';
 import { useThree } from '@react-three/fiber';
 import { useGLTF, useTexture } from '@react-three/drei';
 import { BOX_LIGHT, bakeInto, prepareLight, stackTile } from './bakedLight';
-import { ensureFonts, paintReadSpine, toTexture } from './covers';
-import { READ_BOOKS } from './readBooks';
-import { BOX } from './Box';
+import { ensureFonts, loadImage, paintReadCover, paintReadSpine, toTexture } from './covers';
+import { READ_BOOKS, coverFor } from './readBooks';
+import { BOX, COVER_SPAN } from './Box';
 import { model } from './models';
 
 /**
@@ -40,6 +40,15 @@ const LENGTH = 0.42;
  */
 const THICKNESS = 0.046;
 
+/**
+ * How deep each book is, front edge to spine. A book is shaped to its cover:
+ * the board's printed face is LENGTH tall and as wide as the cover's
+ * proportions say, and the rest of the depth is the rounded back. The widest
+ * sets where the spines line up, the way a person squares a stack by its backs.
+ */
+const depthScale = (aspect: number) => (LENGTH * aspect) / COVER_SPAN;
+const DEEPEST = Math.max(...READ_BOOKS.map((b) => BOX.width * depthScale(b.aspect)));
+
 /** Where the stack sits: clear of the desk lamp on one side and the laptop on the other. */
 const AT = { x: -2.08, z: -0.16 };
 
@@ -56,23 +65,36 @@ export function BookStack({ onOpen, onHover }: Props) {
   const { scene } = useGLTF(MODEL);
   const renderer = useThree((s) => s.gl);
   const light = prepareLight(useTexture(BOX_LIGHT));
-  const [spines, setSpines] = useState<THREE.CanvasTexture[] | null>(null);
+  const [printing, setPrinting] = useState<{ spine: THREE.CanvasTexture; cover: THREE.CanvasTexture | null }[] | null>(
+    null
+  );
 
   // Painted once for the page. Unlike a Project's Spine these never change:
-  // the titles are a constant, so there is nothing to repaint.
+  // the jackets are a constant, so there is nothing to repaint. A cover that
+  // fails to load leaves that book in its plain jacket colour.
   useEffect(() => {
     let cancelled = false;
     const made: THREE.CanvasTexture[] = [];
     (async () => {
-      await ensureFonts();
+      const [, arts] = await Promise.all([ensureFonts(), Promise.all(READ_BOOKS.map((b) => loadImage(coverFor(b))))]);
       if (cancelled) return;
-      for (const book of READ_BOOKS) {
-        const canvas = document.createElement('canvas');
-        paintReadSpine(canvas, book, 512);
-        made.push(toTexture(canvas, renderer));
-      }
+      const painted = READ_BOOKS.map((book, i) => {
+        const spineCanvas = document.createElement('canvas');
+        paintReadSpine(spineCanvas, book, 512);
+        const spine = toTexture(spineCanvas, renderer);
+        made.push(spine);
+        const art = arts[i];
+        let cover: THREE.CanvasTexture | null = null;
+        if (art) {
+          const coverCanvas = document.createElement('canvas');
+          paintReadCover(coverCanvas, art, 512);
+          cover = toTexture(coverCanvas, renderer);
+          made.push(cover);
+        }
+        return { spine, cover };
+      });
       if (cancelled) return;
-      setSpines(made);
+      setPrinting(painted);
     })();
     return () => {
       cancelled = true;
@@ -81,21 +103,18 @@ export function BookStack({ onOpen, onHover }: Props) {
   }, [renderer]);
 
   const stack = useMemo(() => {
-    if (!spines) return null;
+    if (!printing) return null;
     const materials: THREE.Material[] = [];
 
     const books = READ_BOOKS.map((book, i) => {
-      const cover = new THREE.MeshStandardMaterial({
-        color: book.cloth,
-        roughness: 0.86,
-        metalness: 0,
-      });
-      const spine = new THREE.MeshStandardMaterial({
-        map: spines[i],
-        roughness: 0.86,
-        metalness: 0,
-      });
-      materials.push(cover, spine);
+      // A jacket is coated paper, a shade glossier than cloth.
+      const jacket = new THREE.MeshStandardMaterial({ color: book.jacket, roughness: 0.7, metalness: 0 });
+      const coverMap = printing[i].cover;
+      const cover = coverMap
+        ? new THREE.MeshStandardMaterial({ map: coverMap, roughness: 0.7, metalness: 0 })
+        : jacket.clone();
+      const spine = new THREE.MeshStandardMaterial({ map: printing[i].spine, roughness: 0.7, metalness: 0 });
+      materials.push(jacket, cover, spine);
 
       // These never leave the desk, so they are never lit live: the light the
       // desk lamp throws on them is baked, the same way the desk's is, and
@@ -103,6 +122,7 @@ export function BookStack({ onOpen, onHover }: Props) {
       const tile = stackTile(i);
       const atRest = { value: 0 };
       if (tile) {
+        bakeInto(jacket, light, tile, atRest);
         bakeInto(cover, light, tile, atRest);
         bakeInto(spine, light, tile, atRest);
       }
@@ -114,9 +134,10 @@ export function BookStack({ onOpen, onHover }: Props) {
         if (!mesh.isMesh) return;
         const shared = mesh.material as THREE.MeshStandardMaterial;
         const name = shared?.name ?? '';
-        // Both boards are the binding's own cloth: only a Project's Cover is
-        // printed, and these are not Projects.
-        if (name === 'BookCover' || name === 'BookCloth') mesh.material = cover;
+        // The front board carries the cover; the back board and the rest of
+        // the binding are the jacket's ground.
+        if (name === 'BookCover') mesh.material = cover;
+        else if (name === 'BookCloth') mesh.material = jacket;
         else if (name === 'BookSpine') mesh.material = spine;
         else if (tile) {
           let mine = own.get(name);
@@ -134,7 +155,7 @@ export function BookStack({ onOpen, onHover }: Props) {
     });
 
     return { books, materials };
-  }, [scene, spines, light]);
+  }, [scene, printing, light]);
 
   useEffect(() => () => stack?.materials.forEach((m) => m.dispose()), [stack]);
 
@@ -159,24 +180,24 @@ export function BookStack({ onOpen, onHover }: Props) {
     >
       {stack.books.map(({ book, root, i }) => (
         <group
-          key={book.title}
+          key={book.id}
           // A few degrees out of square each, because a stack nobody squared
           // up is the only kind that looks like it was put there by a person.
-          position={[0, THICKNESS * (i + 0.5) + (lifted && i === stack.books.length - 1 ? 0.014 : 0), 0]}
+          position={[
+            0,
+            THICKNESS * (i + 0.5) + (lifted && i === stack.books.length - 1 ? 0.014 : 0),
+            (DEEPEST - BOX.width * depthScale(book.aspect)) / 2,
+          ]}
           rotation={[0, (((i * 37) % 11) - 5) * 0.012, 0]}
         >
           {/* Turned on its side: the Box's thickness axis becomes the vertical
               one and the Spine still faces out.
 
-              Turned the way that leaves the back board up, not the front one.
-              A Spine is lettered bottom-to-top, so laying the book down the
-              other way sends the title right-to-left and it reads upside
-              down — which is just as true of a real book. Nothing is lost by
-              flipping it: both boards are plain cloth and only a Project's
-              Cover carries printing. */}
+              Front cover up, head to the left, as a real book lies. Its Spine
+              is lettered head to foot, so the title reads left to right. */}
           <group
-            rotation={[0, 0, -Math.PI / 2]}
-            scale={[THICKNESS / BOX.thickness, LENGTH / BOX.height, LENGTH / BOX.height]}
+            rotation={[0, 0, Math.PI / 2]}
+            scale={[THICKNESS / BOX.thickness, LENGTH / BOX.height, depthScale(book.aspect)]}
           >
             <primitive object={root} />
           </group>
