@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
 import { useGLTF, useTexture } from '@react-three/drei';
 import { isFrozen, lampsNow, roomLight, roomTime, setLamps, turntable } from './clock';
+import { voiceLevel } from './voice';
 import { model } from './models';
 
 /**
@@ -32,6 +33,8 @@ const LEAF = /^Room(FloorPlant|TopPlant|Plant)Leaf/;
 const BUST = 'RoomBust';
 /** How much the Bust brightens under the pointer. Quiet, like the Book stack's lift. */
 const BUST_LIFT = 1.14;
+/** How much brighter he gets at the loudest of his line. A glow that follows the voice, since a bust cannot move its lips. */
+const BUST_VOICE = 0.3;
 /** Hit box margin around the Bust, so a head this small is not fiddly to click. */
 const BUST_MARGIN = 0.03;
 /** 33⅓ rpm, in radians a second. */
@@ -78,6 +81,7 @@ interface Props {
 
 export function ShelfModel({ phone = false, onBust, onHover }: Props) {
   const bustHovered = useRef(false);
+  const bustVoice = useRef(0);
   const { scene } = useGLTF(MODEL);
   const [carcassMap, roomMap] = useTexture([CARCASS_ATLAS, phone ? ROOM_ATLAS_SMALL : ROOM_ATLAS]);
 
@@ -146,6 +150,9 @@ export function ShelfModel({ phone = false, onBust, onHover }: Props) {
 
     built.bustMaterial.color.copy(roomLight);
     if (bustHovered.current) built.bustMaterial.color.multiplyScalar(BUST_LIFT);
+    // Eased, so the glow swells and settles with the voice rather than flickering on every syllable.
+    bustVoice.current += (voiceLevel() - bustVoice.current) * Math.min(1, delta * 12);
+    if (bustVoice.current > 0.002) built.bustMaterial.color.multiplyScalar(1 + bustVoice.current * BUST_VOICE);
 
     // The lamps strike once, when the room first draws.
     setLamps(lampsNow());

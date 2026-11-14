@@ -1,7 +1,8 @@
-import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { Scene } from './Scene';
 import { turntable } from './clock';
+import { hush, speak } from './voice';
 import Bones from '../bones/Bones';
 import { MEDITATION } from '../../data/meditation';
 import type {
@@ -38,6 +39,9 @@ interface Props {
 
 /** Matches the failsafe in the inline script in index.astro. */
 const LIVE_CLASS = 'shelf-live';
+/** How long the Bust's last words stay up after he finishes, then how long they take to fade. */
+const SUBTITLE_HOLD_MS = 1800;
+const SUBTITLE_FADE_MS = 900;
 
 // These are passed to <Canvas> and must keep their identity between renders.
 // Fresh object literals make react-three-fiber reconfigure the renderer on
@@ -88,9 +92,11 @@ export default function Shelf({
   const [focusedSlug, setFocusedSlug] = useState<string | null>(initialSlug);
   const [place, setPlace] = useState<ShelfPlace>(initialPlace);
   const [hovering, setHovering] = useState(false);
-  // The Bust has been clicked and its line is in the HUD. It goes again as
-  // soon as anything else is picked.
-  const [musing, setMusing] = useState(false);
+  // The Bust has been clicked: he says his line and it shows as a subtitle,
+  // which fades ('parting') once he is done. It goes at once if anything else
+  // is picked. If the sound cannot play, the words simply stay up.
+  const [musing, setMusing] = useState<false | 'on' | 'parting'>(false);
+  const parting = useRef<number | undefined>(undefined);
   // Which record is out of the row, and whether it is on the player. Nothing
   // is asked of YouTube until a record is put on: see docs/adr/0005.
   const [recordIndex, setRecordIndex] = useState(0);
@@ -150,14 +156,37 @@ export default function Shelf({
   const openGames = useCallback(() => {
     window.location.href = '/board-games';
   }, []);
-  /** The Bust is dressing that answers: it puts the Meditation in the HUD. */
+  /** Stop him mid-sentence and take the subtitle down. */
+  const quiet = useCallback(() => {
+    window.clearTimeout(parting.current);
+    hush();
+    setMusing(false);
+  }, []);
+  /**
+   * The Bust is dressing that answers: he says the Meditation aloud, with the
+   * words as a subtitle. Clicking him again while he speaks stops him.
+   */
   const bust = useCallback(() => {
     setFocusedSlug(null);
-    setMusing((on) => !on);
-  }, []);
+    if (musing === 'on') {
+      quiet();
+      return;
+    }
+    window.clearTimeout(parting.current);
+    setMusing('on');
+    speak(MEDITATION.audio, (spoke) => {
+      if (!spoke) return;
+      // Let the last words sit a moment, then fade them.
+      parting.current = window.setTimeout(() => {
+        setMusing('parting');
+        parting.current = window.setTimeout(() => setMusing(false), SUBTITLE_FADE_MS);
+      }, SUBTITLE_HOLD_MS);
+    });
+  }, [musing, quiet]);
   useEffect(() => {
-    if (focusedSlug || place !== 'shelf' || state !== 'browsing') setMusing(false);
-  }, [focusedSlug, place, state]);
+    if (focusedSlug || place !== 'shelf' || state !== 'browsing') quiet();
+  }, [focusedSlug, place, state, quiet]);
+  useEffect(() => quiet, [quiet]);
 
   const openBooks = useCallback(() => {
     window.location.href = '/books';
@@ -298,7 +327,7 @@ export default function Shelf({
         dpr={dpr}
         camera={CAMERA}
         // A click on nothing in particular puts the Bust's line away.
-        onPointerMissed={() => setMusing(false)}
+        onPointerMissed={quiet}
       >
         <Suspense fallback={null}>
           <Scene
@@ -467,7 +496,7 @@ export default function Shelf({
       )}
 
       {place === 'shelf' && !focused && musing && (
-        <div className="shelf-hud shelf-hud-bust">
+        <div className={`shelf-hud shelf-hud-bust${musing === 'parting' ? ' parting' : ''}`}>
           <figure className="shelf-hud-text">
             <figcaption className="shelf-hud-eyebrow">
               {MEDITATION.author} &middot; {MEDITATION.source}

@@ -126,6 +126,13 @@ The line follows the one-source rule: it lives in `src/data/meditation.ts`, and 
 Site carries it on the 404 page. It is Gregory Hays's wording, so it is credited to him
 in both places.
 
+Later the same day the Bust was given a voice. He now says the line aloud (an ElevenLabs
+voice, with a little stone-room reverb added offline) and the HUD shows it as a subtitle
+that fades a moment after he finishes. Clicking him again stops him. A bust cannot move
+its lips, so he brightens in time with the voice instead. The words stay on screen
+whenever the sound cannot play, so the line never depends on audio, and the clip is only
+fetched on the first click.
+
 ## Addendum, 2026-11-13: /books shows real covers
 
 `/books` is now the full list, three books to a topic, each with its real cover and its

@@ -14,4 +14,6 @@ export const MEDITATION = {
   author: 'Marcus Aurelius',
   source: 'Meditations 5.20',
   translator: 'Gregory Hays',
+  /** The Bust says it aloud in the Room. Voice made with ElevenLabs ("Silas"). */
+  audio: '/assets/audio/meditation.m4a',
 } as const;

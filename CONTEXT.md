@@ -90,11 +90,11 @@ The two framed pictures over the Console: Friedrich's *Wanderer above the Sea of
 _Avoid_: prints, art, posters, photos (which is what the Pinboard is waiting for)
 
 **Bust**:
-Marcus Aurelius in marble, on top of the Shelf to the right of the plant. Dressing that answers: clicked from the Shelf, it puts the Meditation in the HUD. It leads nowhere and has no View.
+Marcus Aurelius in marble, on top of the Shelf to the right of the plant. Dressing that answers: clicked from the Shelf, it says the Meditation aloud, with the words as a subtitle in the HUD. It leads nowhere and has no View.
 _Avoid_: statue, head, sculpture
 
 **Meditation**:
-The one line of Marcus Aurelius the Bust says when clicked, credited to its translator. Also on the 404 page, so it does not live only in the Room.
+The one line of Marcus Aurelius the Bust speaks when clicked, credited to its translator. Also on the 404 page, so it does not live only in the Room.
 _Avoid_: quote of the day, easter egg
 
 **Live part**:
