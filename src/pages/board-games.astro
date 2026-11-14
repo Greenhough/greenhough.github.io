@@ -2,7 +2,7 @@
 import { getCollection } from 'astro:content';
 import Base from '../layouts/Base.astro';
 
-const INTRO = 'My ten favourite board games, in order.';
+const INTRO = 'My top 10 board games of all time.';
 const BGG_LIST = 'https://boardgamegeek.com/profile/Sketcherrrr/list/top';
 
 const games = (await getCollection('boardGames')).sort((a, b) => a.data.rank - b.data.rank);
@@ -16,10 +16,7 @@ const games = (await getCollection('boardGames')).sort((a, b) => a.data.rank - b
 >
   <header class="page-head">
     <h1 class="page-title">Board Games</h1>
-    <p class="page-intro">
-      {INTRO} The list lives on{' '}
-      <a href={BGG_LIST} target="_blank" rel="noopener">BoardGameGeek</a>, where each game has its own page.
-    </p>
+    <p class="page-intro">{INTRO}</p>
   </header>
 
   <section class="sec">
