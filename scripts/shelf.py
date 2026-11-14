@@ -188,15 +188,13 @@ PRINTS = (
 PAINTINGS = {"wanderer": (0.27, 0.30, 0.33), "storm": (0.085, 0.125, 0.135)}
 
 # The Board games: two boxes lying flat in the console's right bay, one on the
-# other, long side out. Bottom first. Which games they are, and their colours,
-# come from src/content/room/board-games.json; the lettering on their sides is
-# drawn by the site. Console.tsx repeats these numbers.
+# other, the side with the title out. Bottom first. Which games they are, their
+# real sizes and their card come from src/content/room/board-games.json; the art
+# on the faces the camera sees is drawn by the site. Console.tsx repeats these
+# numbers.
 GAMES = {
     "front": 0.025,  # how far the stack sits back from the console's front edge
-    "boxes": (
-        {"w": 0.31, "h": 0.070, "d": 0.30, "yaw": 0.035},
-        {"w": 0.29, "h": 0.080, "d": 0.29, "yaw": -0.050},
-    ),
+    "yaw": (0.035, -0.050),  # a little out of square, bottom box first
 }
 
 # Marcus Aurelius, on top of the carcass to the right of the plant.
@@ -1433,8 +1431,9 @@ def read_board_games():
 
 def build_board_games():
     """
-    Two game boxes in the console's right bay. Plain card in each game's own
-    colour: the lettering is drawn live, for the reason the Book stack's is.
+    Two game boxes in the console's right bay, at their real sizes. Plain card
+    in each game's own colour: the box art is drawn live on the faces the
+    camera sees, for the reason the Book stack's lettering is.
     """
     c = CONSOLE
     t = 0.024
@@ -1444,17 +1443,20 @@ def build_board_games():
     front = z0 + c["depth"] - GAMES["front"]
     y = FLOOR_Y + c["leg"] + t
     parts = []
-    for i, (game, spec) in enumerate(zip(read_board_games(), GAMES["boxes"])):
+    for i, (game, yaw) in enumerate(zip(read_board_games(), GAMES["yaw"])):
         card = flat_material(f"Game.{i}", srgb(game["box"]["card"]), roughness=0.55)
+        # The real box, in centimetres, at the room's scale of a metre to the unit.
+        size = game["box"]["size"]
+        w, h, d = size["wide"] / 100, size["tall"] / 100, size["deep"] / 100
         box = board(
             f"Room.Game.{i}",
-            (spec["w"], spec["h"], spec["d"]),
-            (bay_x, y + spec["h"] / 2, front - spec["d"] / 2),
+            (w, h, d),
+            (bay_x, y + h / 2, front - d / 2),
             card,
         )
-        box.rotation_euler = (0, 0, spec["yaw"])
+        box.rotation_euler = (0, 0, yaw)
         parts.append(box)
-        y += spec["h"]
+        y += h
     return parts
 
 

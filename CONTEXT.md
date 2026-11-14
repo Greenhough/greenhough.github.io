@@ -82,7 +82,7 @@ A record in the Console's left bay: one artist, one song. At the Console one Sle
 _Avoid_: album, cover (which is a Box's), track
 
 **Board games**:
-The two game boxes lying flat in the Console's right bay, one on the other, long side out. Two of Evan's top ten; the way in to `/board-games`. Never called boxes unqualified, because a Box is a Project.
+The two game boxes lying flat in the Console's right bay, one on the other, long side out, at their real sizes and with their real box art on the lid and the long side. Two of Evan's top ten; the way in to `/board-games`. Never called boxes unqualified, because a Box is a Project.
 _Avoid_: boxes, games (unqualified), Boxes
 
 **Paintings**:

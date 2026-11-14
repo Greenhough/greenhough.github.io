@@ -100,7 +100,7 @@ export async function getBoardGameBoxes(): Promise<ShelfBoardGame[]> {
   return (await getCollection('boardGames'))
     .filter((entry) => entry.data.box)
     .sort((a, b) => a.data.rank - b.data.rank)
-    .map((entry) => ({ title: entry.data.title, ...entry.data.box! }));
+    .map((entry) => ({ id: entry.id, title: entry.data.title, ...entry.data.box! }));
 }
 
 /** Everything the room shows that is not a Project, for the pages that carry it. */

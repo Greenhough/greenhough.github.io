@@ -2,13 +2,13 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { useFrame, useThree } from '@react-three/fiber';
 import { useTexture } from '@react-three/drei';
-import { ensureFonts, paintGameSide, paintSleeve, toTexture } from './covers';
+import { ensureFonts, paintSleeve, toTexture } from './covers';
 import { easeFor, roomLight } from './clock';
 import type { ShelfBoardGame, ShelfRecord } from './types';
 
 /**
  * The Console, and what is live on and over it: the two paintings, the record
- * sleeve that comes out of the row, and the lettering on the Board games.
+ * sleeve that comes out of the row, and the art on the Board games' boxes.
  *
  * The furniture itself is baked into the room. These are drawn on top for the
  * reason the Book stack's titles are: the room atlas gives a hundred texels to
@@ -36,17 +36,22 @@ const PAINTINGS = [
 /** What an oil painting on this wall comes out as, under the floor lamp. */
 const ON_WALL = new THREE.Color(0.9, 0.78, 0.64);
 
-/** GAMES in shelf.py, bottom of the stack first. */
+/**
+ * GAMES in shelf.py. Each box's size is the real one, from its entry in
+ * board-games.json, so only the set-back and the yaw live here.
+ */
 const GAMES = {
   x: (CX + 0.02 + CONSOLE.board / 2 + CONSOLE.x1 - CONSOLE.board) / 2,
   front: Z0 + CONSOLE.depth - 0.025,
-  boxes: [
-    { w: 0.31, h: 0.07, d: 0.3, yaw: 0.035 },
-    { w: 0.29, h: 0.08, d: 0.29, yaw: -0.05 },
-  ],
+  /** Bottom box first. */
+  yaw: [0.035, -0.05],
 };
-/** Card in the mouth of the bay: lit by the lamp, but from above and behind a board. */
+/** The side of a box, in the mouth of the bay: lit by the lamp, but from above and behind a board. */
 const IN_BAY = new THREE.Color(0.62, 0.5, 0.39);
+/** A lid, further in and under the console's top: a shade darker than the side. */
+const ON_LID = new THREE.Color(0.52, 0.42, 0.33);
+/** Where a box's art is: see the board games schema. */
+const boxArt = (id: string, face: 'lid' | 'side') => `/assets/board-games/room/${id}-${face}.webp`;
 
 /** A sleeve is twelve inches and a bit. */
 const SLEEVE = 0.31;
@@ -144,51 +149,48 @@ function Paintings() {
   );
 }
 
-function GameSides({ boardGames }: { boardGames: ShelfBoardGame[] }) {
-  const renderer = useThree((s) => s.gl);
-  const [maps, setMaps] = useState<THREE.CanvasTexture[] | null>(null);
+function GameBoxes({ boardGames }: { boardGames: ShelfBoardGame[] }) {
   // Best first in the data, and the best is on top: the stack is the reverse.
-  const stack = useMemo(() => [...boardGames].reverse().slice(0, GAMES.boxes.length), [boardGames]);
-
-  useEffect(() => {
-    let cancelled = false;
-    const made: THREE.CanvasTexture[] = [];
-    (async () => {
-      await ensureFonts();
-      if (cancelled) return;
-      stack.forEach((game, i) => {
-        const box = GAMES.boxes[i];
-        const canvas = document.createElement('canvas');
-        paintGameSide(canvas, game, 1024, box.w / box.h);
-        made.push(toTexture(canvas, renderer));
-      });
-      setMaps(made);
-    })();
-    return () => {
-      cancelled = true;
-      made.forEach((t) => t.dispose());
-    };
-  }, [stack, renderer]);
+  const stack = useMemo(() => [...boardGames].reverse().slice(0, GAMES.yaw.length), [boardGames]);
+  const maps = useTexture(stack.flatMap((game) => [boxArt(game.id, 'side'), boxArt(game.id, 'lid')]));
 
   const materials = useMemo(
-    () => maps?.map((map) => new THREE.MeshBasicMaterial({ map, toneMapped: false })) ?? null,
+    () =>
+      maps.map((map, i) => {
+        map.colorSpace = THREE.SRGBColorSpace;
+        map.anisotropy = 8;
+        const material = new THREE.MeshBasicMaterial({ map, toneMapped: false });
+        // Even entries are sides, odd are lids: see the useTexture call.
+        material.userData.tint = i % 2 === 0 ? IN_BAY : ON_LID;
+        return material;
+      }),
     [maps]
   );
-  useEffect(() => () => materials?.forEach((m) => m.dispose()), [materials]);
-  useFrame(() => materials?.forEach((m) => m.color.copy(IN_BAY).multiply(roomLight)));
+  useEffect(() => () => materials.forEach((m) => m.dispose()), [materials]);
+  useFrame(() => materials.forEach((m) => m.color.copy(m.userData.tint as THREE.Color).multiply(roomLight)));
 
-  if (!materials) return null;
+  // The art sits a hair proud of the baked card and stops just short of each
+  // edge, so the box keeps its baked corners.
+  const PROUD = 0.0012;
+  const EDGE = 0.004;
   let y = BAY_FLOOR;
   return (
     <>
       {stack.map((game, i) => {
-        const box = GAMES.boxes[i];
-        const centreY = y + box.h / 2;
-        y += box.h;
+        const w = game.size.wide / 100;
+        const h = game.size.tall / 100;
+        const d = game.size.deep / 100;
+        const centreY = y + h / 2;
+        y += h;
         return (
-          <group key={game.title} position={[GAMES.x, centreY, GAMES.front - box.d / 2]} rotation={[0, box.yaw, 0]}>
-            <mesh material={materials[i]} position={[0, 0, box.d / 2 + 0.0012]}>
-              <planeGeometry args={[box.w - 0.008, box.h - 0.008]} />
+          <group key={game.id} position={[GAMES.x, centreY, GAMES.front - d / 2]} rotation={[0, GAMES.yaw[i], 0]}>
+            <mesh material={materials[i * 2]} position={[0, 0, d / 2 + PROUD]}>
+              <planeGeometry args={[w - EDGE, h - EDGE]} />
+            </mesh>
+            {/* Lying face up. The art's foot is the edge nearest the side, so
+                it comes to the front of the bay. */}
+            <mesh material={materials[i * 2 + 1]} position={[0, h / 2 + PROUD, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+              <planeGeometry args={[w - EDGE, d - EDGE]} />
             </mesh>
           </group>
         );
@@ -294,12 +296,13 @@ export function Console({
   onHover,
 }: Props) {
   const record = records[recordIndex] ?? null;
-  const gamesHeight = GAMES.boxes.reduce((sum, box) => sum + box.h, 0);
+  // The stack as it stands, from the boxes' real heights.
+  const gamesHeight = boardGames.slice(0, GAMES.yaw.length).reduce((sum, game) => sum + game.size.tall / 100, 0);
 
   return (
     <>
       <Paintings />
-      {boardGames.length > 0 && <GameSides boardGames={boardGames} />}
+      {boardGames.length > 0 && <GameBoxes boardGames={boardGames} />}
       {record && <Sleeve record={record} active={active} onFlip={onFlip} onHover={onHover} />}
 
       {/* The Record player: goes to the Console, and once there, plays. */}

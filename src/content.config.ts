@@ -127,12 +127,21 @@ const boardGames = defineCollection({
     rank: z.number().int().positive(),
     title: z.string(),
     year: z.number().int(),
+    /**
+     * A box in the Console, for the games that have one. Its art is
+     * public/assets/board-games/room/{id}-lid.webp and {id}-side.webp, taken
+     * from the publisher's box shot; scripts/shelf.py models the box at this
+     * size and Console.tsx lays the art on the faces the camera sees.
+     */
     box: z
       .object({
-        /** What the side of the box says. Shorter than the title. */
-        lettering: z.string(),
+        /** The card the box is baked in, for the faces that carry no art. */
         card: z.string(),
-        ink: z.string(),
+        /**
+         * The real box in centimetres. `wide` and `tall` are the side that
+         * faces out of the bay; `deep` runs back into it.
+         */
+        size: z.object({ wide: z.number(), tall: z.number(), deep: z.number() }),
       })
       .optional(),
     /**

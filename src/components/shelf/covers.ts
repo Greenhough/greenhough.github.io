@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { palette, themeColour } from './palette';
-import type { ShelfBoardGame, ShelfProject, ShelfRecord } from './types';
+import type { ShelfProject, ShelfRecord } from './types';
 import type { ReadBook } from './readBooks';
 import type { ShelfPost } from './types';
 
@@ -514,40 +514,6 @@ export function paintSleeve(canvas: HTMLCanvasElement, record: ShelfRecord, size
   const foot = wrap(ctx, record.song.toUpperCase(), size - margin * 2, 1);
   ctx.fillText(foot[0] ?? '', margin, size - 12 * u);
   ctx.letterSpacing = '0px';
-}
-
-/**
- * The long side of a board game's box, which is all of it the Console shows.
- * The game's name in the box's own two colours, and the line where the lid
- * stops short of the table.
- */
-export function paintGameSide(canvas: HTMLCanvasElement, game: ShelfBoardGame, width: number, aspect: number) {
-  const W = width;
-  const H = Math.round(width / aspect);
-  canvas.width = W;
-  canvas.height = H;
-  const ctx = canvas.getContext('2d')!;
-  const u = H / 10;
-
-  ctx.fillStyle = game.card;
-  ctx.fillRect(0, 0, W, H);
-  ctx.fillStyle = mix(game.card, '#000000', 0.38);
-  ctx.fillRect(0, H - 1.25 * u, W, Math.max(1, 0.16 * u));
-
-  ctx.fillStyle = game.ink;
-  ctx.textBaseline = 'middle';
-  ctx.textAlign = 'center';
-  let size = 4.3 * u;
-  const text = game.lettering.toUpperCase();
-  for (;;) {
-    ctx.font = `800 ${size}px Archivo, sans-serif`;
-    ctx.letterSpacing = `${size * 0.09}px`;
-    if (ctx.measureText(text).width <= W * 0.86 || size < 1.5 * u) break;
-    size -= 0.15 * u;
-  }
-  ctx.fillText(text, W / 2, H * 0.44);
-  ctx.letterSpacing = '0px';
-  ctx.textAlign = 'left';
 }
 
 /** Wrap a painted canvas as a texture ready for a material. */

@@ -105,7 +105,8 @@ The Console is the third View, and it holds two doors rather than one.
   Nothing is asked of YouTube until one is, so the tracking this ADR accepted arrives
   only with the first song, and through the no-cookie player.
 - **No album art and no box art.** Sleeves and Board games are lettered in the room's
-  own hand. A cover belongs to whoever made it; a name does not.
+  own hand. A cover belongs to whoever made it; a name does not. (Since relaxed for the
+  Board games: see the box art addendum below.)
 - **The record turns only while a song is on.** It used to turn always, as dressing. Now
   that it is a door, its turning says something.
 - **The Paintings are real paintings.** `docs/adr/0004` kept the Prints abstract because
@@ -150,3 +151,14 @@ The same exception now covers `/board-games`: each ranked game shows its box bes
 The images come from the publishers' own product pages (or Asmodee, their distributor,
 where the publisher no longer sells it), trimmed and kept in `public/assets/board-games/`.
 The Board games in the Room are still lettered, with no box art.
+
+## Addendum, 2026-11-13: the Room's Board games carry their real box art
+
+Lettered game boxes read as props, and these two are the way in to a page that now shows
+every box, so the Room follows the Flat Site. The two boxes in the Console's right bay are
+modelled at their real sizes (from `box.size` in `src/content/room/board-games.json`, in
+cm) and carry the real art on every face the camera sees: the lid and the long side.
+The faces were straightened out of the publishers' photographs and kept in
+`public/assets/board-games/room/`. They are drawn live on top of the bake, like the
+Book stack's lettering, and tinted by the room's light so they sit in the bay rather than
+glow. Sleeves stay lettered: "no album art" still holds for records.

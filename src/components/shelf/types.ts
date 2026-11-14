@@ -65,8 +65,10 @@ export interface ShelfRecord {
 
 /** One of the Board games stacked in the Console, as its side is lettered. */
 export interface ShelfBoardGame {
+  /** The entry id, which names its art in public/assets/board-games/room/. */
+  id: string;
   title: string;
-  lettering: string;
   card: string;
-  ink: string;
+  /** The real box, in centimetres. See the board games schema. */
+  size: { wide: number; tall: number; deep: number };
 }
