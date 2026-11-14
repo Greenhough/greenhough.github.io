@@ -103,26 +103,28 @@ interface LaptopProps {
 }
 
 /**
- * What is on the laptop: an editor, mid-thought, with the cursor blinking, and
- * Bones idling in a pane beside the code, playing itself.
+ * What is on the laptop: Bones, playing itself, the way an arcade cabinet
+ * plays itself until someone puts a coin in.
  *
  * The bake has the display as a pale emissive card, which is right for what
  * it throws on the keyboard and wrong to look at: a lit screen with nothing
  * on it is a lightbox. A screen is light, so it can be drawn live without
- * anything having to be lit to match. Bars, not words. At the size the Desk
- * view shows it, text would be four pixels tall, and bars at that size are
- * what code looks like anyway.
+ * anything having to be lit to match.
  *
- * The pane is the quiet highlight docs/adr/0007 promised in place of a key
- * hint: dice tumbling and settling, a score ticking over. Under the pointer
- * the screen brightens, the way the Bust does, and that is the whole of it.
+ * It is the same game in the same dress as the one the Laptop View puts on
+ * the screen: a title bar, the computer's board above and the visitor's
+ * below, the scores beside them, with the real rules moving the dice. Where
+ * the game's status line goes it says, in the game's own voice, to click to
+ * play. That is the screen saying what it is, as a game's attract mode does,
+ * not a key hint laid over the room: see docs/adr/0007. Under the pointer the
+ * screen brightens, the way the Bust does.
  */
-const PANE = { x: 384, y: 36, w: 204, h: 344 };
 /** Seconds a die tumbles before it lands, and then sits before it is put down. */
-const IDLE = { tumble: 0.55, settle: 0.45, between: 0.35, gameOver: 2.6 };
+const IDLE = { tumble: 0.5, settle: 0.35, between: 0.3, gameOver: 2.6 };
 /** How much the screen brightens under the pointer. */
 const SCREEN_LIFT = 1.22;
-const ED = { bg: '#12141a', bar: '#1c1f28', pane: '#171a22', line: '#2a2e3a', dim: '#7f8aa3', text: '#d9d4c7', green: '#6fcf9b', amber: '#e3b341', blue: '#8fb3ff' };
+const ED = { bg: '#12141a', bar: '#1c1f28', board: '#171a22', line: '#3a4050', dim: '#7f8aa3', text: '#d9d4c7', green: '#6fcf9b', amber: '#e3b341', blue: '#8fb3ff' };
+const MONO = "'JetBrains Mono', ui-monospace, Menlo, monospace";
 
 /** Pips on a die, on a 3 by 3 grid read left to right, top to bottom. */
 const PIPS: Record<Face, number[]> = {
@@ -157,122 +159,93 @@ function paintDie(ctx: CanvasRenderingContext2D, face: Face, x: number, y: numbe
   }
 }
 
-/** The editor itself, painted once: everything on the screen but the pane. */
-function paintEditor(ctx: CanvasRenderingContext2D, w: number, h: number) {
+/**
+ * The whole screen: Bones mid-game, and the prompt to play. `blink` is the
+ * prompt's cursor, on or off.
+ */
+function paintAttract(ctx: CanvasRenderingContext2D, w: number, h: number, game: Game, tumbling: Face | null, blink: boolean) {
   ctx.fillStyle = ED.bg;
   ctx.fillRect(0, 0, w, h);
-  // A title bar and a file tree down the left.
+
+  // The title bar, as Bones draws its own.
   ctx.fillStyle = ED.bar;
-  ctx.fillRect(0, 0, w, 26);
-  ctx.fillRect(0, 26, 118, h);
+  ctx.fillRect(0, 0, w, 30);
   ['#e0685c', '#e3b341', '#56b36a'].forEach((c, i) => {
     ctx.fillStyle = c;
     ctx.beginPath();
-    ctx.arc(16 + i * 16, 13, 4.5, 0, Math.PI * 2);
+    ctx.arc(18 + i * 17, 15, 5, 0, Math.PI * 2);
     ctx.fill();
   });
-  ctx.fillStyle = '#3a4050';
-  for (let i = 0; i < 9; i++) ctx.fillRect(14 + (i % 3 === 1 ? 10 : 0), 44 + i * 19, 52 + ((i * 37) % 34), 6);
-
-  // Lines of code: an indent, then a few runs of colour. Fixed, not random,
-  // so the screen is the same screen every time the page loads. They run
-  // under the pane, the way a split editor cuts them off.
-  const tints = ['#6fcf9b', '#d9d4c7', '#7f8aa3', '#e3b341', '#8fb3ff'];
-  const lines = [
-    [0, 3, 9, 4], [1, 2, 7], [1, 5, 3, 6], [2, 4, 4, 8, 2], [2, 6, 5], [2, 3, 10], [1, 2],
-    [0], [0, 4, 6, 3], [1, 7, 4], [1, 3, 3, 5, 4], [2, 5, 8], [2, 2, 6, 3], [1, 2],
-  ];
-  ctx.save();
-  ctx.beginPath();
-  ctx.rect(0, 0, PANE.x - 12, h);
-  ctx.clip();
-  lines.forEach(([indent, ...runs], row) => {
-    let x = 138 + indent * 22;
-    runs.forEach((length, i) => {
-      ctx.fillStyle = tints[(row * 2 + i * 3 + indent) % tints.length];
-      ctx.globalAlpha = 0.9;
-      ctx.fillRect(x, 46 + row * 23, length * 11, 7);
-      x += length * 11 + 9;
-    });
-  });
-  ctx.restore();
-  ctx.globalAlpha = 1;
-}
-
-/**
- * The pane: the computer's board above, the visitor's below, a score beside
- * each, and the die in hand tumbling next to whoever is about to put it down.
- */
-function paintPane(ctx: CanvasRenderingContext2D, game: Game, tumbling: Face | null) {
-  const { x, y, w, h } = PANE;
-  ctx.fillStyle = ED.pane;
-  ctx.fillRect(x, y, w, h);
-  ctx.strokeStyle = ED.line;
-  ctx.lineWidth = 2;
-  ctx.strokeRect(x + 1, y + 1, w - 2, h - 2);
-  // The pane's tab: a green dot and a bar where its name would be.
-  ctx.fillStyle = ED.bar;
-  ctx.fillRect(x + 2, y + 2, w - 4, 20);
-  ctx.fillStyle = ED.green;
-  ctx.beginPath();
-  ctx.arc(x + 13, y + 12, 3.5, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = ED.dim;
-  ctx.fillRect(x + 23, y + 9, 38, 6);
-
-  const die = 30;
-  const gap = 6;
-  const boardX = x + 14;
-  const [visitor, computer] = scores(game);
-  const sides: { player: Player; top: number; score: number; tint: string }[] = [
-    { player: 1, top: y + 36, score: computer, tint: ED.text },
-    { player: 0, top: y + 36 + 3 * (die + gap) + 46, score: visitor, tint: ED.green },
-  ];
   ctx.textBaseline = 'middle';
+  ctx.fillStyle = ED.text;
+  ctx.font = `500 15px ${MONO}`;
+  ctx.fillText('bones.ts', 82, 16);
+
+  const die = 34;
+  const gap = 5;
+  const colW = die + 10;
+  const colGap = 8;
+  const boardW = 3 * colW + 2 * colGap;
+  const boardX = (w - boardW) / 2;
+  const colH = 3 * die + 2 * gap + 10;
+  const [visitor, computer] = scores(game);
+  const sides: { player: Player; top: number; score: number; name: string; tint: string }[] = [
+    { player: 1, top: 40, score: computer, name: 'cpu', tint: ED.dim },
+    { player: 0, top: h - 12 - colH, score: visitor, name: 'you', tint: ED.green },
+  ];
   ctx.textAlign = 'center';
   for (const side of sides) {
     const board = game.boards[side.player];
     for (let col = 0; col < 3; col++) {
+      const cx = boardX + col * (colW + colGap);
+      ctx.fillStyle = ED.board;
+      roundRect(ctx, cx, side.top, colW, colH, 7);
+      ctx.fill();
+      ctx.strokeStyle = ED.line;
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
       for (let row = 0; row < 3; row++) {
-        const cx = boardX + col * (die + gap);
-        // The computer's dice stack down from the middle, the visitor's up to
-        // it, so the two boards face each other the way the game does.
-        const cy = side.player === 1 ? side.top + row * (die + gap) : side.top + (2 - row) * (die + gap);
+        // The computer's dice stack down from its edge, the visitor's up from
+        // theirs, so the two boards face each other across the middle.
+        const slot = side.player === 1 ? row : 2 - row;
         const face = board[col][row];
-        if (face) {
-          const same = board[col].filter((f) => f === face).length;
-          paintDie(ctx, face, cx, cy, die, same === 3 ? ED.blue : same === 2 ? ED.amber : ED.text);
-        } else {
-          ctx.strokeStyle = ED.line;
-          ctx.lineWidth = 1.5;
-          roundRect(ctx, cx + 0.75, cy + 0.75, die - 1.5, die - 1.5, die * 0.18);
-          ctx.stroke();
-        }
+        if (!face) continue;
+        const same = board[col].filter((f) => f === face).length;
+        paintDie(ctx, face, cx + 5, side.top + 5 + slot * (die + gap), die, same === 3 ? ED.blue : same === 2 ? ED.amber : ED.text);
       }
     }
-    const sideX = boardX + 3 * (die + gap) + 34;
-    const midY = side.top + (3 * (die + gap) - gap) / 2;
+    // Who, and their score, to the left of the board.
+    const midY = side.top + colH / 2;
     ctx.fillStyle = side.tint;
-    ctx.font = '700 26px ui-monospace, Menlo, monospace';
-    ctx.fillText(String(side.score), sideX, side.player === 1 ? midY - 22 : midY + 22);
+    ctx.font = `500 15px ${MONO}`;
+    ctx.fillText(side.name, boardX / 2, midY - 18);
+    ctx.fillStyle = ED.text;
+    ctx.font = `700 32px ${MONO}`;
+    ctx.fillText(String(side.score), boardX / 2, midY + 10);
+    // The die in hand, to the right of whoever is about to put it down.
     if (tumbling && game.turn === side.player && game.outcome === null) {
-      paintDie(ctx, tumbling, sideX - die / 2, side.player === 1 ? midY + 2 : midY - die - 2, die, ED.text);
+      paintDie(ctx, tumbling, boardX + boardW + (w - boardX - boardW) / 2 - die / 2, midY - die / 2, die, ED.text);
     }
   }
-  ctx.textAlign = 'start';
+
+  // Between the boards, where Bones says whose move it is: the invitation.
+  const middle = (40 + colH + (h - 12 - colH)) / 2;
+  ctx.font = `700 28px ${MONO}`;
+  const prompt = '$ click to play';
+  const width = ctx.measureText(prompt).width;
+  const x0 = (w - width) / 2 - 8;
+  ctx.textAlign = 'left';
+  ctx.fillStyle = ED.green;
+  ctx.fillText(prompt, x0, middle);
+  if (blink) ctx.fillRect(x0 + width + 6, middle - 14, 15, 28);
 }
 
 export function Laptop({ active, phone, onVisit, onHover }: LaptopProps) {
-  const cursor = useRef<THREE.Mesh>(null);
   const material = useRef<THREE.MeshBasicMaterial>(null);
   const hovered = useRef(false);
 
   const screen = useMemo(() => {
     const [w, h] = SCREEN_PIXELS;
-    const base = document.createElement('canvas');
-    base.width = w;
-    base.height = h;
-    paintEditor(base.getContext('2d')!, w, h);
     const canvas = document.createElement('canvas');
     canvas.width = w;
     canvas.height = h;
@@ -280,19 +253,17 @@ export function Laptop({ active, phone, onVisit, onHover }: LaptopProps) {
     const texture = new THREE.CanvasTexture(canvas);
     texture.colorSpace = THREE.SRGBColorSpace;
     texture.anisotropy = 8;
-    return { base, ctx, texture };
+    return { ctx, texture };
   }, []);
   useEffect(() => () => screen.texture.dispose(), [screen]);
 
-  // The game the pane plays against itself, with the real rules. It moves on
-  // the room's clock, so a frozen room (reduced motion, a thumbnail) shows a
+  // The game it plays against itself, with the real rules. It moves on the
+  // room's clock, so a frozen room (reduced motion, a thumbnail) shows a
   // board mid-game and holds it.
   const idle = useRef<{ game: Game; next: number; shown: string }>({ game: newGame(1), next: 0, shown: '' });
 
   useFrame(() => {
     const t = roomTime();
-    // A second on, a little less off: the rhythm of a cursor nobody is typing at.
-    if (cursor.current) cursor.current.visible = !active && t % 1.1 < 0.62;
     if (material.current) material.current.color.setScalar(hovered.current && !active ? SCREEN_LIFT : 1);
 
     const run = idle.current;
@@ -319,12 +290,13 @@ export function Laptop({ active, phone, onVisit, onHover }: LaptopProps) {
         tumbling = tumbleLeft > 0 ? ((((Math.floor(t * 10) * 7) % 6) + 1) as Face) : game.roll;
       }
     }
-    // Repaint only when something on the pane has changed.
-    const key = `${JSON.stringify(run.game.boards)}|${run.game.turn}|${tumbling}`;
+    // A second on, a little less off: the rhythm of a cursor.
+    const blink = t % 1.1 < 0.62;
+    // Repaint only when something on the screen has changed.
+    const key = `${JSON.stringify(run.game.boards)}|${run.game.turn}|${tumbling}|${blink}`;
     if (key !== run.shown) {
       run.shown = key;
-      screen.ctx.drawImage(screen.base, 0, 0);
-      paintPane(screen.ctx, run.game, tumbling);
+      paintAttract(screen.ctx, SCREEN_PIXELS[0], SCREEN_PIXELS[1], run.game, tumbling, blink);
       screen.texture.needsUpdate = true;
     }
   });
@@ -378,11 +350,6 @@ export function Laptop({ active, phone, onVisit, onHover }: LaptopProps) {
           </div>
         </Html>
       )}
-      {/* At the end of the last line of code. */}
-      <mesh ref={cursor} position={[w * (-0.5 + 195 / 600), h * (0.5 - 348 / 392), 0.0004]}>
-        <planeGeometry args={[w * (7 / 600), h * (13 / 392)]} />
-        <meshBasicMaterial color="#d9d4c7" toneMapped={false} />
-      </mesh>
     </group>
   );
 }
