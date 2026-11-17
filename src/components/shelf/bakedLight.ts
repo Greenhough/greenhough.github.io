@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import manifest from './box-bake.json';
-import { roomLight } from './clock';
+import { deskLight, roomLight } from './clock';
 import { model } from './models';
 
 /**
@@ -20,6 +20,25 @@ import { model } from './models';
  * box-bake.json, written by scripts/shelf.py alongside the atlas.
  */
 export const BOX_LIGHT = model('box-bake.webp');
+
+/**
+ * The desk lamp's own light on the same Books, over the same tiles, and black
+ * everywhere but the Book stack. Added to the atlas above while the lamp is
+ * on: see light_layer() in scripts/shelf.py, which is why there are two.
+ */
+const BOX_DESK_LIGHT = model('box-desk.webp');
+const deskMap = { value: null as THREE.Texture | null };
+
+/** Fetched the first time something asks. Until it lands the sampler reads black: the lamp is a moment late. */
+function deskLamplight() {
+  if (!deskMap.value) {
+    const texture = new THREE.TextureLoader().load(BOX_DESK_LIGHT);
+    texture.flipY = false;
+    texture.colorSpace = THREE.SRGBColorSpace;
+    deskMap.value = texture;
+  }
+  return deskMap;
+}
 
 /** Where a Book's light is in the atlas (u, v, size), and how far it is lifted. */
 export type Tile = [number, number, number, number];
@@ -93,12 +112,16 @@ const room = { value: roomLight };
  * The atlas rides in the light map slot with its intensity at zero: that gets
  * the second UV set and the sampler wired up by three without three adding
  * the texel to the lighting itself, and the patch below does the mixing.
+ *
+ * `underDeskLamp` is for the Book stack: its light is the atlas plus the desk
+ * lamp's own, by however far on the lamp is.
  */
 export function bakeInto<T extends THREE.MeshStandardMaterial>(
   material: T,
   light: THREE.Texture,
   tile: Tile,
-  live: { value: number }
+  live: { value: number },
+  underDeskLamp = false
 ): T {
   material.lightMap = light;
   material.lightMapIntensity = 0;
@@ -109,20 +132,28 @@ export function bakeInto<T extends THREE.MeshStandardMaterial>(
     shader.uniforms.uTile = tileUniform;
     shader.uniforms.uGain = gain;
     shader.uniforms.uRoom = room;
+    if (underDeskLamp) {
+      shader.uniforms.uDeskMap = deskLamplight();
+      shader.uniforms.uDesk = deskLight;
+    }
     shader.fragmentShader = shader.fragmentShader
       .replace(
         '#include <common>',
-        '#include <common>\nuniform float uLive;\nuniform vec4 uTile;\nuniform float uGain;\nuniform vec3 uRoom;'
+        '#include <common>\nuniform float uLive;\nuniform vec4 uTile;\nuniform float uGain;\nuniform vec3 uRoom;' +
+          (underDeskLamp ? '\nuniform sampler2D uDeskMap;\nuniform float uDesk;' : '')
       )
       .replace(
         '#include <opaque_fragment>',
         `#ifdef USE_LIGHTMAP
-          vec3 restLight = texture2D( lightMap, vLightMapUv * uTile.z + uTile.xy ).rgb * uGain * uTile.w * uRoom;
+          vec2 restUv = vLightMapUv * uTile.z + uTile.xy;
+          vec3 restTexel = texture2D( lightMap, restUv ).rgb;
+          ${underDeskLamp ? 'restTexel += texture2D( uDeskMap, restUv ).rgb * uDesk;' : ''}
+          vec3 restLight = restTexel * uGain * uTile.w * uRoom;
           outgoingLight = mix( diffuseColor.rgb * restLight, outgoingLight, uLive );
         #endif
         #include <opaque_fragment>`
       );
   };
-  material.customProgramCacheKey = () => 'book-at-rest';
+  material.customProgramCacheKey = () => (underDeskLamp ? 'book-under-desk-lamp' : 'book-at-rest');
   return material;
 }

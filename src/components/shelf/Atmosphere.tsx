@@ -3,7 +3,9 @@ import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
 import { Html, useTexture } from '@react-three/drei';
 import Bones from '../bones/Bones';
-import { lampsNow, roomTime } from './clock';
+import { deskLampNow, lampsNow, roomTime } from './clock';
+import room from './room.json';
+import { WEATHER, Weather } from './Weather';
 import { model } from './models';
 import { chooseColumn, newGame, place, roll, scores } from '../../lib/bones';
 import type { Face, Game, Player } from '../../lib/bones';
@@ -17,15 +19,23 @@ import type { Face, Game, Player } from '../../lib/bones';
  * reflection and dust are all light themselves, drawn unlit and added on.
  * That is why these are live and a chair is not. See docs/adr/0006.
  *
- * Positions mirror scripts/shelf.py and have to agree with it.
+ * Positions mirror scripts/shelf.py and have to agree with it. Where the lamps
+ * are comes from room.json, which the bake writes: they are borrowed models,
+ * stood and turned by the script, and nobody could keep those numbers in step
+ * by hand.
  */
 const FLOOR_Y = -1.2975;
 const DESK_TOP = FLOOR_Y + 0.74;
 /** The glass, set back in its reveal. */
 const GLASS_Z = -0.52 - 0.14;
 
-const LAMP = new THREE.Vector3(1.62, FLOOR_Y + 1.3 + 0.12, 0.72);
-const DESK_LAMP = new THREE.Vector3(-2.46, DESK_TOP + 0.3 + 0.0625, -0.31);
+const at = (p: number[]) => new THREE.Vector3(p[0], p[1], p[2]);
+/** The floor lamp's bulb, up inside its dome, and the mouth of the dome under it. */
+const LAMP = at(room.floorLamp.bulb);
+const LAMP_MOUTH = LAMP.clone().add(new THREE.Vector3(0, -0.07, 0));
+const DESK_LAMP = at(room.deskLamp.bulb);
+/** The room light, on the ceiling in front of the Shelf. */
+const CEILING = at(room.ceilingLight.at);
 const SCREEN = new THREE.Vector3(-1.6, DESK_TOP + 0.108, -0.306);
 
 /** Where something in the room appears to be, seen in the window glass. */
@@ -54,18 +64,80 @@ const HORIZON_Y = -0.12;
  *
  * Not a View: in this codebase that word means a place the camera stands.
  */
+const PRAIRIE_VERTEX = /* glsl */ `
+  varying vec2 vUv;
+  void main() {
+    vUv = uv;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }
+`;
+
+/**
+ * The painting, and what the weather does to it.
+ *
+ * The wind is always there: the edges of the fields ripple a little, which is
+ * as much as grass a kilometre off ever shows. In rain or snow the sky closes
+ * in, its colour going to grey and the band of light along the horizon mostly
+ * out. In snow the ground goes pale, and blue, since the only light left on it
+ * is the sky's.
+ *
+ * The horizon is the middle of the picture, so "ground" here is the lower half.
+ */
+const PRAIRIE_FRAGMENT = /* glsl */ `
+  uniform sampler2D uMap;
+  uniform float uTime;
+  uniform float uOvercast;
+  uniform float uSnow;
+  varying vec2 vUv;
+
+  void main() {
+    vec2 uv = vUv;
+    float ground = smoothstep(0.495, 0.44, uv.y);
+    // Gusts crossing the fields, left to right, nearer ones moving more.
+    float near = ground * (1.0 - uv.y * 1.6);
+    uv.y += sin(uv.x * 150.0 - uTime * 1.1 + sin(uv.x * 23.0 + uTime * 0.3) * 2.0) * 0.0011 * near;
+    vec3 colour = texture2D(uMap, uv).rgb;
+
+    float light = dot(colour, vec3(0.2126, 0.7152, 0.0722));
+    vec3 closed = vec3(light) * vec3(0.72, 0.80, 0.96) * 0.62 + vec3(0.012, 0.016, 0.028);
+    colour = mix(colour, closed, uOvercast * (1.0 - ground * 0.4));
+
+    // Snow lying. Blue, and not much brighter than the sky it is under; the
+    // fields keep their stripes, as stubble and fence lines do through snow.
+    vec3 lying = vec3(0.026, 0.034, 0.062) * (0.7 + 0.5 * smoothstep(0.0, 0.5, uv.y)) + colour * 2.2;
+    colour = mix(colour, lying, uSnow * smoothstep(0.492, 0.468, vUv.y));
+
+    gl_FragColor = vec4(colour, 1.0);
+    #include <colorspace_fragment>
+  }
+`;
+
 function Prairie() {
   const map = useTexture(PRAIRIE);
-  useMemo(() => {
+  const material = useMemo(() => {
     map.colorSpace = THREE.SRGBColorSpace;
     map.anisotropy = 8;
     map.needsUpdate = true;
+    return new THREE.ShaderMaterial({
+      vertexShader: PRAIRIE_VERTEX,
+      fragmentShader: PRAIRIE_FRAGMENT,
+      uniforms: {
+        uMap: { value: map },
+        uTime: { value: 0 },
+        uOvercast: { value: WEATHER === 'rain' ? 0.8 : WEATHER === 'snow' ? 0.65 : 0 },
+        uSnow: { value: WEATHER === 'snow' ? 1 : 0 },
+      },
+      toneMapped: false,
+      fog: false,
+    });
   }, [map]);
+  useFrame(() => {
+    material.uniforms.uTime.value = roomTime();
+  });
 
   return (
-    <mesh position={[-1.7, HORIZON_Y, GLASS_Z - PRAIRIE_DISTANCE]}>
+    <mesh position={[-1.7, HORIZON_Y, GLASS_Z - PRAIRIE_DISTANCE]} material={material}>
       <planeGeometry args={[PRAIRIE_WIDTH, PRAIRIE_WIDTH / PRAIRIE_ASPECT]} />
-      <meshBasicMaterial map={map} toneMapped={false} fog={false} />
     </mesh>
   );
 }
@@ -381,23 +453,28 @@ interface GlowSpec {
   size: number;
   colour: string;
   strength: number;
-  /** Lamps come on with the lamps. The screen was on already. */
-  lamp: boolean;
+  /** What it is the glow of: the lamps strike, the desk lamp also switches, the screen was on already. */
+  by: 'lamps' | 'desk' | 'screen';
   /** Each breathes on its own time, or they read as one light pulsing. */
   phase: number;
 }
 
 const GLOWS: GlowSpec[] = [
-  // The bloom a bright shade has to the eye and a bake has not.
-  { at: LAMP, size: 1.5, colour: '#ffc98a', strength: 0.22, lamp: true, phase: 0 },
-  { at: DESK_LAMP, size: 0.85, colour: '#ffcf96', strength: 0.16, lamp: true, phase: 1.9 },
-  { at: SCREEN, size: 0.6, colour: '#9db8ff', strength: 0.16, lamp: false, phase: 3.1 },
-  // The same three, where the window glass shows them. Behind the wall as far
+  // The bloom a bright lamp has to the eye and a bake has not. The floor
+  // lamp's is small and low: its dome is black metal, and all that shows of
+  // its light is the mouth.
+  { at: LAMP_MOUTH, size: 0.8, colour: '#ffc98a', strength: 0.2, by: 'lamps', phase: 0 },
+  { at: DESK_LAMP, size: 0.6, colour: '#ffcf96', strength: 0.2, by: 'desk', phase: 1.9 },
+  { at: SCREEN, size: 0.6, colour: '#9db8ff', strength: 0.16, by: 'screen', phase: 3.1 },
+  // Only a phone, pulled right back, looks high enough to see this one.
+  { at: CEILING, size: 1.2, colour: '#ffd9a8', strength: 0.22, by: 'lamps', phase: 4.4 },
+  // The same four, where the window glass shows them. Behind the wall as far
   // as the scene is concerned, so they are only ever seen through the opening,
   // which is exactly where a reflection in that glass would be seen.
-  { at: inGlass(DESK_LAMP), size: 0.42, colour: '#ffc98a', strength: 0.5, lamp: true, phase: 1.9 },
-  { at: inGlass(SCREEN), size: 0.34, colour: '#9db8ff', strength: 0.2, lamp: false, phase: 3.1 },
-  { at: inGlass(LAMP), size: 0.7, colour: '#ffc98a', strength: 0.4, lamp: true, phase: 0 },
+  { at: inGlass(DESK_LAMP), size: 0.42, colour: '#ffc98a', strength: 0.5, by: 'desk', phase: 1.9 },
+  { at: inGlass(SCREEN), size: 0.34, colour: '#9db8ff', strength: 0.2, by: 'screen', phase: 3.1 },
+  { at: inGlass(LAMP_MOUTH), size: 0.5, colour: '#ffc98a', strength: 0.3, by: 'lamps', phase: 0 },
+  { at: inGlass(CEILING), size: 0.7, colour: '#ffd9a8', strength: 0.35, by: 'lamps', phase: 4.4 },
 ];
 
 function Glows() {
@@ -406,13 +483,13 @@ function Glows() {
 
   useFrame(() => {
     const t = roomTime();
-    const lamps = lampsNow();
+    const level = { lamps: lampsNow(), desk: deskLampNow(), screen: 1 };
     GLOWS.forEach((glow, i) => {
       const material = materials.current[i];
       if (!material) return;
       // A filament is never quite steady. Two slow sines, a few percent.
       const breath = 1 + 0.035 * Math.sin(t * 1.7 + glow.phase) + 0.02 * Math.sin(t * 4.3 + glow.phase * 2.0);
-      material.opacity = glow.strength * breath * (glow.lamp ? lamps : 1);
+      material.opacity = glow.strength * breath * level[glow.by];
     });
   });
 
@@ -443,6 +520,7 @@ function Glows() {
 const DUST_VERTEX = /* glsl */ `
   uniform float uTime;
   uniform float uLamps;
+  uniform float uDesk;
   uniform float uPixels;
   uniform vec3 uLamp;
   uniform vec3 uDeskLamp;
@@ -460,7 +538,7 @@ const DUST_VERTEX = /* glsl */ `
     // Dust is only ever seen in light. Bright near a shade, gone a metre out.
     float a = 1.0 - smoothstep(0.12, 1.05, distance(p, uLamp));
     float b = 1.0 - smoothstep(0.08, 0.62, distance(p, uDeskLamp));
-    vLit = max(a, b * 0.9) * uLamps * (0.35 + 0.65 * aSeed.w);
+    vLit = max(a * uLamps, b * 0.9 * uDesk) * (0.35 + 0.65 * aSeed.w);
 
     vec4 mv = modelViewMatrix * vec4(p, 1.0);
     gl_Position = projectionMatrix * mv;
@@ -477,6 +555,9 @@ const DUST_FRAGMENT = /* glsl */ `
   }
 `;
 
+/** The middle of the light under the floor lamp's dome, where its dust shows. */
+const DUST_LAMP = LAMP_MOUTH.clone().add(new THREE.Vector3(0, -0.3, 0));
+
 /** Motes in the lamplight. Two hundred and twenty points and one draw call. */
 function Dust() {
   const { geometry, material } = useMemo(() => {
@@ -490,9 +571,9 @@ function Dust() {
       return s / 0x7fffffff;
     };
     for (let i = 0; i < count; i++) {
-      // Two thirds round the floor lamp, the rest round the desk lamp.
-      const round = i % 3 === 0 ? DESK_LAMP : LAMP;
-      const reach = round === LAMP ? 0.95 : 0.55;
+      // Two thirds under the floor lamp's dome, the rest round the desk lamp.
+      const round = i % 3 === 0 ? DESK_LAMP : DUST_LAMP;
+      const reach = round === DUST_LAMP ? 0.8 : 0.5;
       positions[i * 3] = round.x + (rand() - 0.5) * 2 * reach;
       positions[i * 3 + 1] = round.y + (rand() - 0.72) * 1.5 * reach;
       positions[i * 3 + 2] = round.z + (rand() - 0.5) * 2 * reach;
@@ -507,8 +588,9 @@ function Dust() {
       uniforms: {
         uTime: { value: 0 },
         uLamps: { value: 0 },
+        uDesk: { value: 0 },
         uPixels: { value: 1000 },
-        uLamp: { value: LAMP },
+        uLamp: { value: DUST_LAMP },
         uDeskLamp: { value: DESK_LAMP },
       },
       transparent: true,
@@ -523,6 +605,7 @@ function Dust() {
     const t = roomTime();
     material.uniforms.uTime.value = t;
     material.uniforms.uLamps.value = lampsNow();
+    material.uniforms.uDesk.value = deskLampNow();
     // Point size is in drawing-buffer pixels, so it follows the canvas height
     // and the pixel ratio, or the motes change size with the window.
     material.uniforms.uPixels.value = size.height * viewport.dpr * 1.3;
@@ -538,6 +621,7 @@ export function Atmosphere() {
   return (
     <>
       <Prairie />
+      <Weather />
       <Glows />
       <Dust />
     </>

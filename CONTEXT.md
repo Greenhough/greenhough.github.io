@@ -38,8 +38,16 @@ What is outside the Window: a low horizon at dusk, painted by a script and drawn
 _Avoid_: view (which means a camera position), backdrop, sky, skybox
 
 **Lamp**:
-The floor lamp to the right of the Shelf. The Room's warm light and most of what makes it visible, since the Window alone leaves it nearly black. The Desk has a smaller one of its own.
+The floor lamp in the back right corner, behind the tall plant: an arc lamp with a black dome that leans out over the plant and the end of the Console. It lights the corner. The Desk has a smaller one of its own, the Desk lamp.
 _Avoid_: light, lighting, practical
+
+**Room light**:
+The flush opal fitting on the ceiling, out in front of the Shelf. The Room's warm light and most of what makes it visible, since the Window alone leaves it nearly black and the Lamp's dome throws its light straight down. Out of frame from the Shelf; a phone, pulled right back, sees it.
+_Avoid_: ceiling lamp, overhead, big light, Lamp (which is the floor lamp)
+
+**Desk lamp**:
+The task lamp on the Desk: a black shade on an oak foot. The one light in the Room with a switch. Clicked, it goes off and the Desk drops to the light of the Window and the Laptop; clicked again, it comes back. It leads nowhere and has no View, like the Bust.
+_Avoid_: Lamp (which is the floor lamp), reading light, switch (which is what clicking it does, not what it is)
 
 **Desk**:
 The desk under the Window, left of the Shelf, with a chair at it. Where the latest Post lives, as the Sheet. Carries a lamp, an open laptop, a plant and the Book stack.
@@ -64,6 +72,18 @@ _Avoid_: angle, shot, scene, page
 **Sheet**:
 The piece of paper on the Desk carrying the latest Post. Lies flat until the camera comes to the Desk, then stands up to be read. Painted at runtime, never baked.
 _Avoid_: card, note, panel
+
+**Clock**:
+The clock on the left wall over the Desk. Its hands show the hour where the visitor is, and its second hand ticks. The only thing in the Room that knows what time it is: the Room's own light stays at dusk.
+_Avoid_: timer, watch, time (which in the code is the Room's own clock, the one `?t=` freezes)
+
+**Weather**:
+What it is doing on the Prairie today: clear, rain or snow, picked by the date and by chance and the same all day. Rain runs down the Window's glass; snow comes down past it and lies on the fields. Never taken from where the visitor is.
+_Avoid_: forecast, conditions, effect, storm
+
+**Sound**:
+What the Room sounds like, once the visitor switches it on in the nav: the wind off the Prairie, rain when there is rain, the Clock, a Box sliding out, the Sheet being picked up, the needle going down on a record. Off until asked for. Made in the browser, not recorded; the Bust's voice is a recording and is not part of it.
+_Avoid_: audio, music (which is what the Record player plays), soundtrack, SFX
 
 **Pinboard**:
 The cork board on the back wall right of the Shelf, with blank paper pinned to it. Dressing: nothing on it is clickable.
@@ -98,7 +118,7 @@ The one line of Marcus Aurelius the Bust speaks when clicked, credited to its tr
 _Avoid_: quote of the day, easter egg
 
 **Live part**:
-Something in the Room drawn on top of the bake because it moves: the Prairie, the glow of the Lamps, their reflection in the Window glass, dust, leaves, the record, the Paintings, the Sleeve that is out. Each is either light itself or moves too little to need relighting, which is what lets it be live.
+Something in the Room drawn on top of the bake because it moves: the Prairie, the Weather, the glow of the Lamps, their reflection in the Window glass, dust, leaves, the record, the Paintings, the Sleeve that is out, the Clock's face and hands. Each is either light itself or moves too little to need relighting, which is what lets it be live.
 _Avoid_: effect, animation, particle
 
 **At rest** / **In the hand**:

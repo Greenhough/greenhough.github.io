@@ -2,7 +2,7 @@ import { useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
 import { useGLTF, useTexture } from '@react-three/drei';
-import { isFrozen, lampsNow, roomLight, roomTime, setLamps, turntable } from './clock';
+import { deskLight, isFrozen, lampsNow, roomLight, roomTime, setLamps, stepDeskLamp, turntable } from './clock';
 import { voiceLevel } from './voice';
 import { model } from './models';
 
@@ -19,6 +19,12 @@ const CARCASS_ATLAS = model('shelf-bake.webp');
 /** The room atlas is 4096 on a desktop and half that on a phone. */
 const ROOM_ATLAS = model('room-bake.webp');
 const ROOM_ATLAS_SMALL = model('room-bake-2k.webp');
+/**
+ * The desk lamp's own light on the Room, and nothing else: black but for a
+ * pool on the Desk. Added to the Room's atlas while the lamp is on. See
+ * light_layer() in scripts/shelf.py.
+ */
+const DESK_ATLAS = model('room-desk.webp');
 /**
  * The Monstera's leaves are cut-out cards. This is where the holes are, read
  * through each leaf's second UV set: see build_floor_plant() in shelf.py.
@@ -57,6 +63,30 @@ function prepare(texture: THREE.Texture) {
   return texture;
 }
 
+/**
+ * Give a baked material the desk lamp's light as well.
+ *
+ * Light adds, so the Room with the lamp on is the Room without it plus what
+ * the lamp alone throws, and both of those are atlases over the same UVs. The
+ * sum is taken here, in linear light, before the Room's own colour scales it:
+ * so the lamps still strike together, and switching this one is a number.
+ */
+function withDeskLight(material: THREE.MeshBasicMaterial, deskMap: THREE.Texture) {
+  material.onBeforeCompile = (shader) => {
+    shader.uniforms.uDeskMap = { value: deskMap };
+    shader.uniforms.uDesk = deskLight;
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', '#include <common>\nuniform sampler2D uDeskMap;\nuniform float uDesk;')
+      .replace(
+        '#include <map_fragment>',
+        '#include <map_fragment>\ndiffuseColor.rgb += diffuse * texture2D( uDeskMap, vMapUv ).rgb * uDesk;'
+      );
+  };
+  // Or three hands it the program compiled for a plain material with a map.
+  material.customProgramCacheKey = () => 'desk-light';
+  return material;
+}
+
 interface Leaf {
   object: THREE.Object3D;
   rest: THREE.Euler;
@@ -90,10 +120,11 @@ export function ShelfModel({ phone = false, onBust, onHover }: Props) {
   const bustHovered = useRef(false);
   const bustVoice = useRef(0);
   const { scene } = useGLTF(MODEL);
-  const [carcassMap, roomMap, leafMask] = useTexture([
+  const [carcassMap, roomMap, leafMask, deskMap] = useTexture([
     CARCASS_ATLAS,
     phone ? ROOM_ATLAS_SMALL : ROOM_ATLAS,
     LEAF_MASK,
+    DESK_ATLAS,
   ]);
 
   const built = useMemo(() => {
@@ -111,7 +142,11 @@ export function ShelfModel({ phone = false, onBust, onHover }: Props) {
     };
 
     const carcassMaterial = baked(carcassMap);
-    const roomMaterial = baked(roomMap);
+    // The Room takes the desk lamp, and so does the Book stack (see
+    // bakedLight.ts). The carcass is baked with it on: what it puts on the
+    // Shelf from two metres off is too little to switch.
+    const desk = prepare(deskMap);
+    const roomMaterial = withDeskLight(baked(roomMap), desk);
     // The Bust gets its own copy of the room's material so it alone can
     // brighten under the pointer. Its colour follows roomLight every frame.
     const bustMaterial = new THREE.MeshBasicMaterial({ map: roomMaterial.map, toneMapped: false });
@@ -168,7 +203,7 @@ export function ShelfModel({ phone = false, onBust, onHover }: Props) {
       bustBox = { center: box.getCenter(new THREE.Vector3()), size: box.getSize(new THREE.Vector3()) };
     }
     return { root, leaves, record: record as THREE.Object3D | null, bustMaterial, bustBox };
-  }, [scene, carcassMap, roomMap, leafMask]);
+  }, [scene, carcassMap, roomMap, leafMask, deskMap]);
 
   useFrame((_, delta) => {
     const t = roomTime();
@@ -181,6 +216,8 @@ export function ShelfModel({ phone = false, onBust, onHover }: Props) {
 
     // The lamps strike once, when the room first draws.
     setLamps(lampsNow());
+    // And the desk lamp follows its switch.
+    stepDeskLamp(delta);
 
     // The record turns while a song is playing, and stands still otherwise.
     // Its light is baked, and a baked highlight that turned with it would be
@@ -235,3 +272,4 @@ export function ShelfModel({ phone = false, onBust, onHover }: Props) {
 useGLTF.preload(MODEL);
 useTexture.preload(CARCASS_ATLAS);
 useTexture.preload(LEAF_MASK);
+useTexture.preload(DESK_ATLAS);

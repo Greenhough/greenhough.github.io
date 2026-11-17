@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { hear } from '../shelf/sound';
 import {
   chooseColumn,
   columnScore,
@@ -183,6 +184,19 @@ export default function Bones({ variant = 'page' }: Props) {
     }
     const timer = window.setTimeout(step, wait);
     return () => window.clearTimeout(timer);
+  }, [game]);
+
+  // The dice are heard, where the Room's sound is on (shelf/sound.ts): one
+  // tumbling when it is rolled, one knock when it is put down. Only from the
+  // board that is on screen, for the same reason as the keys below.
+  const before = useRef(game);
+  useEffect(() => {
+    const was = before.current;
+    before.current = game;
+    if (was === game || !root.current || root.current.getClientRects().length === 0) return;
+    const count = (g: Game) => g.boards.flat(2).filter(Boolean).length;
+    if (game.roll !== null && was.roll === null) hear('die');
+    else if (count(game) > count(was)) hear('place');
   }, [game]);
 
   // The end: the tally kept.

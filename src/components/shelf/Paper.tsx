@@ -3,11 +3,14 @@ import * as THREE from 'three';
 import { useFrame, useThree } from '@react-three/fiber';
 import { ensureFonts, paintSheet, toTexture } from './covers';
 import type { ShelfPost } from './types';
-import { easeFor, roomLight } from './clock';
+import { deskLight, easeFor, roomLight } from './clock';
 
 /** What white paper comes out as in the bake: on the desk by the lamp, and held up. */
 const ON_DESK = new THREE.Color(0.80, 0.66, 0.50);
 const HELD_UP = new THREE.Color(0.95, 0.89, 0.80);
+/** Lying on the Desk with the desk lamp off: what the room light and the Window leave on it. */
+const ON_DESK_UNLIT = new THREE.Color(0.5, 0.45, 0.4);
+const lying = new THREE.Color();
 
 /**
  * The sheet of paper on the Desk: the latest Post, lying where someone left it.
@@ -140,7 +143,9 @@ export function Paper({ post, active, onOpen, onHover }: Props) {
     // Larger in the hand: the Desk view stands two metres off.
     lift.current += ((active ? 1 : 0) - lift.current) * ease;
     group.current.scale.setScalar(1 + 0.35 * lift.current);
-    material?.color.copy(ON_DESK).lerp(HELD_UP, lift.current).multiply(roomLight);
+    // Held up it is out of the desk lamp's pool, so only the sheet lying down follows the switch.
+    lying.copy(ON_DESK_UNLIT).lerp(ON_DESK, deskLight.value);
+    material?.color.copy(lying).lerp(HELD_UP, lift.current).multiply(roomLight);
   });
 
   if (!material) return null;

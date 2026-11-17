@@ -122,9 +122,10 @@ export function BookStack({ onOpen, onHover }: Props) {
       const tile = stackTile(i);
       const atRest = { value: 0 };
       if (tile) {
-        bakeInto(jacket, light, tile, atRest);
-        bakeInto(cover, light, tile, atRest);
-        bakeInto(spine, light, tile, atRest);
+        // And they go dark with the desk lamp, which stands over them.
+        bakeInto(jacket, light, tile, atRest, true);
+        bakeInto(cover, light, tile, atRest, true);
+        bakeInto(spine, light, tile, atRest, true);
       }
       const own = new Map<string, THREE.MeshStandardMaterial>();
 

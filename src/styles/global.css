@@ -745,10 +745,44 @@ html.shelf-capable .wrap { display: none; }
 .shelf-live .shelf-nav-links a { color: #d9d4c7; }
 .shelf-live .shelf-nav-links a[aria-current='page'] { color: #fff; }
 .shelf-nav a:focus-visible { outline: 3px solid var(--green); outline-offset: 4px; }
+/* The sound switch sits with the links and is dressed as one, with a dot that
+   is lit while the Room is making a noise. */
+.shelf-sound {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  white-space: nowrap;
+  font-family: 'Archivo', sans-serif;
+  font-weight: 600;
+  font-size: 14px;
+  color: #d9d4c7;
+  text-shadow: 0 1px 10px rgb(28 26 22 / .55);
+  transition: color .15s ease;
+}
+.shelf-sound::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  border: 1.5px solid currentColor;
+  transition: background-color .15s ease, border-color .15s ease;
+}
+.shelf-sound[aria-pressed='true'] { color: #fff; }
+.shelf-sound[aria-pressed='true']::before { background: #6fcf9b; border-color: #6fcf9b; }
+.shelf-sound:hover { color: #6fcf9b; }
+.shelf-sound:focus-visible { outline: 3px solid #6fcf9b; outline-offset: 4px; }
 
 @media (max-width: 760px) {
-  .shelf-nav { padding: 16px 20px; }
-  .shelf-brand-name { font-size: 13px; }
+  .shelf-nav { padding: 16px 20px; gap: 12px; }
+  .shelf-brand-name { font-size: 13px; white-space: nowrap; }
+  .shelf-nav-links { gap: 16px; }
+  /* No room for the word. The dot says which way it is, and so does aria-pressed. */
+  .shelf-sound-state { display: none; }
 }
 
 /* ---------- the HUD while Browsing and Inspecting ---------- */

@@ -10,6 +10,8 @@ import { palette } from './palette';
 import { Paper } from './Paper';
 import { Sticker } from './Sticker';
 import { Console } from './Console';
+import { DeskLamp } from './DeskLamp';
+import { WallClock } from './WallClock';
 import { Atmosphere, Laptop, SCREEN_CENTRE, SCREEN_NORMAL, SCREEN_UP } from './Atmosphere';
 import { boxTile } from './bakedLight';
 import { easeFor, isFrozen, roomTime } from './clock';
@@ -97,10 +99,11 @@ const DESK_VIEW = {
 /**
  * The Console, seen from in front of the Shelf's right-hand end.
  *
- * From straight on, the floor lamp's stem stands between the camera and the
- * Console and cuts it in half. From here, left of the lamp, the stem falls
- * to the right of the Console, between it and the tall plant, and the two
- * paintings, the Record player and both bays are clear.
+ * From the left of it, looking along the wall: the two paintings, the Record
+ * player and both bays are clear, and the floor lamp's dome hangs over the
+ * far end with the tall plant under it. (It was composed to keep clear of
+ * the floor lamp's stem, when the lamp stood in front of the Console. The
+ * lamp has gone to the corner and the view was worth keeping.)
  */
 const CONSOLE_VIEW = {
   position: new THREE.Vector3(0.9, -0.4, 1.65),
@@ -342,10 +345,20 @@ export function Scene({
         docs/adr/0003 wearing a different hat.
       */}
       <Environment resolution={128}>
-        {/* The lamp, camera-right and a little forward of the Shelf, where
-            scripts/shelf.py stands it. Warm, and by far the strongest: at this
-            hour it is doing the work the window used to do. */}
-        <Lightformer intensity={3.1} position={[2.6, 0.5, 1.5]} scale={[4, 4, 1]} color="#ffd9a2" />
+        {/* The room light, on the ceiling out in front of the Shelf and a
+            little to its right, where scripts/shelf.py hangs it. Warm, and by
+            far the strongest: it is what lights the Spines, now that the floor
+            lamp is in the corner. A panel overhead and one below it on the
+            lamp's side, because a ceiling light fills a room by way of the
+            walls as much as it lights anything directly. */}
+        <Lightformer
+          intensity={3.0}
+          position={[0.9, 2.6, 1.9]}
+          rotation={[Math.PI / 2, 0, 0]}
+          scale={[4, 4, 1]}
+          color="#ffd9a2"
+        />
+        <Lightformer intensity={1.5} position={[2.8, 0.6, 1.4]} scale={[3, 3, 1]} color="#ffd3a0" />
         {/* The window, back-left and behind the Shelf. Cool, dim, and opposite
             the lamp — that opposition is what models a Box at night. */}
         <Lightformer intensity={0.85} position={[-2.4, 0.5, -1.8]} scale={[4, 4, 1]} color="#5d7fc4" />
@@ -361,12 +374,12 @@ export function Scene({
       </Environment>
 
       {/* Just enough direct light to throw a shadow; the environment does the
-          shading. It comes from the lamp's side now, so a Box's shadow falls
-          the same way as the carcass's does in the bake. Ambient is lower than
+          shading. It comes from the room light, so a Box's shadow falls the
+          same way as the carcass's does in the bake. Ambient is lower than
           daylight wanted and faintly blue, standing for the window. */}
       <ambientLight intensity={0.06} color="#9fb2d8" />
       <directionalLight
-        position={[2.6, 1.0, 1.6]}
+        position={[0.9, 2.2, 1.9]}
         intensity={0.75}
         color="#ffd9a6"
         castShadow
@@ -390,6 +403,13 @@ export function Scene({
 
       {/* A Claude sticker on the Pinboard. */}
       <Sticker />
+
+      {/* The clock over the Pinboard: its face and its hands, at the
+          visitor's own time. */}
+      <WallClock />
+
+      {/* The desk lamp's switch. The lamp is baked; this is what is clicked. */}
+      <DeskLamp onHover={onHover} />
 
       {/* The Console's live parts: the paintings over it, the record that is
           out of its sleeve row, and the names on the Board games. */}

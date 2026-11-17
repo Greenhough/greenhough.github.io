@@ -81,6 +81,36 @@ export function setLamps(level: number): void {
 }
 
 /**
+ * The desk lamp: the one light in the Room with a switch.
+ *
+ * Its light on the Room is baked on its own and added to the Room's atlas by
+ * this much: see light_layer() in scripts/shelf.py and ShelfModel. `?lamp=off`
+ * starts it off, so a still of the Room without it is a URL like any other.
+ */
+const startsOff =
+  typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('lamp') === 'off';
+export const deskLamp = { on: !startsOff };
+let deskLevel = deskLamp.on ? 1 : 0;
+
+/**
+ * How far on the desk lamp is, as the one uniform every material that takes
+ * its light shares: the Room's, and the Book stack's.
+ */
+export const deskLight = { value: 0 };
+
+/** Move the desk lamp towards where its switch is. Once a frame, by ShelfModel. */
+export function stepDeskLamp(delta: number): void {
+  // A filament, not a fade: nearly all the way in a tenth of a second.
+  deskLevel += ((deskLamp.on ? 1 : 0) - deskLevel) * easeFor(delta, 1e-9);
+  deskLight.value = deskLampNow();
+}
+
+/** How far on the desk lamp is, 0 to 1: its own switch, and the strike it shares. */
+export function deskLampNow(): number {
+  return deskLevel * lampsNow();
+}
+
+/**
  * The Record player. The record turns only while a song is playing, so the
  * room says what the page is doing: ShelfModel reads this every frame and the
  * island writes it when a record is put on or taken off.

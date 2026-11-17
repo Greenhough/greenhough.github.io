@@ -1,8 +1,10 @@
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { Scene } from './Scene';
 import { turntable } from './clock';
 import { hush, speak } from './voice';
+import { hear, onSound, setSound, soundOn, soundPlace, soundRecord, soundWeather } from './sound';
+import { WEATHER } from './Weather';
 import Bones from '../bones/Bones';
 import { MEDITATION } from '../../data/meditation';
 import type {
@@ -107,6 +109,25 @@ export default function Shelf({
   const [phone] = useState(() => isPhone());
   const dpr = useMemo<[number, number]>(() => [1, phone ? 1.5 : 2], [phone]);
 
+  // The Room's sound: off until the switch in the nav is clicked. See sound.ts.
+  const sounding = useSyncExternalStore(onSound, soundOn, () => false);
+  // Rain is heard as well as seen, and snow comes with more wind.
+  useEffect(() => soundWeather(WEATHER), []);
+  // Where the camera stands is where the listener stands.
+  useEffect(() => soundPlace(place), [place]);
+  // The stylus going down, and the record's surface for as long as it turns.
+  useEffect(() => soundRecord(playing), [playing]);
+  // A Box sliding out as it is pointed at.
+  useEffect(() => {
+    if (focusedSlug && state === 'browsing') hear('slide');
+  }, [focusedSlug]);
+  // The Sheet standing up, a moment after the camera sets off for the Desk.
+  useEffect(() => {
+    if (place !== 'desk') return;
+    const timer = window.setTimeout(() => hear('paper'), 650);
+    return () => window.clearTimeout(timer);
+  }, [place]);
+
   useEffect(() => {
     document.documentElement.classList.add(LIVE_CLASS);
     return () => document.documentElement.classList.remove(LIVE_CLASS);
@@ -121,10 +142,11 @@ export default function Shelf({
   }, []);
 
   const browse = useCallback(() => {
+    if (state !== 'browsing') hear('back');
     setState('browsing');
     setPlace('shelf');
     pushUrl('/');
-  }, [pushUrl]);
+  }, [pushUrl, state]);
 
   /**
    * The navigation moves the camera instead of loading a page.
@@ -146,6 +168,7 @@ export default function Shelf({
   const flipRecord = useCallback(
     (by = 1) => {
       if (records.length === 0) return;
+      hear('flip');
       setRecordIndex((i) => (i + by + records.length) % records.length);
     },
     [records.length]
@@ -215,6 +238,7 @@ export default function Shelf({
 
   const inspect = useCallback(
     (slug: string) => {
+      hear('take');
       setFocusedSlug(slug);
       setState('inspecting');
       setPlace('shelf');
@@ -398,6 +422,15 @@ export default function Shelf({
           >
             Writing
           </a>
+          {/* The Room's sound. A switch, not a link, and it says which way it is. */}
+          <button
+            type="button"
+            className="shelf-sound"
+            aria-pressed={sounding}
+            onClick={() => setSound(!sounding)}
+          >
+            Sound <span className="shelf-sound-state">{sounding ? 'on' : 'off'}</span>
+          </button>
         </div>
       </nav>
 

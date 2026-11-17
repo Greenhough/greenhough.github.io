@@ -23,6 +23,15 @@ const ATLASES = [
   // show the difference nor the memory to spare, and gets a quarter of it.
   { source: `${FROM}/room-bake.png`, out: 'public/models/room-bake.webp', size: 4096, quality: 80 },
   { source: `${FROM}/room-bake.png`, out: 'public/models/room-bake-2k.webp' },
+  // The desk lamp's own light on the room, which the site adds to the room's
+  // atlas while the lamp is on: see light_layer() in scripts/shelf.py. Black
+  // but for one pool of light, so it is small at any quality; kept high,
+  // because it is added to another picture and its blocks would show in the
+  // dark half of that one.
+  { source: `${FROM}/room-desk.png`, out: 'public/models/room-desk.webp', size: 2048, quality: 90 },
+  // The clock's printed face, for WallClock.tsx to draw over the baked case.
+  // Rendered by `--clock-face build/clock-face.png`, and has an alpha.
+  { source: 'build/clock-face.png', out: 'public/models/clock-face.webp', size: 512, quality: 88 },
   // The light on the Books at rest: see docs/adr/0006. Light, not colour, and
   // multiplied by four when it is read, so it is kept a little cleaner than a
   // picture needs to be.
@@ -31,6 +40,9 @@ const ATLASES = [
   // gradient, the bake is already smoothed, and at 1024 each Book still has
   // a 340px tile to itself. It is a quarter of the download.
   { source: `${FROM}/box-bake.png`, out: 'public/models/box-bake.webp', size: 1024, quality: 90 },
+  // The desk lamp's own light on the Books: black but for the Book stack. See
+  // bakedLight.ts.
+  { source: `${FROM}/box-bake-desk.png`, out: 'public/models/box-desk.webp', size: 512, quality: 90 },
   // The Monstera's leaf cut-out, read as an alphaMap through the leaves'
   // second UV set: see build_floor_plant() in scripts/shelf.py. Kept at the
   // source's full 1024, because its only job is a crisp edge on each hole.
@@ -53,13 +65,7 @@ const kb = (n) => `${Math.round(n / 1024)}KB`;
 for (const { source, out, size = SIZE, quality = QUALITY } of ATLASES) {
   if (!existsSync(source)) {
     console.error(
-      `No bake at ${source}. Run the Blender bake first:\n` +
-        '  /Applications/Blender.app/Contents/MacOS/Blender --background \\\n' +
-        '    --python scripts/shelf.py -- --bake build/shelf-bake.png \\\n' +
-        '      --bake-room build/room-bake.png --room-size 4096 \\\n' +
-        '      --bake-boxes build/box-bake.png \\\n' +
-        '      --boxes-manifest src/components/shelf/box-bake.json \\\n' +
-        '      --book-export public/models/book.glb --export public/models/shelf.glb'
+      `No bake at ${source}. Run the Blender bake first: the full command is at the top of scripts/shelf.py.`
     );
     process.exit(1);
   }

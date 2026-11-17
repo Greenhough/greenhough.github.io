@@ -8,17 +8,26 @@ are build artifacts. See docs/adr/0003.
     /Applications/Blender.app/Contents/MacOS/Blender --background \
         --python scripts/shelf.py -- --view site --render build/preview.png
 
-    # the full rebuild: three atlases, both .glb files, and the unlit check
+    # the full rebuild: five atlases, both .glb files, and the unlit check
+    node scripts/fetch-models.mjs   # the borrowed models, once per machine
     caffeinate -i /Applications/Blender.app/Contents/MacOS/Blender --background \
         --python scripts/shelf.py -- --view site --width 1280 --height 720 \
         --bake build/shelf-bake.png \
         --bake-room build/room-bake.png --room-size 4096 \
+        --bake-desk build/room-desk.png \
         --bake-boxes build/box-bake.png \
         --boxes-manifest src/components/shelf/box-bake.json \
         --book-export public/models/book.glb \
         --export public/models/shelf.glb --show-baked build/baked-check.png
+    /Applications/Blender.app/Contents/MacOS/Blender --background \
+        --python scripts/shelf.py -- --clock-face build/clock-face.png
     node scripts/bake-to-webp.mjs
     node scripts/prairie.mjs        # only if the view outside has changed
+
+--bake-desk is what lets the desk lamp switch: the room and the Books are each
+baked twice, without the desk lamp and with nothing else, and the site adds
+the two. See light_layer(). The export also writes room.json, which tells the
+site where the lamps and the clock ended up.
 
 The third atlas is the light on the Books at rest, and the bake reads
 src/content/work/ to know which Project stands in which slot: see
@@ -105,20 +114,28 @@ ROOM = {
 # the floor stops, which is what docs/adr/0004 closed the room for.
 SKIRTING = {"height": 0.105, "depth": 0.020}
 
-# A floor lamp, camera-right of the carcass. Daylight did not need one; an
-# evening does, and not as dressing: with only a dusk window the room goes
-# nearly black and the Shelf disappears. It stands opposite the window so the
-# warm lamp and the cool sky bracket the carcass from either side, which is
-# most of why an evening interior reads as one.
-LAMP = {
-    "x": 1.62,
-    "z": 0.72,  # a little in front of the carcass, so it rakes the Covers
-    "height": 1.30,  # floor to the underside of the shade
-    "shade_r": 0.17,
-    "shade_h": 0.24,
-    "base_r": 0.15,
-    "stem_r": 0.011,
-}
+# The floor lamp, in the back right corner behind the Monstera: an arc lamp
+# with a black dome, its head leaning out over the plant and the console's
+# end. It stood in front of the console first, a drum shade in the middle of
+# the floor, because from there it raked the Covers; it was also in the way of
+# everything behind it. In the corner it lights the corner, which is what a
+# lamp in a corner does, and the Shelf gets its light from the ceiling: see
+# CEILING_LIGHT.
+#
+# x and z are where the base stands. `towards` is the way the head leans, in
+# the site's x and z.
+FLOOR_LAMP = {"x": 2.56, "z": -0.30, "towards": (-0.75, 0.66), "scale": 1.25}
+
+# The room light: a flush opal drum on the ceiling, out in front of the Shelf
+# and a little to its right. It is what lights the Spines now that the floor
+# lamp is in the corner. A dome of black metal throws its light straight down,
+# and from the corner the carcass's own side stands between it and the Books.
+#
+# Out in the room rather than over the Shelf, so it reaches the Spines from
+# the front, and right of centre so it still comes from the lamp's side and the
+# window's cool light has the other. At the Shelf it is out of frame: only a
+# phone, pulled right back, looks high enough to see it.
+CEILING_LIGHT = {"x": 0.75, "z": 1.55, "radius": 0.19, "drop": 0.085}
 
 # The desk, under the window. Its top lands 80mm below the window sill.
 DESK = {
@@ -131,22 +148,31 @@ DESK = {
     "leg": 0.05,
 }
 
-# A second, smaller lamp standing on the desk. A desk away from the floor
-# lamp sits dark, and a second pool of warm light is most of what makes an
-# evening room read as somewhere someone works.
-DESK_LAMP = {
-    "x": -2.46,
-    "z": -0.31,
-    "height": 0.30,
-    "shade_r": 0.095,
-    "shade_h": 0.125,
-    "base_r": 0.072,
-    "stem_r": 0.008,
-}
+# A second, smaller lamp standing on the desk: a task lamp, black shade on an
+# oak foot. A desk away from the floor lamp sits dark, and a second pool of
+# warm light is most of what makes an evening room read as somewhere someone
+# works. `towards` is the way the shade points, in the site's x and z: along
+# the desk at the Book stack and the Laptop, and a little out into the room.
+#
+# It is the one lamp that switches. Its light is baked on its own, as a second
+# atlas the site adds to the room's: see light_layer().
+DESK_LAMP = {"x": -2.47, "z": -0.27, "towards": (0.90, 0.44), "scale": 1.25}
 
-# On the back wall, right of the carcass and above the floor lamp's shade,
-# so the lamp lights it.
+# On the back wall, right of the carcass. The floor lamp's dome hangs just
+# below its right-hand corner and lights it from underneath.
 PINBOARD = {"x0": 1.08, "x1": 2.36, "y0": 0.36, "y1": 1.12}
+
+# The clock, on the left wall over the Desk. Its case is baked with the room;
+# its face and hands are drawn by the site, because a baked numeral would be
+# three texels tall and a baked hand could not move. WallClock.tsx reads where
+# it hangs from room.json.
+#
+# It hung on the back wall over the Pinboard first, and looked like the one
+# thing too many on that side of the Shelf. On the left wall it has a wall to
+# itself and the desk lamp under it. `z` is how far along that wall, and it is
+# near the back for the camera's sake: from the Shelf, at 16:9, the left wall
+# is in frame only for its first 0.7 of a unit.
+CLOCK = {"z": -0.14, "y": 0.80, "radius": 0.15}
 
 # In the back wall, left of the carcass, because that is the only wall the
 # default camera sees all of: at 4.4 units back the left wall is in frame for
@@ -791,38 +817,396 @@ def build_window(wall_mat, trim_mat):
     return parts
 
 
-def build_lamp(name, spec, stand_on, metal, shade_mat):
+# Where the borrowed models are: see scripts/fetch-models.mjs, which is also
+# why they are not in the repository.
+MODELS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "build", "models")
+
+# What the site has to know about the room and cannot read off the model:
+# where each bulb is, where the clock hangs, how big the desk lamp is to
+# click. Filled in as the room is built, in the site's own coordinates, and
+# written to src/components/shelf/room.json beside the export.
+ROOM_FACTS = {}
+
+# The desk lamp's light and its bulb, by name: what light_layer() turns off
+# for the room's own bake and leaves on, alone, for the desk lamp's.
+DESK_LIGHT = "DeskBulb"
+DESK_GLOW = "DeskBulbGlow"
+# The same places in Blender's coordinates, for setup_evening().
+_PLACED = {}
+
+
+def site_point(v):
+    """A Blender position as the site's (x, y, z), rounded for room.json."""
+    return [round(v[0], 4), round(v[2], 4), round(-v[1], 4)]
+
+
+def import_model(file, drop=(), smooth=()):
     """
-    A lamp: a base, a stem and a drum shade.
+    Bring one of the borrowed models in from build/models/ as plain meshes:
+    unparented, modifiers applied, standing at the origin as its author left
+    it. Returns the meshes, and the world matrix of any light the file had.
 
-    The shade is emissive and otherwise ordinary: it is opaque, so it blocks
-    the bulb sideways and throws the cone up and down that says "shade", and
-    it glows on camera because a linen shade with a bulb in it does. This is
-    the opposite arrangement to the glass, which is emissive but invisible to
-    every ray except the camera's — there the light comes from a lamp behind
-    it, here the light comes from inside.
-
-    `stand_on` is the height of whatever it stands on: the floor for the
-    floor lamp, the desk top for the desk lamp.
+    Subdivision comes off unless a part is named in `smooth`. These were
+    modelled to be looked at from a hand's width away and the room looks at
+    them from across it, and every triangle here is downloaded by the site.
     """
-    x, z, h = spec["x"], spec["z"], spec["height"]
-    return [
-        cylinder(f"Room.{name}.Base", spec["base_r"], 0.022, (x, stand_on + 0.011, z), metal),
-        cylinder(f"Room.{name}.Stem", spec["stem_r"], h, (x, stand_on + h / 2, z), metal),
-        cylinder(
-            f"Room.{name}.Shade",
-            spec["shade_r"],
-            spec["shade_h"],
-            (x, stand_on + h + spec["shade_h"] / 2, z),
-            shade_mat,
-            caps=False,  # open top and bottom, so the light goes both ways
-        ),
-    ]
+    path = os.path.join(MODELS, file)
+    if not os.path.exists(path):
+        raise SystemExit(f"[shelf] {path} is missing: run `node scripts/fetch-models.mjs` first")
+    with bpy.data.libraries.load(path, link=False) as (src, dst):
+        dst.objects = list(src.objects)
+    objs = [o for o in dst.objects if o is not None]
+    for obj in objs:
+        bpy.context.scene.collection.objects.link(obj)
+    bpy.context.view_layer.update()
+
+    lights = {o.name: o.matrix_world.copy() for o in objs if o.type == "LIGHT"}
+    meshes = [o for o in objs if o.type == "MESH" and o.name not in drop]
+    for obj in meshes:
+        world = obj.matrix_world.copy()
+        obj.parent = None
+        obj.matrix_world = world
+        obj.data = obj.data.copy()
+        for mod in list(obj.modifiers):
+            if mod.type == "SUBSURF":
+                mod.levels = 1 if obj.name in smooth else 0
+            elif mod.type == "NODES":
+                obj.modifiers.remove(mod)
+    select(meshes)
+    bpy.ops.object.convert(target="MESH")
+    for obj in objs:
+        if obj not in meshes:
+            bpy.data.objects.remove(obj, do_unlink=True)
+    select(meshes)
+    bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+    return meshes, lights
 
 
-def lamp_bulb_y(spec, stand_on):
-    """Where the bulb sits: the middle of that lamp's shade."""
-    return stand_on + spec["height"] + spec["shade_h"] / 2
+def loose_parts(obj):
+    """Cut a mesh into its loose parts, and return them."""
+    select([obj])
+    bpy.ops.mesh.separate(type="LOOSE")
+    return list(bpy.context.selected_objects)
+
+
+def part_bounds(obj):
+    lo = Vector((min(v.co[i] for v in obj.data.vertices) for i in range(3)))
+    hi = Vector((max(v.co[i] for v in obj.data.vertices) for i in range(3)))
+    return lo, hi
+
+
+def remove_parts(objs):
+    for obj in objs:
+        bpy.data.objects.remove(obj, do_unlink=True)
+
+
+def join_model(parts, name, faces=None):
+    """
+    One object out of a borrowed model's parts, thinned to about `faces`
+    triangles, with its own UVs kept as a second layer for the bake to read
+    its textures through: the same arrangement as the Monstera, and for the
+    same reason. See build_floor_plant().
+
+    The second layer is only for the bake. Nothing on the site reads it, so
+    main() takes it off again before the export.
+    """
+    for obj in parts:
+        # Joining matches UV layers by name, and these are called whatever
+        # their author called them.
+        layers = obj.data.uv_layers
+        keep = next((l for l in layers if l.active_render), None) or (layers[0] if layers else None)
+        for layer in [l for l in layers if l != keep]:
+            layers.remove(layer)
+        if layers:
+            layers[0].name = "UVMap"
+        else:
+            layers.new(name="UVMap")
+    select(parts)
+    if len(parts) > 1:
+        bpy.ops.object.join()
+    obj = bpy.context.active_object
+    obj.name = name
+
+    obj.data.calc_loop_triangles()
+    count = len(obj.data.loop_triangles)
+    if faces and count > faces:
+        thin = obj.modifiers.new("Thin", "DECIMATE")
+        thin.ratio = faces / count
+        select([obj])
+        bpy.ops.object.modifier_apply(modifier=thin.name)
+    # Their authored normals were for the mesh before it was thinned, so they
+    # go, and the faces' own are used, smoothed across anything shallower
+    # than a corner. Smoothing everything rounded the clock's flat face into
+    # its rim.
+    select([obj])
+    if obj.data.has_custom_normals:
+        bpy.ops.mesh.customdata_custom_splitnormals_clear()
+    bpy.ops.object.shade_smooth_by_angle(angle=math.radians(40))
+
+    obj.data.uv_layers.new(name="Source", do_init=True)
+    obj.data.uv_layers.active_index = 0
+    obj.data.uv_layers[0].active_render = True
+    for mat in {s.material for s in obj.material_slots if s.material}:
+        source_uvs(mat)
+        matte(mat)
+    obj["bake_only_uvs"] = True
+    obj.data.calc_loop_triangles()
+    print(f"[shelf] {name}: {count} triangles, kept {len(obj.data.loop_triangles)}")
+    return obj
+
+
+def matte(mat):
+    """
+    Take the metal out of a borrowed material.
+
+    A render sees metal from where the camera is. A bake has no camera: it
+    looks at every surface along its own normal, so what a metal surface bakes
+    as is a mirror of whatever is square in front of it, and that is not what
+    anyone standing in the room would see in it.
+
+    Without it these are painted surfaces of the same colour, which is what a
+    black lamp reads as from across a room anyway, and a bake can hold that.
+    """
+    nt = mat.node_tree
+    for node in nt.nodes:
+        if node.type != "BSDF_PRINCIPLED":
+            continue
+        for link in list(node.inputs["Metallic"].links):
+            nt.links.remove(link)
+        node.inputs["Metallic"].default_value = 0.0
+        if not node.inputs["Roughness"].is_linked:
+            node.inputs["Roughness"].default_value = max(node.inputs["Roughness"].default_value, 0.45)
+
+
+def stand(objs, x, z, on, towards, forward, scale=1.0):
+    """
+    Stand a model at the site's (x, z), on a surface at height `on`, turned so
+    that the direction it was modelled facing, `forward` in its own x and y,
+    points the site's `towards`. Returns the matrix that did it.
+    """
+    want = math.atan2(-towards[1], towards[0])  # the site's z is Blender's -y
+    have = math.atan2(forward[1], forward[0])
+    place = (
+        Matrix.Translation((x, -z, on))
+        @ Matrix.Rotation(want - have, 4, "Z")
+        @ Matrix.Scale(scale, 4)
+    )
+    for obj in objs:
+        obj.data.transform(place)
+        obj.data.update()
+    return place
+
+
+def build_floor_lamp():
+    """
+    The floor lamp: "Arch Dome Floor Lamp" by Mobolaji_3D Dele-Adelodun, from
+    BlenderKit, Royalty Free. Not modelled here and not kept here either: see
+    scripts/fetch-models.mjs.
+
+    Its flex comes off. It trailed a metre across the floor to a plug that is
+    not there.
+
+    The lamp inside the dome is a separate object, emissive and casting no
+    shadow, so the light setup_evening() puts there gets out past it. The
+    dome is what shapes the light, and it is real geometry: black metal, so
+    everything goes down and nothing sideways.
+    """
+    f = FLOOR_LAMP
+    meshes, _ = import_model("floor-lamp.blend")
+    body = next(o for o in meshes if o.name.startswith("Circle"))
+    bulb_parts = [o for o in meshes if o is not body]
+
+    parts = loose_parts(body)
+    flex = [p for p in parts if part_bounds(p)[1].y > 0.1315 and part_bounds(p)[1].z < 0.03]
+    remove_parts(flex)
+    parts = [p for p in parts if p not in flex]
+
+    place = stand(parts + bulb_parts, f["x"], f["z"], FLOOR_Y, f["towards"], forward=(0, -1), scale=f["scale"])
+
+    lo, hi = Vector((1e9,) * 3), Vector((-1e9,) * 3)
+    for obj in bulb_parts:
+        a, b = part_bounds(obj)
+        lo = Vector(map(min, lo, a))
+        hi = Vector(map(max, hi, b))
+    bulb_at = (lo + hi) / 2
+    _PLACED["floor_bulb"] = bulb_at
+    ROOM_FACTS["floorLamp"] = {"bulb": site_point(bulb_at)}
+
+    lamp = join_model(parts, "Room.FloorLamp", faces=3200)
+    bulb = join_model(bulb_parts, "Room.FloorLamp.Bulb", faces=160)
+    bulb.data.materials.clear()
+    bulb.data.materials.append(emission_material("FloorBulb", (1.0, 0.80, 0.56), 9.0))
+    bulb.visible_shadow = False
+    return [lamp, bulb]
+
+
+def build_desk_lamp():
+    """
+    The desk lamp: "Table lamp with minor scratches", from BlenderKit, Royalty
+    Free: see scripts/fetch-models.mjs. A black shade on a bent stem and an
+    oak foot, which is the desk's wood and the floor lamp's metal.
+
+    Its flex is a curve and is not brought in, and nor is the screw in the
+    shade's joint, which is a geometry-nodes thread a few millimetres long.
+
+    The bulb is its own object and its own material, because it is what goes
+    out when the lamp is switched off: light_layer() looks for it by name.
+    """
+    d = DESK_LAMP
+    top = FLOOR_Y + DESK["height"]
+    meshes, lights = import_model("desk-lamp.blend", drop=("Phillips redondo",), smooth=("Cylinder.003",))
+    remove = [o for o in bpy.data.objects if o.name == "Phillips redondo"]
+    remove_parts(remove)
+    bulb_parts = [o for o in meshes if o.name == "Sphere"]
+    parts = [o for o in meshes if o not in bulb_parts]
+
+    place = stand(parts + bulb_parts, d["x"], d["z"], top, d["towards"], forward=(1, 0), scale=d["scale"])
+
+    # The spot the model came with says where the bulb is and which way the
+    # shade throws. The light itself is made in setup_evening().
+    spot = next(iter(lights.values()))
+    _PLACED["desk_bulb"] = place @ spot.translation
+    _PLACED["desk_aim"] = (place.to_3x3() @ spot.to_3x3() @ Vector((0, 0, -1))).normalized()
+
+    lo, hi = Vector((1e9,) * 3), Vector((-1e9,) * 3)
+    for obj in parts:
+        a, b = part_bounds(obj)
+        lo = Vector(map(min, lo, a))
+        hi = Vector(map(max, hi, b))
+    ROOM_FACTS["deskLamp"] = {
+        "bulb": site_point(_PLACED["desk_bulb"]),
+        # The corners of a box round it, for the site to make it clickable.
+        "min": [round(lo.x, 4), round(lo.z, 4), round(-hi.y, 4)],
+        "max": [round(hi.x, 4), round(hi.z, 4), round(-lo.y, 4)],
+    }
+
+    lamp = join_model(parts, "Room.DeskLamp", faces=2600)
+    bulb = join_model(bulb_parts, "Room.DeskLamp.Bulb", faces=120)
+    bulb.data.materials.clear()
+    bulb.data.materials.append(emission_material(DESK_GLOW, (1.0, 0.82, 0.60), 7.0))
+    bulb.visible_shadow = False
+    return [lamp, bulb]
+
+
+def build_ceiling_light():
+    """
+    The room light: a flush opal drum, the plainest ceiling fitting there is.
+    Modelled here, since it is two cylinders. See CEILING_LIGHT for why the
+    room has one.
+    """
+    c = CEILING_LIGHT
+    ceiling = FLOOR_Y + ROOM["height"]
+    rose = cylinder(
+        "Room.CeilingLight.Rose", c["radius"] + 0.012, 0.014, (c["x"], ceiling - 0.007, c["z"]),
+        flat_material("CeilingRose", (0.62, 0.60, 0.56), roughness=0.5),
+    )
+    drum = cylinder(
+        "Room.CeilingLight.Drum", c["radius"], c["drop"], (c["x"], ceiling - 0.014 - c["drop"] / 2, c["z"]),
+        emission_material("CeilingOpal", (1.0, 0.86, 0.68), 2.2),
+    )
+    # The light is made just under it, in setup_evening(), and has to get out.
+    drum.visible_shadow = False
+    at = Vector((c["x"], -c["z"], ceiling - 0.014 - c["drop"]))
+    _PLACED["ceiling"] = at
+    ROOM_FACTS["ceilingLight"] = {"at": site_point(at), "radius": c["radius"]}
+    return [rose, drum]
+
+
+def clock_case(radius):
+    """
+    The clock, hung at the origin facing Blender's -Y: "Office Wall Clock" by
+    Demycs, from BlenderKit, Royalty Free. See scripts/fetch-models.mjs.
+
+    Its hands, the cap over them and its glass come off. The site draws the
+    hands, so that they can tell the time; and a sheet of glass in front of a
+    face is a transparent surface in a bake, which is a way to bake a grey
+    disc. What is left is the case and the printed face behind where the
+    hands were.
+    """
+    meshes, _ = import_model("wall-clock.blend")
+    keep, drop = [], []
+    for part in loose_parts(meshes[0]):
+        lo, hi = part_bounds(part)
+        used = {part.material_slots[p.material_index].material.name for p in part.data.polygons}
+        glass = any("Glass" in name for name in used)
+        # The hands and their cap: small things standing proud of the face.
+        proud = lo.z > 0.0195 and max(hi.x - lo.x, hi.y - lo.y) < 0.2
+        (drop if glass or proud else keep).append(part)
+    remove_parts(drop)
+    scale = radius / 0.15
+    hang = Matrix.Rotation(math.radians(90), 4, "X") @ Matrix.Scale(scale, 4)
+    for obj in keep:
+        obj.data.transform(hang)
+        obj.data.update()
+    clock = join_model(keep, "Room.Clock")
+    for slot in clock.material_slots:
+        # One material did for the glass and the case, told apart by an
+        # opacity map. With the glass gone, the case is simply opaque.
+        nt = slot.material.node_tree
+        for node in nt.nodes:
+            if node.type == "BSDF_PRINCIPLED":
+                for link in list(node.inputs["Alpha"].links):
+                    nt.links.remove(link)
+                node.inputs["Alpha"].default_value = 1.0
+    return clock, scale
+
+
+def build_clock():
+    """The clock on the left wall. See CLOCK, and clock_case() for the model."""
+    c = CLOCK
+    wall = -ROOM["width"] / 2
+    clock, scale = clock_case(c["radius"])
+    # Turned to face into the room from the left wall, its back to it. The
+    # site's z is Blender's -y.
+    clock.data.transform(
+        Matrix.Translation((wall, -c["z"], c["y"])) @ Matrix.Rotation(math.radians(90), 4, "Z")
+    )
+    clock.data.update()
+    # Four times its share of the atlas: it is a thing with a printed edge,
+    # thirty texels across otherwise.
+    clock["uv_scale"] = 4.0
+    clock["uv_tight"] = True
+    ROOM_FACTS["clock"] = {
+        # The middle of the printed face, which stands 20mm off the wall.
+        "centre": [round(wall + 0.02 * scale, 4), c["y"], c["z"]],
+        "radius": c["radius"],
+        # How far a plane facing the camera has to turn, about the vertical,
+        # to face the way the clock does.
+        "turn": round(math.pi / 2, 4),
+    }
+    return [clock]
+
+
+def render_clock_face(path, size=512):
+    """
+    The clock's printed face, square on and unlit, for the site to draw: see
+    WallClock.tsx. The whole clock is in the picture, edge to edge, so the site can
+    take the part of it inside the case.
+    """
+    clock, _ = clock_case(CLOCK["radius"])
+    for slot in clock.material_slots:
+        nt = slot.material.node_tree
+        out = next(n for n in nt.nodes if n.type == "OUTPUT_MATERIAL")
+        shader = next(n for n in nt.nodes if n.type == "BSDF_PRINCIPLED")
+        colour = shader.inputs["Base Color"].links[0].from_socket
+        emit = nt.nodes.new("ShaderNodeEmission")
+        nt.links.new(colour, emit.inputs["Color"])
+        nt.links.new(emit.outputs["Emission"], out.inputs["Surface"])
+    bpy.ops.object.camera_add(location=(0, -1, 0), rotation=(math.radians(90), 0, 0))
+    cam = bpy.context.active_object
+    cam.data.type = "ORTHO"
+    cam.data.ortho_scale = CLOCK["radius"] * 2
+    scene = bpy.context.scene
+    scene.camera = cam
+    scene.world = bpy.data.worlds.new("None")
+    scene.render.engine = "CYCLES"
+    scene.cycles.samples = 16
+    scene.render.resolution_x = scene.render.resolution_y = size
+    scene.render.film_transparent = True
+    standard_view()
+    scene.render.filepath = path
+    bpy.ops.render.render(write_still=True)
+    print(f"[shelf] wrote {path}")
 
 
 def build_desk(oak):
@@ -952,8 +1336,9 @@ def build_pinboard(cork_mat, paper_mat):
 
     docs/adr/0004 settled that it is dressing and not navigation: nothing on
     it is clickable and the site has no About page for a fourth view to point
-    at. It sits above the floor lamp's shade, so the lamp lights it, and it
-    balances the window and desk on the other side of the Shelf.
+    at. The floor lamp's dome hangs just under its right-hand corner and
+    lights it from below, and it balances the window and desk on the other
+    side of the Shelf.
 
     The pinned papers are blank. Real artwork can go on later without moving
     anything; blank paper at this distance reads as paper, and inventing
@@ -1384,13 +1769,35 @@ def source_uvs(mat):
     Point every texture and normal map in an imported material at the
     "Source" UV layer, so it keeps reading the model's own UVs once the atlas
     unwrap owns the first layer.
+
+    A texture can ask for its UVs three ways, and all three have to be caught.
+    One with nothing plugged in reads the first layer. So does one fed from a
+    Texture Coordinate node, usually by way of a Mapping node, and that is the
+    one that got through: the clock's material is wired that way, so after the
+    unwrap its face was reading its own texture sheet through the atlas's UVs,
+    and baked as a patch of whatever part of the sheet that happened to be.
+    And a UV Map node names a layer outright.
     """
     nt = mat.node_tree
+    source = None
+
+    def source_uv():
+        nonlocal source
+        if source is None:
+            source = nt.nodes.new("ShaderNodeUVMap")
+            source.uv_map = "Source"
+        return source.outputs["UV"]
+
     for node in list(nt.nodes):
         if node.type == "TEX_IMAGE" and not node.inputs["Vector"].is_linked:
-            uv = nt.nodes.new("ShaderNodeUVMap")
-            uv.uv_map = "Source"
-            nt.links.new(uv.outputs["UV"], node.inputs["Vector"])
+            nt.links.new(source_uv(), node.inputs["Vector"])
+        elif node.type == "TEX_COORD":
+            for link in list(node.outputs["UV"].links):
+                to = link.to_socket
+                nt.links.remove(link)
+                nt.links.new(source_uv(), to)
+        elif node.type == "UVMAP" and (source is None or node != source):
+            node.uv_map = "Source"
         elif node.type == "NORMAL_MAP":
             node.uv_map = "Source"
 
@@ -1738,19 +2145,11 @@ def build_room():
     # The dressing, per docs/adr/0004. The desk goes under the window and the
     # pinboard on the other side of the carcass, so the back wall reads as one
     # arrangement rather than as a shelf with things scattered round it.
-    lamp_metal = flat_material("LampMetal", (0.052, 0.047, 0.043), roughness=0.38)
     desk_oak = oak_material("DeskOak", scale=1.4)
-    parts += build_lamp(
-        "Lamp", LAMP, FLOOR_Y, lamp_metal, emission_material("LampShade", (1.0, 0.78, 0.52), 1.4)
-    )
+    parts += build_floor_lamp()
+    parts += build_ceiling_light()
     parts += build_desk(desk_oak)
-    parts += build_lamp(
-        "DeskLamp",
-        DESK_LAMP,
-        FLOOR_Y + DESK["height"],
-        lamp_metal,
-        emission_material("DeskShade", (1.0, 0.80, 0.56), 1.1),
-    )
+    parts += build_desk_lamp()
     parts += build_desk_things(
         # Aluminium, not the near-black slab the closed one was. An Air is a
         # light machine and at this hour it is the one thing on the desk that
@@ -1765,6 +2164,7 @@ def build_room():
         flat_material("Cork", (0.20, 0.125, 0.065), roughness=0.90),
         flat_material("Pinned", (0.60, 0.58, 0.54), roughness=0.92),
     )
+    parts += build_clock()
 
     # The second round of dressing: see the constants at the top of the file.
     frame_mat = flat_material("Frame", (0.030, 0.026, 0.022), roughness=0.45)
@@ -1818,33 +2218,6 @@ def build_room():
     return parts
 
 
-def shade_glow(name, spec, stand_on, energy, colour, shade):
-    """
-    The light a lamp's shade lets through sideways: a soft point light at the
-    bulb that the shade casts no shadow for. Everything else still does.
-    """
-    bpy.ops.object.light_add(
-        type="POINT", location=(spec["x"], -spec["z"], lamp_bulb_y(spec, stand_on))
-    )
-    glow = bpy.context.active_object
-    glow.name = name
-    glow.data.energy = energy
-    glow.data.color = colour
-    # As wide as the shade, so what it throws is as soft as a glowing drum's.
-    glow.data.shadow_soft_size = spec["shade_r"]
-
-    blocker = bpy.data.objects.get(shade)
-    if blocker is not None:
-        # A blocker collection holding only excluded objects means "everything
-        # casts shadow for this light except these".
-        group = bpy.data.collections.new(f"{name}.Unblocked")
-        group.objects.link(blocker)
-        glow.light_linking.blocker_collection = group
-        for item in group.collection_objects:
-            item.light_linking.link_state = "EXCLUDE"
-    return glow
-
-
 def setup_evening():
     """
     Dusk through the window, a bulb in the lamp, and almost nothing else.
@@ -1886,50 +2259,38 @@ def setup_evening():
     direction = Vector((0, -1.0, -0.22)).normalized()
     sky.rotation_euler = direction.to_track_quat("-Z", "Y").to_euler()
 
-    # The bulb, inside the shade. A point light rather than an area one: the
-    # shade is what shapes this, and it already does, being opaque.
-    bpy.ops.object.light_add(
-        type="POINT",
-        location=(LAMP["x"], -LAMP["z"], lamp_bulb_y(LAMP, FLOOR_Y)),
-    )
+    # The floor lamp's bulb, inside its dome. A point light: the dome is real
+    # geometry and black metal, and it is what shapes this.
+    bpy.ops.object.light_add(type="POINT", location=_PLACED["floor_bulb"])
     bulb = bpy.context.active_object
     bulb.name = "Bulb"
-    bulb.data.energy = 72
+    bulb.data.energy = 84
     bulb.data.color = (1.0, 0.76, 0.50)
-    bulb.data.shadow_soft_size = 0.05
+    bulb.data.shadow_soft_size = 0.04
 
-    # What comes through the shade. A linen drum is not opaque: it passes a
-    # soft warm light sideways, and that sideways light is what falls on the
-    # Spines. Without it the Books at rest are lit by bounce alone and the
-    # Shelf, which is the point of the room, is the darkest thing in it. That
-    # did not show while the Books were lit live, because the site gave them a
-    # key light of their own from this side; baked, they get what the room
-    # actually has, so the room has to actually have it.
-    #
-    # A second light at the bulb, which the shade does not block. The bulb
-    # itself still is blocked, so the cones up and down that say "shade" stay.
-    shade_glow("ShadeGlow", LAMP, FLOOR_Y, energy=28, colour=(1.0, 0.80, 0.56), shade="Room.Lamp.Shade")
+    # The room light: a disc under the opal drum, facing down. It does the job
+    # the floor lamp did when it stood in front of the console, which is to
+    # put light on the Spines. See CEILING_LIGHT.
+    bpy.ops.object.light_add(type="AREA", location=_PLACED["ceiling"] - Vector((0, 0, 0.01)))
+    ceiling = bpy.context.active_object
+    ceiling.name = "Ceiling"
+    ceiling.data.shape = "DISK"
+    ceiling.data.size = CEILING_LIGHT["radius"] * 2
+    ceiling.data.energy = 44
+    ceiling.data.color = (1.0, 0.82, 0.60)
 
-    # The desk lamp. Much smaller than the floor lamp and much closer to what
-    # it lights, so it needs a fraction of the energy to make a pool of the
-    # same strength.
-    bpy.ops.object.light_add(
-        type="POINT",
-        location=(DESK_LAMP["x"], -DESK_LAMP["z"], lamp_bulb_y(DESK_LAMP, FLOOR_Y + DESK["height"])),
-    )
+    # The desk lamp: a spot where the model's own was, thrown the way its
+    # shade points. Small and close to what it lights, so it needs a fraction
+    # of the energy. It is the light that switches: see light_layer().
+    bpy.ops.object.light_add(type="SPOT", location=_PLACED["desk_bulb"])
     desk_bulb = bpy.context.active_object
-    desk_bulb.name = "DeskBulb"
-    # Down from 20. The lamp stands a third of a metre from the left wall and
-    # at 20, and then at 12, it burned a white hole in it, which the atlas
-    # cannot roll off. Judged from the Desk view in the browser, where the
-    # wall beside it is a quarter of the frame.
-    desk_bulb.data.energy = 8
+    desk_bulb.name = DESK_LIGHT
+    desk_bulb.data.energy = 26
     desk_bulb.data.color = (1.0, 0.78, 0.54)
-    desk_bulb.data.shadow_soft_size = 0.035
-    shade_glow(
-        "DeskShadeGlow", DESK_LAMP, FLOOR_Y + DESK["height"], energy=2.4, colour=(1.0, 0.82, 0.60),
-        shade="Room.DeskLamp.Shade",
-    )
+    desk_bulb.data.shadow_soft_size = 0.03
+    desk_bulb.data.spot_size = math.radians(115)
+    desk_bulb.data.spot_blend = 0.45
+    desk_bulb.rotation_euler = _PLACED["desk_aim"].to_track_quat("-Z", "Y").to_euler()
 
     # A very low, very warm lift off the floor, so the undersides of the
     # shelves are dark rather than dead. Smaller than daylight's by a long way.
@@ -1940,6 +2301,56 @@ def setup_evening():
     bounce.data.energy = 5
     bounce.data.color = (1.0, 0.82, 0.62)
     bounce.rotation_euler = (math.radians(-70), 0, math.radians(20))
+
+
+def light_layer(which):
+    """
+    Which of the room's light is on: "all" of it, the "room" without the desk
+    lamp, or the "desk" lamp alone.
+
+    The desk lamp switches, and baked light cannot be switched. But light adds
+    up: the room lit by everything is the room lit by everything else, plus
+    the room lit by the desk lamp alone. So the room is baked twice, once each
+    way, and the site adds the second atlas to the first for as long as the
+    lamp is on. Nothing is approximated by that while the lamp is on, and off
+    is simply the first atlas.
+
+    The second bake is the lamp's light and nothing else: every other lamp
+    hidden, the sky off, every glowing surface dark. What comes out is black
+    except for a pool on the desk and what it bounces up the wall, which is
+    why it can be a quarter of the size and still costs almost nothing as a
+    WebP.
+
+    The room has it, and so do the Books, for the sake of the Book stack on
+    the Desk. The carcass does not: it is baked with everything on, because
+    that is how the room is nearly always seen and the desk lamp is two
+    metres off, pointing down: what it puts on the Shelf is too little to
+    switch.
+    """
+    def off(is_desk):
+        return (which == "room" and is_desk) or (which == "desk" and not is_desk)
+
+    def dial(owner, socket, dark):
+        # Remembers what it was the first time, so "all" can put it back.
+        if "full" not in owner:
+            owner["full"] = socket.default_value
+        socket.default_value = 0.0 if dark else owner["full"]
+
+    for obj in bpy.context.scene.objects:
+        if obj.type == "LIGHT":
+            obj.hide_render = off(obj.name == DESK_LIGHT)
+    for mat in bpy.data.materials:
+        if not mat.use_nodes:
+            continue
+        for node in mat.node_tree.nodes:
+            if node.type == "EMISSION":
+                dial(node, node.inputs["Strength"], off(mat.name == DESK_GLOW))
+            elif node.type == "BSDF_PRINCIPLED":
+                dial(node, node.inputs["Emission Strength"], off(mat.name == DESK_GLOW))
+    world = bpy.context.scene.world
+    if world is not None and world.use_nodes:
+        bg = world.node_tree.nodes["Background"]
+        dial(bg, bg.inputs["Strength"], off(False))
 
 
 # Blender location, aim, and either a lens in mm or a vertical field of view.
@@ -2228,10 +2639,10 @@ def unwrap_all(parts, margin=0.004, planar=False, gap=0.015):
     `planar` is for the room, and does the whole job by hand: a planar map per
     flat panel, then shelf_pack_uvs. Its surfaces are flat axis-aligned
     panels, which map perfectly and pack simply, and the operators were
-    splitting them — see planar_uv(). Anything in the room that is not flat,
-    which is only the lamp's cylinders, still gets smart_project first; the
-    shade is one flat emissive colour and the stem is 11mm of dark metal, so
-    neither minds a crude projection.
+    splitting them — see planar_uv(). Anything in the room that is not flat
+    still gets smart_project first: the lamps, the clock, the bust, the
+    plants. Each of those is baked and looked at as a whole, so none minds
+    where its islands land.
 
     The carcass is boards at many orientations and wants the operators for all
     of it.
@@ -2385,7 +2796,7 @@ def show_baked(obj, image):
     obj.data.materials.append(mat)
 
 
-def export_glb(objs, path, materials="NONE"):
+def export_glb(objs, path, materials="NONE", normals=True):
     """
     Export geometry and UVs only. The baked atlas is loaded separately by the
     site and applied as an unlit material there, which keeps it a WebP (84KB)
@@ -2395,6 +2806,13 @@ def export_glb(objs, path, materials="NONE"):
     separately at runtime: glTF splits a mesh into one primitive per material
     slot, and stripping the materials merges them back into one. The Box needs
     that split so its Cover and Spine can be printed per-Project.
+
+    `normals=False` is for the room and the carcass. The site draws them
+    unlit, from the atlas, so a normal is twelve bytes a vertex that nothing
+    reads, and without them the exporter also stops splitting a vertex wherever
+    two faces disagree about one. It took a third off the file once the
+    borrowed lamps were in it. The Book keeps its normals: it is lit live in
+    the hand.
 
     No Draco: the carcass is seven boxes, so the geometry is already trivial,
     and drei's Draco loader reaches for a CDN-hosted decoder by default. Not
@@ -2411,7 +2829,7 @@ def export_glb(objs, path, materials="NONE"):
         use_selection=True,
         export_apply=True,
         export_materials=materials,
-        export_normals=True,
+        export_normals=normals,
         export_texcoords=True,
         export_yup=True,
     )
@@ -2991,7 +3409,7 @@ def place_books(template, layout):
     return objs, manifest
 
 
-def bake_box_light(objs, path, grid, size=2048, samples=64):
+def bake_box_light(objs, path, grid, size=2048, samples=64, reuse=False):
     """
     Bake the light falling on every Book at rest, without its colour.
 
@@ -3001,6 +3419,11 @@ def bake_box_light(objs, path, grid, size=2048, samples=64):
     same light map serves whatever is printed on the Book, which is the thing
     a combined bake could not do.
     """
+    # --reuse, as in bake_combined(): keep the atlas already on disk.
+    if reuse and os.path.exists(path):
+        print(f"[shelf] reusing {path}")
+        return bpy.data.images.load(path)
+
     image = bpy.data.images.new("BoxLight", width=size, height=size, alpha=False, float_buffer=True)
     seen = set()
     for obj in objs:
@@ -3229,6 +3652,11 @@ def main():
     ap.add_argument("--export", help="write the .glb here")
     ap.add_argument("--bake-room", help="bake the room to this PNG")
     ap.add_argument("--room-size", type=int, help="the room atlas, if not --bake-size")
+    ap.add_argument("--bake-desk", help="bake the desk lamp's own light on the room to this PNG: see light_layer()")
+    ap.add_argument("--desk-size", type=int, help="the desk lamp's atlas, if not half the room's")
+    ap.add_argument("--room-manifest", help="where to write room.json, if not beside the site's other manifests")
+    ap.add_argument("--clock-face", help="render the clock's printed face, unlit, to this PNG")
+    ap.add_argument("--lights", default="all", choices=("all", "room", "desk"), help="which light --render shows")
     ap.add_argument("--bake-boxes", help="bake the light on the Books at rest to this PNG")
     ap.add_argument("--box-size", type=int, default=2048)
     ap.add_argument("--box-samples", type=int, help="samples for the Books' light, if not --bake-samples")
@@ -3258,6 +3686,10 @@ def main():
 
     if args.cloth_bake:
         bake_cloth_normal(args.cloth_bake, size=args.cloth_size, threads=args.cloth_threads)
+        return
+
+    if args.clock_face:
+        render_clock_face(args.clock_face)
         return
 
     baking = bool(args.bake or args.show_baked or args.export or args.bake_boxes)
@@ -3302,8 +3734,10 @@ def main():
     if args.render:
         if args.standard:
             standard_view()
+        light_layer(args.lights)
         bpy.context.scene.render.filepath = args.render
         bpy.ops.render.render(write_still=True)
+        light_layer("all")
         print(f"[shelf] wrote {args.render}")
 
     if baking:
@@ -3333,6 +3767,11 @@ def main():
         # Beside the room atlas, wherever that is going, so a trial bake in
         # build/m keeps its own copy. bake-to-webp.mjs ships it.
         save_leaf_mask(fixed, os.path.join(os.path.dirname(args.bake_room or "/tmp/room-bake.png"), "leaf-mask.png"))
+        # The room without the desk lamp, and then the desk lamp without the
+        # room: see light_layer(). Without --bake-desk the room is baked with
+        # everything on, and the lamp cannot be switched.
+        if args.bake_desk:
+            light_layer("room")
         room_img = bake_combined(
             fixed,
             args.bake_room or "/tmp/room-bake.png",
@@ -3342,13 +3781,39 @@ def main():
             name="RoomBake",
             reuse=args.reuse,
         )
+        if args.bake_desk:
+            desk_size = args.desk_size or room_size // 2
+            light_layer("desk")
+            bake_combined(
+                fixed,
+                args.bake_desk,
+                size=desk_size,
+                samples=args.bake_samples,
+                margin=max(3, round(desk_size * 0.002)),
+                name="DeskBake",
+                reuse=args.reuse,
+            )
+            light_layer("all")
 
         box_img = None
         if args.bake_boxes:
+            # The Books' light is split the same way as the room's, and for
+            # the Book stack: it lies under the desk lamp and has to go dark
+            # with it. The Books on the Shelf come along because they share
+            # the atlas, and for them the second one is black.
+            if args.bake_desk:
+                light_layer("room")
             box_img = bake_box_light(
                 books, args.bake_boxes, manifest["grid"], size=args.box_size,
-                samples=args.box_samples or args.bake_samples,
+                samples=args.box_samples or args.bake_samples, reuse=args.reuse,
             )
+            if args.bake_desk:
+                light_layer("desk")
+                bake_box_light(
+                    books, os.path.splitext(args.bake_boxes)[0] + "-desk.png", manifest["grid"],
+                    size=args.box_size // 2, samples=args.box_samples or args.bake_samples, reuse=args.reuse,
+                )
+                light_layer("all")
             manifest_path = args.boxes_manifest or os.path.splitext(args.bake_boxes)[0] + ".json"
             with open(manifest_path, "w", encoding="utf-8") as fh:
                 json.dump(manifest, fh, indent=2)
@@ -3359,7 +3824,19 @@ def main():
         carcass.name = "Carcass"
 
         if args.export:
-            export_glb([carcass, *fixed], args.export)
+            # The borrowed models' own UVs were for the bake to read their
+            # textures through, and the bake is done: see join_model().
+            for obj in fixed:
+                if obj.get("bake_only_uvs") and "Source" in obj.data.uv_layers:
+                    obj.data.uv_layers.remove(obj.data.uv_layers["Source"])
+            export_glb([carcass, *fixed], args.export, normals=False)
+            facts = args.room_manifest or os.path.join(
+                os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src", "components", "shelf", "room.json"
+            )
+            with open(facts, "w", encoding="utf-8") as fh:
+                json.dump(ROOM_FACTS, fh, indent=2)
+                fh.write("\n")
+            print(f"[shelf] wrote {facts}")
 
         if args.show_baked:
             show_baked(carcass, carcass_img)
