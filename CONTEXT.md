@@ -98,7 +98,7 @@ The turntable on the Console. Plays the song of whichever Sleeve is out, as the 
 _Avoid_: turntable, deck, stereo
 
 **Sleeve**:
-A record in the Console's left bay: one artist, one song. At the Console one Sleeve is out of the row and held up, and they are flipped through one at a time. Lettered in the Room's own hand, in two colours, with no album art.
+A record in the Console's left bay: one artist, one song. At the Console one Sleeve is out of the row and held up, and they are flipped through one at a time. It shows the album's own cover; a record without one is lettered in the Room's own hand, in two colours.
 _Avoid_: album, cover (which is a Box's), track
 
 **Board games**:

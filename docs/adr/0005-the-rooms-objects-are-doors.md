@@ -177,3 +177,17 @@ Each book is shaped to its cover: the printed face is as wide as the cover's pro
 footprint, so the room and the books' light were baked again. The spines are lettered
 rather than photographed: there is no clean source for spine art, and a jacket's spine is
 its title and author in the cover's colours, which is what is drawn.
+
+## Addendum, 2026-11-18: the Sleeves wear their album art
+
+The last of "no album art and no box art" goes. The Board games and the Book stack showed
+what real art does for the Room, and a lettered Sleeve held up at the Console read as a
+placeholder beside them. The Sleeve that is out of the row now shows the album's own cover,
+kept at `public/assets/records/{id}.webp`, 768 square, with the ring a record wears into its
+sleeve drawn faintly over it.
+
+The covers came from the Cover Art Archive, iTunes and Deezer, whichever had the edition
+the record was given colours for. A record without a file, or whose file fails to load,
+still gets the lettered card in its `sleeve` and `ink` colours, so adding one to
+`records.json` never waits on finding its art. The sleeves baked into the row stay plain
+cards: they are edge on and a few pixels wide.

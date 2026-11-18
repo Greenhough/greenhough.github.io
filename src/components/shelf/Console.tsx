@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { useFrame, useThree } from '@react-three/fiber';
 import { useTexture } from '@react-three/drei';
-import { ensureFonts, paintSleeve, toTexture } from './covers';
+import { ensureFonts, loadImage, paintSleeve, sleeveArt, toTexture } from './covers';
 import { easeFor, roomLight } from './clock';
 import type { ShelfBoardGame, ShelfRecord } from './types';
 
@@ -221,10 +221,10 @@ function Sleeve({ record, active, onFlip, onHover }: { record: ShelfRecord; acti
     let cancelled = false;
     let made: THREE.CanvasTexture | null = null;
     (async () => {
-      await ensureFonts();
+      const [art] = await Promise.all([loadImage(sleeveArt(record.id)), ensureFonts()]);
       if (cancelled) return;
       const canvas = document.createElement('canvas');
-      paintSleeve(canvas, record, 768);
+      paintSleeve(canvas, record, 768, art);
       made = toTexture(canvas, renderer);
       // A different record: this one starts from the row and comes out.
       if (group.current) {

@@ -477,17 +477,36 @@ export function paintLabel(canvas: HTMLCanvasElement, text: string, width: numbe
   ctx.textAlign = 'left';
 }
 
+/** Where a record's album art is: see the records schema. */
+export const sleeveArt = (id: string) => `/assets/records/${id}.webp`;
+
 /**
- * A record sleeve: card in one colour, lettered in another, and nothing else.
+ * A record sleeve: the album's own cover, worn a little by the record inside.
  *
- * No album art. A sleeve's cover belongs to whoever made it, and the room
- * letters things in its own hand anyway: a Box, a read book, this.
+ * A record with no art yet, or whose art fails to load, gets a lettered card
+ * instead: its sleeve colour, lettered in its ink, as the room letters a Box.
  */
-export function paintSleeve(canvas: HTMLCanvasElement, record: ShelfRecord, size: number) {
+export function paintSleeve(canvas: HTMLCanvasElement, record: ShelfRecord, size: number, art?: HTMLImageElement | null) {
   canvas.width = size;
   canvas.height = size;
   const ctx = canvas.getContext('2d')!;
   const u = size / 100;
+
+  if (art) {
+    ctx.drawImage(art, 0, 0, size, size);
+    // The ring a record wears into its sleeve, faint, in light and shade.
+    ctx.lineWidth = 1.1 * u;
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.07)';
+    ctx.beginPath();
+    ctx.arc(size / 2, size / 2, 43 * u, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.1)';
+    ctx.beginPath();
+    ctx.arc(size / 2, size / 2, 43 * u + 1.1 * u, 0, Math.PI * 2);
+    ctx.stroke();
+    return;
+  }
+
   const soft = mix(record.sleeve, record.ink, 0.5);
 
   ctx.fillStyle = record.sleeve;

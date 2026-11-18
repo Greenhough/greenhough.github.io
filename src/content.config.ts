@@ -111,7 +111,11 @@ const records = defineCollection({
     album: z.string().nullable(),
     /** The YouTube video id, not the URL. */
     youtube: z.string(),
-    /** The sleeve's card and the colour it is lettered in. No album art. */
+    /**
+     * The sleeve's card and the colour it is lettered in. The Room shows the
+     * album's own cover, public/assets/records/{id}.webp, 768 square, and
+     * falls back to this lettered card for a record without one.
+     */
     sleeve: z.string(),
     ink: z.string(),
   }),
