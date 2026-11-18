@@ -43,7 +43,9 @@ const inGlass = (p: THREE.Vector3) => new THREE.Vector3(p.x, p.y, 2 * GLASS_Z - 
 
 // ---------------------------------------------------------------- the Prairie
 
+/** 4096 wide on a desktop, half that on a phone, as the room atlas is. */
 const PRAIRIE = model('prairie.webp');
+const PRAIRIE_SMALL = model('prairie-small.webp');
 /** How far behind the glass it hangs. Far enough to slide, not to swim. */
 const PRAIRIE_DISTANCE = 4;
 const PRAIRIE_WIDTH = 9.6;
@@ -112,8 +114,8 @@ const PRAIRIE_FRAGMENT = /* glsl */ `
   }
 `;
 
-function Prairie() {
-  const map = useTexture(PRAIRIE);
+function Prairie({ phone }: { phone: boolean }) {
+  const map = useTexture(phone ? PRAIRIE_SMALL : PRAIRIE);
   const material = useMemo(() => {
     map.colorSpace = THREE.SRGBColorSpace;
     map.anisotropy = 8;
@@ -617,10 +619,10 @@ function Dust() {
 
 // ----------------------------------------------------------------
 
-export function Atmosphere() {
+export function Atmosphere({ phone }: { phone: boolean }) {
   return (
     <>
-      <Prairie />
+      <Prairie phone={phone} />
       <Weather />
       <Glows />
       <Dust />
@@ -628,4 +630,5 @@ export function Atmosphere() {
   );
 }
 
-useTexture.preload(PRAIRIE);
+// Not preloaded here: which size is wanted depends on the phone, and
+// ShelfBoot.astro has already asked for the right one, as it does the room atlas.

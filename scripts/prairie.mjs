@@ -17,11 +17,17 @@
 import { mkdirSync } from 'node:fs';
 import sharp from 'sharp';
 
-const W = 2048;
-const H = 1080;
+/**
+ * Painted at 4096 for a desktop and halved for a phone, the way the room's
+ * atlas is. The aspect has to stay 2048:1080: Atmosphere.tsx sizes the plane
+ * from it. `PRAIRIE_WIDTH=2048 node scripts/prairie.mjs` is a quick draft.
+ */
+const W = Number(process.env.PRAIRIE_WIDTH ?? 4096);
+const H = Math.round((W * 1080) / 2048);
 /** Where the horizon sits, as a fraction of the height from the top. */
 const HORIZON = 0.5;
 const OUT = 'public/models/prairie.webp';
+const OUT_SMALL = 'public/models/prairie-small.webp';
 
 // ---------------------------------------------------------------- helpers
 
@@ -95,24 +101,72 @@ const SKY = [
 ];
 const SUN = { u: 0.31, glow: hex('#fff0c4') };
 
+/**
+ * The cloud deck: a ceiling of broken cloud seen from underneath. Its texture
+ * is laid out on the deck, not on the picture, so it is big overhead and
+ * crowds together towards the horizon. That foreshortening is most of what
+ * makes a painted sky read as deep rather than as a backdrop.
+ */
+function deck(u, s) {
+  const h = 1.0 - s; // 1 at the top of the frame, 0 at the horizon
+  const z = 1 / (h + 0.09); // distance out across the deck
+  const x = (u - 0.5) * z * 1.5;
+  // Warped, so the cells billow rather than sit on a grid.
+  const wx = fbm(x * 0.8 + 11.0, z * 0.8, 3) - 0.5;
+  const wz = fbm(x * 0.8 - 7.0, z * 0.8 + 3.0, 3) - 0.5;
+  return fbm(x * 1.3 + wx * 1.8, z * 2.4 + wz * 1.8, 6);
+}
+
+/** How strongly the sun, below the horizon at SUN.u, reaches a point. */
+function sunReach(u, s) {
+  const dx = (u - SUN.u) * 1.5;
+  const dy = (1.0 - s) * 2.2;
+  return Math.exp(-(dx * dx + dy * dy) * 2.2);
+}
+
 function sky(u, s) {
   let c = ramp(SKY, s);
 
-  // The glow where the sun went: wide along the horizon, shallow above it.
+  // The glow where the sun went: wide along the horizon, shallow above it,
+  // broken into faint rays by cloud below the horizon that the eye never sees.
   const dx = (u - SUN.u) * 1.9;
   const dy = (1.0 - s) * 3.4;
+  const angle = Math.atan2(u - SUN.u, 1.06 - s);
+  const rays = 0.82 + 0.36 * fbm(angle * 9.0 + 2.0, 0.5, 3);
   const glow = Math.exp(-(dx * dx + dy * dy) * 3.2);
-  c = mix(c, SUN.glow, glow * 0.62);
+  c = mix(c, SUN.glow, glow * 0.62 * rays);
 
-  // Cloud, in long streaks. Stretched hard along the horizon, thicker in the
-  // middle of the sky, lit from underneath by a sun that is below them.
-  const n = fbm(u * 5.5 + 3.0, s * 26.0, 5);
+  // The deck: thick overhead, thinning out before the horizon, where it would
+  // only alias, and where the low streaks below take over.
+  const reach = sunReach(u, s);
+  const n = deck(u, s);
+  const fade = smooth(0.06, 0.3, s) * (1 - smooth(0.7, 0.86, s));
+  const cover = smooth(0.5, 0.6, n) * fade;
+  if (cover > 0.001) {
+    // Lit from below and from the sun's side: compare the density a step
+    // towards the sun. Where it thins that way, the edge faces the light.
+    const toward = deck(u + (SUN.u - u) * 0.025, s + 0.018);
+    const edge = clamp((n - toward) * 9.0 + 0.5);
+    // Underneath, the deck catches the afterglow, more of it lower down.
+    const under = smooth(0.0, 0.8, s);
+    const lit = clamp(under * (0.35 + 0.75 * reach) + (edge - 0.5) * 0.7);
+    // Thick in the middle of a cell: the light gets in at the rim.
+    const thick = smooth(0.56, 0.72, n);
+    const shade = mix(hex('#242a4d'), hex('#4a3f63'), smooth(0.1, 0.8, s));
+    const warm = mix(hex('#d98a95'), hex('#ffbf8a'), reach);
+    const body = mix(shade, warm, clamp(lit - thick * 0.25));
+    c = mix(c, body, cover * 0.92);
+  }
+
+  // Low streaks along the horizon: a far stratus band, dark against the glow
+  // with a lit underside where the sun is.
+  const streak = fbm(u * 5.5 + 3.0, s * 26.0, 5);
   const wisps = fbm(u * 14.0, s * 70.0 + 40.0, 4);
-  const band = smooth(0.18, 0.5, s) * (1 - smooth(0.9, 1.0, s));
-  const cover = smooth(0.5, 0.7, n * 0.8 + wisps * 0.2) * band;
-  const lit = smooth(0.45, 0.95, s) * (0.55 + 0.45 * Math.exp(-dx * dx * 1.4));
-  const cloud = mix(hex('#3a3c5e'), hex('#ff9a6b'), lit);
-  c = mix(c, cloud, cover * 0.72);
+  const band = smooth(0.66, 0.8, s) * (1 - smooth(0.93, 0.985, s));
+  const low = smooth(0.52, 0.7, streak * 0.75 + wisps * 0.25) * band;
+  const underside = smooth(0.8, 0.95, s) * (0.4 + 0.6 * Math.exp(-dx * dx * 1.4));
+  const stratus = mix(hex('#4a3a5a'), hex('#ffa070'), underside);
+  c = mix(c, stratus, low * 0.55);
   return c;
 }
 
@@ -252,13 +306,24 @@ for (let y = 0; y < H; y++) {
       const tree = treeline(u);
       // A soft top edge, a pixel or two, so the trees are not cut out.
       c = mix(c, DARK, 1 - smooth(tree - 0.0025, tree + 0.0005, up));
-      if (bins(u, v)) c = mix(c, hex('#1d1e25'), 0.92);
     } else {
       c = land(u, (v - HORIZON) / (1 - HORIZON));
     }
 
-    if (nearBelt(u, v)) c = mix(c, hex('#0f1014'), 0.94);
-    if (poles(u, v)) c = mix(c, hex('#0c0c0f'), 0.9);
+    // Silhouettes are hard-edged tests, so take four samples of each pixel.
+    const du = 0.25 / W;
+    const dv = 0.25 / H;
+    let belt = 0;
+    let pole = 0;
+    let bin = 0;
+    for (const [a, b] of [[-du, -dv], [du, -dv], [-du, dv], [du, dv]]) {
+      belt += nearBelt(u + a, v + b) / 4;
+      pole += poles(u + a, v + b) / 4;
+      bin += v < HORIZON ? bins(u + a, v + b) / 4 : 0;
+    }
+    if (bin) c = mix(c, hex('#1d1e25'), 0.92 * bin);
+    if (belt) c = mix(c, hex('#0f1014'), 0.94 * belt);
+    if (pole) c = mix(c, hex('#0c0c0f'), 0.9 * pole);
 
     // A little grain. Dusk is a long smooth gradient and eight bits band it.
     const grain = (hash(x, y + 9173) - 0.5) * (2.4 / 255);
@@ -273,5 +338,7 @@ mkdirSync('public/models', { recursive: true });
 mkdirSync('build', { recursive: true });
 const image = sharp(pixels, { raw: { width: W, height: H, channels: 3 } });
 await image.clone().png().toFile('build/prairie.png');
-const info = await image.webp({ quality: 88 }).toFile(OUT);
+const info = await image.clone().webp({ quality: 88 }).toFile(OUT);
 console.log(`${OUT}  ${W}x${H}  ${Math.round(info.size / 1024)}KB`);
+const small = await image.resize(Math.round(W / 2)).webp({ quality: 88 }).toFile(OUT_SMALL);
+console.log(`${OUT_SMALL}  ${small.width}x${small.height}  ${Math.round(small.size / 1024)}KB`);

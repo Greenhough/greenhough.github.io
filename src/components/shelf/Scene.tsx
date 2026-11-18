@@ -392,7 +392,7 @@ export function Scene({
 
       {/* The view through the window, the glow of the lamps and the dust in
           it: the parts of the room that are drawn live. */}
-      <Atmosphere />
+      <Atmosphere phone={phone} />
 
       {/* The Laptop's screen: an editor, and at the Laptop View, Bones in it. */}
       <Laptop active={place === 'laptop'} phone={phone} onVisit={onVisitLaptop} onHover={onHover} />
