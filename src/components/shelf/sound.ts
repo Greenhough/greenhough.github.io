@@ -6,14 +6,14 @@
  *
  * None of it is a recording. Everything here is made in the browser from
  * noise, a few filters and a sine or two: wind is noise through a band that
- * wanders, rain is noise with the bottom taken off, a tick is three
- * milliseconds of it rung through a narrow band. So it costs no download, there
- * is nothing to license, and a cue can be a little different every time, which
- * is most of what stops a short sound played often from grating.
+ * wanders, a tick is three milliseconds of it rung through a narrow band. So
+ * it costs no download, there is nothing to license, and a cue can be a little
+ * different every time, which is most of what stops a short sound played often
+ * from grating.
  *
  * Two kinds of thing. The beds run for as long as the sound is on: the room's
- * own tone, the wind off the Prairie, rain when there is rain, the crackle of
- * a record. The cues are one-offs, asked for by name with hear().
+ * own tone, the wind off the Prairie, the crackle of a record. Rain makes no
+ * sound: it was tried, and filtered noise that loud swamps everything else. The cues are one-offs, asked for by name with hear().
  *
  * The Bust's voice is not here. It is a recording, it answers a click, and it
  * plays whether or not this is on: see voice.ts.
@@ -52,7 +52,6 @@ let noise: AudioBuffer | null = null;
 let beds: {
   wind: GainNode;
   windBand: BiquadFilterNode;
-  rain: GainNode;
   crackle: GainNode;
 } | null = null;
 let gusts: number | undefined;
@@ -133,18 +132,6 @@ function wake(): boolean {
   wind.gain.value = 0;
   loop().connect(windBand).connect(wind).connect(master);
 
-  // Rain: the same noise with the bottom taken off. The drops that land on
-  // the glass are cues, scattered by gust().
-  const rainHigh = c.createBiquadFilter();
-  rainHigh.type = 'highpass';
-  rainHigh.frequency.value = 1700;
-  const rainLow = c.createBiquadFilter();
-  rainLow.type = 'lowpass';
-  rainLow.frequency.value = 7500;
-  const rain = c.createGain();
-  rain.gain.value = 0;
-  loop().connect(rainHigh).connect(rainLow).connect(rain).connect(master);
-
   // A record's surface: a few clicks a second and a little hiss, four seconds
   // of it, round and round.
   const surface = c.createBuffer(1, c.sampleRate * 4, c.sampleRate);
@@ -167,7 +154,7 @@ function wake(): boolean {
   crackle.gain.value = 0;
   spin.connect(crackleBand).connect(crackle).connect(master);
 
-  beds = { wind, windBand, rain, crackle };
+  beds = { wind, windBand, crackle };
   return true;
 }
 
@@ -181,15 +168,11 @@ function settle(seconds = 1.2): void {
     param.linearRampToValueAtTime(value, t + over);
   };
   to(master.gain, on ? MASTER : 0, on ? 0.6 : 0.25);
-  to(beds.rain.gain, weather === 'rain' ? 0.02 + 0.07 * AT_WINDOW[place] : 0);
   to(beds.crackle.gain, record ? 0.05 : 0, 0.4);
   gust();
 }
 
-/**
- * One gust: a new level and a new pitch for the wind, a few seconds away, and
- * if it is raining a scatter of drops on the glass before the next one.
- */
+/** One gust: a new level and a new pitch for the wind, a few seconds away. */
 function gust(): void {
   if (!ctx || !beds || !on) return;
   const t = ctx.currentTime;
@@ -201,13 +184,6 @@ function gust(): void {
   beds.windBand.frequency.cancelScheduledValues(t);
   beds.windBand.frequency.setValueAtTime(beds.windBand.frequency.value, t);
   beds.windBand.frequency.linearRampToValueAtTime(230 + Math.random() * 380, t + 2.6);
-
-  if (weather === 'rain') {
-    const drops = 5 + Math.floor(Math.random() * 9);
-    for (let i = 0; i < drops; i++) {
-      strike(t + Math.random() * 2.8, 0.006, 1800 + Math.random() * 3400, 5, (0.01 + Math.random() * 0.03) * AT_WINDOW[place]);
-    }
-  }
 }
 
 /**
