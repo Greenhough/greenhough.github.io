@@ -84,12 +84,13 @@ export function setLamps(level: number): void {
  * The desk lamp: the one light in the Room with a switch.
  *
  * Its light on the Room is baked on its own and added to the Room's atlas by
- * this much: see light_layer() in scripts/shelf.py and ShelfModel. `?lamp=off`
- * starts it off, so a still of the Room without it is a URL like any other.
+ * this much: see light_layer() in scripts/shelf.py and ShelfModel. It starts
+ * off: on, it washes out the top of the Book stack beside it. `?lamp=on`
+ * starts it on, so a still of the Room with it is a URL like any other.
  */
-const startsOff =
-  typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('lamp') === 'off';
-export const deskLamp = { on: !startsOff };
+const startsOn =
+  typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('lamp') === 'on';
+export const deskLamp = { on: startsOn };
 let deskLevel = deskLamp.on ? 1 : 0;
 
 /**

@@ -5,8 +5,8 @@ import { hear } from './sound';
 import room from './room.json';
 
 /**
- * The desk lamp's switch: click the lamp and it goes off, click it again and
- * it comes back on.
+ * The desk lamp's switch. It starts off (see clock.ts): click the lamp and it
+ * comes on, click it again and it goes off.
  *
  * The lamp itself is baked into the Room, and so is its light, as an atlas of
  * its own that ShelfModel adds for as long as it is on. All this is, then, is
