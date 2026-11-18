@@ -5,21 +5,19 @@
  * that. A page that makes a noise nobody asked for is a page that gets closed.
  *
  * None of it is a recording. Everything here is made in the browser from
- * noise, a few filters and a sine or two: wind is noise through a band that
- * wanders, a tick is three milliseconds of it rung through a narrow band. So
- * it costs no download, there is nothing to license, and a cue can be a little
- * different every time, which is most of what stops a short sound played often
- * from grating.
+ * noise, a few filters and a sine or two: a tick is three milliseconds of it
+ * rung through a narrow band. So it costs no download, there is nothing to
+ * license, and a cue can be a little different every time, which is most of
+ * what stops a short sound played often from grating.
  *
- * Two kinds of thing. The beds run for as long as the sound is on: the room's
- * own tone, the wind off the Prairie, the crackle of a record. Rain makes no
- * sound: it was tried, and filtered noise that loud swamps everything else. The cues are one-offs, asked for by name with hear().
+ * Only cues: one-offs, asked for by name with hear(), each one the Room
+ * answering something the visitor did. There is no bed under them. A room
+ * tone, wind off the Prairie, rain on the glass and a record's crackle were
+ * all tried, and on a laptop speaker every one of them was heard as hiss.
  *
  * The Bust's voice is not here. It is a recording, it answers a click, and it
  * plays whether or not this is on: see voice.ts.
  */
-
-import type { Weather } from '../../lib/weather';
 
 export type Cue =
   | 'switch'
@@ -36,7 +34,7 @@ export type Cue =
 type Place = 'shelf' | 'desk' | 'console' | 'laptop';
 
 const KEY = 'room-sound';
-/** Everything, turned down. The beds are meant to be noticed when they stop. */
+/** Everything, turned down a touch. */
 const MASTER = 0.9;
 
 let on = false;
@@ -49,21 +47,12 @@ try {
 let ctx: AudioContext | null = null;
 let master: GainNode | null = null;
 let noise: AudioBuffer | null = null;
-let beds: {
-  wind: GainNode;
-  windBand: BiquadFilterNode;
-  crackle: GainNode;
-} | null = null;
-let gusts: number | undefined;
 
 let place: Place = 'shelf';
-let weather: Weather = 'clear';
 let record = false;
 const listeners = new Set<() => void>();
 
-/** How much of the window each View hears. The Desk is under it. */
-const AT_WINDOW: Record<Place, number> = { shelf: 0.45, console: 0.28, desk: 1, laptop: 0.9 };
-/** And how much of the clock, which hangs over the Desk. */
+/** How much of the clock each View hears. It hangs over the Desk. */
 const AT_CLOCK: Record<Place, number> = { shelf: 0.5, console: 0.25, desk: 1, laptop: 0.9 };
 
 export function soundOn(): boolean {
@@ -99,91 +88,21 @@ function wake(): boolean {
   master.gain.value = 0;
   master.connect(c.destination);
 
-  // Two seconds of white noise, shared by everything. Looped from a random
+  // Two seconds of white noise, shared by every cue. Played from a random
   // place each time, so no two cues are the same two seconds.
   noise = c.createBuffer(1, c.sampleRate * 2, c.sampleRate);
   const data = noise.getChannelData(0);
   for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
-
-  const loop = () => {
-    const source = c.createBufferSource();
-    source.buffer = noise;
-    source.loop = true;
-    source.start(0, Math.random() * 2);
-    return source;
-  };
-
-  // The room's own tone: the bottom of the noise, very low. A room is never
-  // silent, and a silent one with a clock in it sounds like a recording booth.
-  const tone = c.createBiquadFilter();
-  tone.type = 'lowpass';
-  tone.frequency.value = 160;
-  const toneGain = c.createGain();
-  toneGain.gain.value = 0.05;
-  loop().connect(tone).connect(toneGain).connect(master);
-
-  // Wind off the Prairie, heard through glass: a band that wanders, and a
-  // level that comes and goes in gusts. See gust().
-  const windBand = c.createBiquadFilter();
-  windBand.type = 'bandpass';
-  windBand.frequency.value = 320;
-  windBand.Q.value = 0.6;
-  const wind = c.createGain();
-  wind.gain.value = 0;
-  loop().connect(windBand).connect(wind).connect(master);
-
-  // A record's surface: a few clicks a second and a little hiss, four seconds
-  // of it, round and round.
-  const surface = c.createBuffer(1, c.sampleRate * 4, c.sampleRate);
-  const groove = surface.getChannelData(0);
-  for (let i = 0; i < groove.length; i++) groove[i] = (Math.random() * 2 - 1) * 0.05;
-  for (let n = 0; n < 26; n++) {
-    const at = Math.floor(Math.random() * (groove.length - 40));
-    const loud = 0.3 + Math.random() * 0.7;
-    for (let k = 0; k < 24; k++) groove[at + k] += (Math.random() * 2 - 1) * loud * (1 - k / 24);
-  }
-  const spin = c.createBufferSource();
-  spin.buffer = surface;
-  spin.loop = true;
-  spin.start();
-  const crackleBand = c.createBiquadFilter();
-  crackleBand.type = 'bandpass';
-  crackleBand.frequency.value = 2400;
-  crackleBand.Q.value = 0.5;
-  const crackle = c.createGain();
-  crackle.gain.value = 0;
-  spin.connect(crackleBand).connect(crackle).connect(master);
-
-  beds = { wind, windBand, crackle };
   return true;
 }
 
-/** Bring every bed to where the place, the weather and the record say it should be. */
-function settle(seconds = 1.2): void {
-  if (!ctx || !master || !beds) return;
+/** Fade everything in or out with the switch. */
+function settle(): void {
+  if (!ctx || !master) return;
   const t = ctx.currentTime;
-  const to = (param: AudioParam, value: number, over = seconds) => {
-    param.cancelScheduledValues(t);
-    param.setValueAtTime(param.value, t);
-    param.linearRampToValueAtTime(value, t + over);
-  };
-  to(master.gain, on ? MASTER : 0, on ? 0.6 : 0.25);
-  to(beds.crackle.gain, record ? 0.05 : 0, 0.4);
-  gust();
-}
-
-/** One gust: a new level and a new pitch for the wind, a few seconds away. */
-function gust(): void {
-  if (!ctx || !beds || !on) return;
-  const t = ctx.currentTime;
-  const blowing = weather === 'snow' ? 1.5 : weather === 'rain' ? 1.2 : 1;
-  const level = (0.012 + Math.random() * 0.05) * blowing * AT_WINDOW[place];
-  beds.wind.gain.cancelScheduledValues(t);
-  beds.wind.gain.setValueAtTime(beds.wind.gain.value, t);
-  beds.wind.gain.linearRampToValueAtTime(level, t + 2.6);
-  beds.windBand.frequency.cancelScheduledValues(t);
-  beds.windBand.frequency.setValueAtTime(beds.windBand.frequency.value, t);
-  beds.windBand.frequency.linearRampToValueAtTime(230 + Math.random() * 380, t + 2.6);
+  master.gain.cancelScheduledValues(t);
+  master.gain.setValueAtTime(master.gain.value, t);
+  master.gain.linearRampToValueAtTime(on ? MASTER : 0, t + (on ? 0.6 : 0.25));
 }
 
 /**
@@ -306,28 +225,19 @@ export function setSound(next: boolean): void {
   } catch {
     // Not remembered, then.
   }
-  window.clearInterval(gusts);
-  if (on) gusts = window.setInterval(gust, 2800);
   settle();
   listeners.forEach((listener) => listener());
 }
 
-/** Where the camera is standing. The window is loud at the Desk and faint at the Console. */
+/** Where the camera is standing. The clock is loud at the Desk and faint at the Console. */
 export function soundPlace(next: Place): void {
   place = next;
-  settle();
 }
 
-export function soundWeather(next: Weather): void {
-  weather = next;
-  settle();
-}
-
-/** A record is on the player, or has come off it. */
+/** A record is on the player, or has come off it: the stylus going down. */
 export function soundRecord(playing: boolean): void {
   if (playing && !record) hear('needle');
   record = playing;
-  settle();
 }
 
 // Remembered as on from a visit before: the graph still cannot be made until

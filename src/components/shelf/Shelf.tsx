@@ -3,8 +3,7 @@ import { Canvas } from '@react-three/fiber';
 import { Scene } from './Scene';
 import { turntable } from './clock';
 import { hush, speak } from './voice';
-import { hear, onSound, setSound, soundOn, soundPlace, soundRecord, soundWeather } from './sound';
-import { WEATHER } from './Weather';
+import { hear, onSound, setSound, soundOn, soundPlace, soundRecord } from './sound';
 import Bones from '../bones/Bones';
 import { MEDITATION } from '../../data/meditation';
 import type {
@@ -111,11 +110,9 @@ export default function Shelf({
 
   // The Room's sound: off until the switch in the nav is clicked. See sound.ts.
   const sounding = useSyncExternalStore(onSound, soundOn, () => false);
-  // Rain is heard as well as seen, and snow comes with more wind.
-  useEffect(() => soundWeather(WEATHER), []);
   // Where the camera stands is where the listener stands.
   useEffect(() => soundPlace(place), [place]);
-  // The stylus going down, and the record's surface for as long as it turns.
+  // The stylus going down.
   useEffect(() => soundRecord(playing), [playing]);
   // A Box sliding out as it is pointed at.
   useEffect(() => {
