@@ -65,8 +65,31 @@ const SHELF_HALF = (SHELF.innerWidth + SHELF.side * 2) / 2 + 0.14;
  */
 interface Frame {
   fit: (halfWidth: number) => number;
+  /** How far back the camera has to stand to see this many units above and below where it looks. */
+  tall: (halfHeight: number) => number;
   wide: number;
+  /**
+   * The strip of the frame the nav and the HUD leave clear on a phone, top
+   * and bottom, from 1 at the top edge to -1 at the bottom.
+   */
+  clear: { top: number; bottom: number };
 }
+
+/**
+ * What the nav and the HUD cover on a phone, in CSS pixels. The HUD's fade
+ * starts higher than this, but the fade is meant to lie over the room: this
+ * is down to where the words start.
+ */
+const PHONE_NAV_PX = 64;
+const PHONE_HUD_PX = 112;
+
+/**
+ * The Bust's height above the top of the Shelf: BUST.height in
+ * scripts/shelf.py, and a little air over his head.
+ */
+const BUST_RISE = 0.36 + 0.06;
+/** Below the Shelf's foot, a strip of floor, so it stands on something. */
+const FLOOR_SHOWN = 0.08;
 
 /** How far forward a Box comes when it is held out for Inspecting. Matches Box.tsx. */
 const INSPECT_FORWARD = 1.5;
@@ -140,7 +163,9 @@ function cameraTargets(
   state: ShelfState,
   place: ShelfPlace,
   focus: Focus | null,
-  frame: Frame
+  frame: Frame,
+  /** Half the Shelf's height, which depends on how many Sections it has. */
+  unitHalf: number
 ) {
   // Pulled back along its own line of sight until the desk fits the width.
   if (place === 'desk') return composed(DESK_VIEW, 1.0, frame);
@@ -181,21 +206,35 @@ function cameraTargets(
   // when you point slides the Box out from under the pointer. Looking around
   // is the visitor's to do now, by dragging (see useOrbit).
   //
-  // Four units back, so the room is most of the picture and not a margin
-  // round the Shelf. On a phone, only as far back as the Shelf's width needs.
-  //
-  // On a phone the HUD is a block across the bottom, not a line down the
-  // left, so the camera looks a little lower and the Shelf rides up clear of it.
-  const under = -0.26 * (1 - frame.wide);
-  // On a wide window it looks a little higher instead, and stands a third of
-  // a unit further back. The Shelf with the Bust on top of it is taller than
-  // the frame from four units, and the Bust was cut off at the shoulders. A
-  // phone stands further back already and has it whole.
-  const over = 0.13 * frame.wide;
-  const back = 4.0 + 0.3 * frame.wide;
+  // On a wide window: four and a third units back, so the room is most of the
+  // picture and not a margin round the Shelf, looking a little high. From
+  // four units the Shelf with the Bust on top was taller than the frame and
+  // he was cut off at the shoulders.
+  const wideLook = 0.13;
+  const wideBack = Math.max(4.3, frame.fit(SHELF_HALF));
+
+  // On a phone the nav covers the top and the HUD the bottom, so the Shelf
+  // and the Bust have to fit the strip between them, not just the width. It
+  // used to fit the width only and aim low to clear the HUD, which in a
+  // browser with its toolbars showing put the Bust behind the nav. Now it
+  // stands back as far as either needs, and sets the Shelf in the middle of
+  // the strip.
+  const top = unitHalf + BUST_RISE;
+  const bottom = -unitHalf - FLOOR_SHOWN;
+  const { clear } = frame;
+  const half = Math.max(
+    (top - bottom) / (clear.top - clear.bottom),
+    // What fitting the width alone would show, above and below.
+    frame.fit(SHELF_HALF) / frame.tall(1)
+  );
+  const narrowLook = (top + bottom) / 2 - ((clear.top + clear.bottom) / 2) * half;
+  const narrowBack = frame.tall(half);
+
+  const look = THREE.MathUtils.lerp(narrowLook, wideLook, frame.wide);
+  const back = THREE.MathUtils.lerp(narrowBack, wideBack, frame.wide);
   return {
-    position: new THREE.Vector3(0, 0.2 + under + over, Math.max(back, frame.fit(SHELF_HALF))),
-    lookAt: new THREE.Vector3(0, under + over, 0),
+    position: new THREE.Vector3(0, 0.2 + look, back),
+    lookAt: new THREE.Vector3(0, look, 0),
   };
 }
 
@@ -244,10 +283,17 @@ export function Scene({
   // asks how far back it must stand for what it is showing to fit the width.
   const aspect = size.width / Math.max(1, size.height);
   const halfFov = THREE.MathUtils.degToRad((camera as THREE.PerspectiveCamera).fov ?? 42) / 2;
+  const tallPx = Math.max(1, size.height);
   const frame: Frame = {
     fit: (halfWidth) => halfWidth / (Math.tan(halfFov) * Math.max(0.3, aspect)),
+    tall: (halfHeight) => halfHeight / Math.tan(halfFov),
     wide: THREE.MathUtils.smoothstep(aspect, 0.7, 1.25),
+    clear: {
+      top: 1 - (2 * PHONE_NAV_PX) / tallPx,
+      bottom: -1 + (2 * PHONE_HUD_PX) / tallPx,
+    },
   };
+  const unitHalf = (sections.length * (SHELF.openingHeight + SHELF.plank) + SHELF.plank) / 2;
   // How much further back than a desktop this window puts the Shelf camera.
   // The lean of the camera scales with it, so parallax looks the same.
   const pullBack = Math.max(1, frame.fit(SHELF_HALF) / 4.0);
@@ -286,7 +332,7 @@ export function Scene({
 
   useFrame((_, delta) => {
     const ease = easeFor(delta, 0.0025);
-    const { position, lookAt: target } = cameraTargets(state, place, focus, frame);
+    const { position, lookAt: target } = cameraTargets(state, place, focus, frame, unitHalf);
 
     // The camera leans a little towards the pointer, and with nothing to lean
     // towards it drifts on its own. It moves, the thing it looks at does not,

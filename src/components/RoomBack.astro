@@ -1,0 +1,25 @@
+---
+/**
+ * The way back from a page the room hands over to: a Write-up, a Post, the
+ * Board games, the Books. One link, the same on every such page, to the place
+ * in the room the visitor came from.
+ *
+ * Those places are ordinary pages too (/work, /writing, /music), and a visitor
+ * who gets the Flat Site lands on the list there, not in a room. So the link
+ * says "Back to the room" only to those who will get it, and names the page
+ * to everyone else. Reduced motion is what decides it, as in ShelfBoot.
+ */
+interface Props {
+  /** The room's place for this page: /work, /writing or /music. */
+  href: string;
+  /** What the link says on the Flat Site, where there is no room. */
+  flat: string;
+  /** Spacing class for the link at the foot of an article. */
+  foot?: boolean;
+}
+const { href, flat, foot = false } = Astro.props;
+---
+
+<a class:list={['back', 'room-back', { 'room-back-foot': foot }]} href={href}>
+  &larr; <span class="room-back-room">Back to the room</span><span class="room-back-flat">{flat}</span>
+</a>

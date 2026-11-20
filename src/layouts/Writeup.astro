@@ -2,6 +2,7 @@
 // A Project write-up: /quibble, /pomodoro-timer and so on.
 import Base from './Base.astro';
 import Tags from '../components/Tags.astro';
+import RoomBack from '../components/RoomBack.astro';
 
 interface Props {
   title: string;
@@ -24,7 +25,7 @@ const { title, slug, eyebrow, tags, description, dek } = Astro.props;
   spacedFooter
 >
   <article class="article">
-    <a class="back" href="/work">&larr; Work</a>
+    <RoomBack href="/work" flat="Work" />
 
     <header class="cs-head">
       <div class="eyebrow">{eyebrow}</div>
@@ -36,7 +37,7 @@ const { title, slug, eyebrow, tags, description, dek } = Astro.props;
     <slot />
 
     <div class="art-foot">
-      <a class="back" href="/work" style="margin-bottom:0;">&larr; All Work</a>
+      <RoomBack href="/work" flat="All Work" foot />
     </div>
   </article>
 </Base>

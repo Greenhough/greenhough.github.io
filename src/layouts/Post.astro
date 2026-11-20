@@ -2,6 +2,7 @@
 // A Post: /hal-9000, /speed-vs-velocity.
 import Base from './Base.astro';
 import { monthYear } from '../lib/format';
+import RoomBack from '../components/RoomBack.astro';
 
 interface Props {
   title: string;
@@ -24,7 +25,7 @@ const { title, slug, description, date, readTime, video } = Astro.props;
   spacedFooter
 >
   <article class="article narrow">
-    <a class="back" href="/writing">&larr; Writing</a>
+    <RoomBack href="/writing" flat="Writing" />
 
     <header class="art-head">
       <h1 class="art-title">{title}</h1>
@@ -52,7 +53,7 @@ const { title, slug, description, date, readTime, video } = Astro.props;
     </div>
 
     <div class="art-foot">
-      <a class="back" href="/writing" style="margin-bottom:0;">&larr; All posts</a>
+      <RoomBack href="/writing" flat="All posts" foot />
     </div>
   </article>
 </Base>

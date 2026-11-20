@@ -103,7 +103,10 @@
 
 /* ---------- reset ---------- */
 *, *::before, *::after { box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; }
+/* No tap highlight. Mobile browsers wash whatever was tapped in a translucent
+   blue, and in the room what was tapped is the whole canvas, so every tap
+   flashed the screen. Links and buttons have their own pressed states. */
+html { -webkit-text-size-adjust: 100%; -webkit-tap-highlight-color: transparent; }
 body {
   margin: 0;
   background: var(--paper);
@@ -480,6 +483,14 @@ a { color: inherit; }
   transition: opacity .15s ease;
 }
 .back:hover { opacity: .7; }
+.back:active { opacity: .55; }
+/* RoomBack: the room's own words, or the page's name where there is no room. */
+.room-back-flat { display: none; }
+.room-back-foot { margin-bottom: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .room-back-room { display: none; }
+  .room-back-flat { display: inline; }
+}
 .art-head { margin-bottom: 40px; }
 .art-title {
   font-family: 'Archivo', sans-serif;
@@ -879,6 +890,8 @@ html.shelf-capable .wrap { display: none; }
 .shelf-btn.ghost { background: rgb(14 12 10 / .35); color: var(--paper); border-color: rgb(251 250 247 / .55); }
 .shelf-btn.ghost:hover { background: rgb(14 12 10 / .35); color: #6fcf9b; border-color: #6fcf9b; }
 .shelf-btn:focus-visible { outline: 3px solid #6fcf9b; outline-offset: 3px; }
+/* A press shows, now the browser's tap highlight is off (see html). */
+.shelf-btn:active { transform: scale(.97); }
 
 @media (max-width: 760px) {
   .shelf-hud {

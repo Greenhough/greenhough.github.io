@@ -1,6 +1,7 @@
 ---
 import { getCollection } from 'astro:content';
 import Base from '../layouts/Base.astro';
+import RoomBack from '../components/RoomBack.astro';
 
 const INTRO = 'My top 10 board games of all time.';
 const BGG_LIST = 'https://boardgamegeek.com/profile/Sketcherrrr/list/top';
@@ -15,6 +16,7 @@ const games = (await getCollection('boardGames')).sort((a, b) => a.data.rank - b
   path="/board-games"
 >
   <header class="page-head">
+    <RoomBack href="/music" flat="Music" />
     <h1 class="page-title">Board Games</h1>
     <p class="page-intro">{INTRO}</p>
   </header>

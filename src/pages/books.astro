@@ -1,6 +1,7 @@
 ---
 import { getCollection } from 'astro:content';
 import Base from '../layouts/Base.astro';
+import RoomBack from '../components/RoomBack.astro';
 
 const INTRO = 'Below are some of my favourite books.';
 
@@ -19,6 +20,7 @@ const topics = [...new Set(books.map((b) => b.data.topic))].map((topic) => ({
   path="/books"
 >
   <header class="page-head">
+    <RoomBack href="/writing" flat="Writing" />
     <h1 class="page-title">Books</h1>
     <p class="page-intro">{INTRO}</p>
   </header>

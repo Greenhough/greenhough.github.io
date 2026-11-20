@@ -323,13 +323,14 @@ export function Console({
           onHover={onHover}
         />
       )}
-      {/* The Board games: from across the room they lead here, and from here
-          to the list. */}
+      {/* The Board games open the list, from anywhere. They used to lead to the
+          Console first, the way the records do, but the Console's HUD is about
+          the record that is out: a tap on the games came up with a song. */}
       {boardGames.length > 0 && (
         <Target
           position={[GAMES.x, BAY_FLOOR + gamesHeight / 2, GAMES.front - 0.15]}
           size={[0.34, gamesHeight + 0.01, 0.32]}
-          onClick={active ? onOpenGames : onVisit}
+          onClick={onOpenGames}
           onHover={onHover}
         />
       )}
