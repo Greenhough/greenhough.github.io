@@ -1862,10 +1862,16 @@ def build_console(oak, metal, vinyl, label_mat, plinth_mat, sleeve_mats):
         board("Room.Console.Bottom", (w - t * 2, t, c["depth"] - 0.01), (cx, FLOOR_Y + c["leg"] + t / 2, cz), oak),
         board("Room.Console.Back", (w - t * 2, body_h - t * 2, 0.008), (cx, FLOOR_Y + c["leg"] + body_h / 2, z0 + 0.008), oak, bevel=False),
     ]
+    # The end panels stop under the top board rather than running up through
+    # it. Through it, each one's top face lay in the plane of the top's, baked
+    # black, and on a phone the two flickered: the top's corners went dark.
+    # The middle one already stopped short, top and bottom.
     for tag, x in (("L", c["x0"] + t / 2), ("R", c["x1"] - t / 2), ("M", cx + 0.02)):
+        high = body_h - (t if tag != "M" else t * 2)
+        foot = FLOOR_Y + c["leg"] + (0 if tag != "M" else t)
         parts.append(
-            board(f"Room.Console.Side.{tag}", (t, body_h - (0 if tag != "M" else t * 2), c["depth"] - (0 if tag != "M" else 0.02)),
-                  (x, FLOOR_Y + c["leg"] + body_h / 2, cz), oak, vertical=True)
+            board(f"Room.Console.Side.{tag}", (t, high, c["depth"] - (0 if tag != "M" else 0.02)),
+                  (x, foot + high / 2, cz), oak, vertical=True)
         )
     for i, x in enumerate((c["x0"] + 0.06, c["x1"] - 0.06)):
         for j, z in enumerate((z0 + 0.05, z0 + c["depth"] - 0.05)):

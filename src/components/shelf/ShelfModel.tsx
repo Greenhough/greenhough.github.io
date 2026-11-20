@@ -44,6 +44,33 @@ const RECORD = /^RoomRecord$/;
 const LEAF = /^Room(FloorPlant|TopPlant|Plant)Leaf/;
 /** Marcus Aurelius. Dressing that answers when spoken to: see BustProps. */
 const BUST = 'RoomBust';
+
+/**
+ * The Console's end panels run up through its top board, so each one's top
+ * face lies in the plane of the top's own, inside it, and baked black because
+ * no light reaches it. On a phone's coarser depth buffer the two took turns,
+ * and the top's corners flickered dark. build_console in scripts/shelf.py
+ * now stops the panels under the board; until the next bake, they are sunk
+ * here instead. Once the model agrees this finds nothing to do.
+ */
+const CONSOLE_TOP = 'RoomConsoleTop';
+const CONSOLE_ENDS = ['RoomConsoleSideL', 'RoomConsoleSideR'];
+/** How far under the top's surface the panels end up. Clear of any phone's depth precision. */
+const SINK = 0.004;
+
+function sinkUnder(root: THREE.Object3D, topName: string, names: string[]) {
+  const top = root.getObjectByName(topName);
+  if (!top) return;
+  root.updateMatrixWorld(true);
+  const surface = new THREE.Box3().setFromObject(top).max.y;
+  for (const name of names) {
+    const part = root.getObjectByName(name);
+    if (!part) continue;
+    const over = new THREE.Box3().setFromObject(part).max.y - (surface - SINK);
+    // The root is unscaled and unturned, so a world drop is a local one.
+    if (over > 0) part.position.y -= over;
+  }
+}
 /** How much the Bust brightens under the pointer. Quiet, like the Book stack's lift. */
 const BUST_LIFT = 1.14;
 /** How much brighter he gets at the loudest of his line. A glow that follows the voice, since a bust cannot move its lips. */
@@ -194,6 +221,7 @@ export function ShelfModel({ phone = false, onBust, onHover }: Props) {
       mesh.castShadow = false;
       mesh.receiveShadow = false;
     });
+    sinkUnder(root, CONSOLE_TOP, CONSOLE_ENDS);
     // Where the Bust stands, for a hit box around it. The root sits at the
     // origin, so its own bounds are already in the Room's coordinates.
     let bustBox: { center: THREE.Vector3; size: THREE.Vector3 } | null = null;
