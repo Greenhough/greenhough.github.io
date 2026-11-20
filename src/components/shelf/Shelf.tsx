@@ -49,7 +49,11 @@ const SUBTITLE_FADE_MS = 900;
 // every render, which showed up as the scene initialising twice and a Box page
 // coming up blank.
 const RESIZE = { debounce: 0, scroll: false } as const;
-const CAMERA = { position: [0, 0, 4.4] as [number, number, number], fov: 42 };
+// The near plane is 0.2, not three.js's 0.1. Nothing is ever closer than the
+// Laptop View's 0.4, and depth precision goes with the near plane: doubling
+// it halves the fighting between the room and the things laid a millimetre
+// proud of it (the Sheet, the games' art), on phones with 16-bit depth.
+const CAMERA = { position: [0, 0, 4.4] as [number, number, number], fov: 42, near: 0.2, far: 200 };
 
 function isPhone() {
   return typeof window !== 'undefined' && window.matchMedia('(max-width: 760px)').matches;
@@ -446,7 +450,8 @@ export default function Shelf({
             <button className="shelf-btn" onClick={() => openPost(post.slug)}>
               Read it
             </button>
-            <a className="shelf-btn ghost" href="/writing#posts">
+            {/* Not /writing: that is this view, so the link went nowhere. */}
+            <a className="shelf-btn ghost" href="/writing/all">
               All writing
             </a>
             <a

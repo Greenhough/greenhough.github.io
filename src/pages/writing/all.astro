@@ -1,0 +1,30 @@
+---
+import Base from '../../layouts/Base.astro';
+import PostIndex from '../../components/PostIndex.astro';
+import RoomBack from '../../components/RoomBack.astro';
+
+const INTRO = 'Ideas, notes, and essays on my experiments building with AI.';
+
+// Every Post, without the room. /writing has the same list, but under the
+// room, opened at the Desk, so a link there from the Desk only moved the
+// camera to where it already was. This is where the Desk's "All writing"
+// goes, the way the Board games go to /board-games. The list is /writing's,
+// so that is the canonical URL and this page stays out of the sitemap.
+---
+
+<Base
+  title="Writing | Evan Greenhough"
+  ogTitle="Writing | Evan Greenhough"
+  description={INTRO}
+  path="/writing/all"
+  canonicalPath="/writing"
+  active="writing"
+>
+  <header class="page-head">
+    <RoomBack href="/writing" flat="Writing" />
+    <h1 class="page-title">Writing</h1>
+    <p class="page-intro">{INTRO}</p>
+  </header>
+
+  <PostIndex />
+</Base>

@@ -1,16 +1,11 @@
 ---
-import { getCollection } from 'astro:content';
 import Base from '../layouts/Base.astro';
-import { monthYear } from '../lib/format';
+import PostIndex from '../components/PostIndex.astro';
 import { getRoomContent, getShelfSections } from '../lib/shelf';
 import ShelfBoot from '../components/shelf/ShelfBoot.astro';
 import Shelf from '../components/shelf/Shelf';
 
 const INTRO = 'Ideas, notes, and essays on my experiments building with AI.';
-
-const posts = (await getCollection('posts')).sort(
-  (a, b) => b.data.date.valueOf() - a.data.date.valueOf()
-);
 
 // This page carries the room as an overlay, opened at the Desk — which is
 // where Posts live, per docs/adr/0004. Everything below is the Flat Site: the
@@ -40,17 +35,5 @@ const room = await getRoomContent();
     <p class="page-intro">{INTRO}</p>
   </header>
 
-  <section class="sec">
-    <div class="post-list index">
-      {
-        posts.map((post) => (
-          <a class="post" href={`/${post.data.slug}`}>
-            <h2 class="post-title">{post.data.title}</h2>
-            <span class="post-date">{monthYear(post.data.date)}</span>
-            <p class="post-excerpt" set:html={post.data.excerpt} />
-          </a>
-        ))
-      }
-    </div>
-  </section>
+  <PostIndex />
 </Base>

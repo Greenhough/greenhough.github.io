@@ -1,0 +1,24 @@
+---
+// Every Post, newest first. The list under the room at /writing, and the
+// whole of /writing/all, which is where the Desk's "All writing" goes.
+import { getCollection } from 'astro:content';
+import { monthYear } from '../lib/format';
+
+const posts = (await getCollection('posts')).sort(
+  (a, b) => b.data.date.valueOf() - a.data.date.valueOf()
+);
+---
+
+<section class="sec">
+  <div class="post-list index">
+    {
+      posts.map((post) => (
+        <a class="post" href={`/${post.data.slug}`}>
+          <h2 class="post-title">{post.data.title}</h2>
+          <span class="post-date">{monthYear(post.data.date)}</span>
+          <p class="post-excerpt" set:html={post.data.excerpt} />
+        </a>
+      ))
+    }
+  </div>
+</section>

@@ -92,6 +92,14 @@ export function Paper({ post, active, onOpen, onHover }: Props) {
       toneMapped: false,
       // The sheet is a single plane, so the back has to draw as well.
       side: THREE.DoubleSide,
+      // Lying down it is a millimetre and a half off the desk. From across
+      // the Room, nearly edge on, a phone's depth buffer (often 16-bit on
+      // Android) cannot tell the two apart, and they took turns: a line
+      // flickering through the far half of the sheet. The offset settles it
+      // for the sheet, and grows with the slope, which is where it was lost.
+      polygonOffset: true,
+      polygonOffsetFactor: -2,
+      polygonOffsetUnits: -4,
     });
   }, [texture]);
   const lift = useRef(0);
